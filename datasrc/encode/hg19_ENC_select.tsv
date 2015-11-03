@@ -1,0 +1,262 @@
+File accession	Output type	Biosample term name	Biosample term id	Experiment target	Biosample sex	Assembly	File download URL	md5sum	Paired with	Technical replicate	Biological replicate(s)
+ENCFF000YWJ	signal	K562	EFO:0002067	POLR2A-human	female	hg19	https://www.encodeproject.org/files/ENCFF000YWJ/@@download/ENCFF000YWJ.bigWig	8bb641fe367ca0f9275e56c0dce9dcf3	NA	NA	NA
+ENCFF001VOF	peaks	K562	EFO:0002067	POLR2A-human	female	hg19	https://www.encodeproject.org/files/ENCFF001VOF/@@download/ENCFF001VOF.bed.gz	0e1e4bcfbc9143d6da9027890b928bf0	NA	NA	NA
+ENCFF000WAQ	signal	GM12878	EFO:0002784	EP300-human	female	hg19	https://www.encodeproject.org/files/ENCFF000WAQ/@@download/ENCFF000WAQ.bigWig	c4d8e955e151485865a1ed1f5ac8b1cc	NA	NA	NA
+ENCFF001VEX	peaks	GM12878	EFO:0002784	EP300-human	female	hg19	https://www.encodeproject.org/files/ENCFF001VEX/@@download/ENCFF001VEX.bed.gz	bc6ddcbb18190cff6f65d8894d6a87ab	NA	NA	NA
+ENCFF000YWS	signal	K562	EFO:0002067	POLR2A-human	female	hg19	https://www.encodeproject.org/files/ENCFF000YWS/@@download/ENCFF000YWS.bigWig	827b59c5dfc3aaf3ad912b89060748e8	NA	NA	NA
+ENCFF001VOH	peaks	K562	EFO:0002067	POLR2A-human	female	hg19	https://www.encodeproject.org/files/ENCFF001VOH/@@download/ENCFF001VOH.bed.gz	e878710ad764502ef990eeff2524a04a	NA	NA	NA
+ENCFF000WBA	signal	GM12878	EFO:0002784	EP300-human	female	hg19	https://www.encodeproject.org/files/ENCFF000WBA/@@download/ENCFF000WBA.bigWig	99d776eadfe37b45719d76a84c3b6c12	NA	NA	NA
+ENCFF001VEY	peaks	GM12878	EFO:0002784	EP300-human	female	hg19	https://www.encodeproject.org/files/ENCFF001VEY/@@download/ENCFF001VEY.bed.gz	b47d8a6898a2ae6b6a627b61d201b056	NA	NA	NA
+ENCFF001FMB	raw signal	HepG2	EFO:0001187	H3K4me3-human	male	hg19	https://www.encodeproject.org/files/ENCFF001FMB/@@download/ENCFF001FMB.bigWig	b450f257db43282c44953dc2ef95062c	NA	1	1
+ENCFF001FMD	raw signal	HepG2	EFO:0001187	H3K4me3-human	male	hg19	https://www.encodeproject.org/files/ENCFF001FMD/@@download/ENCFF001FMD.bigWig	b475ddf154626f1f971594ccf8584a1f	NA	1	2
+ENCFF001XDD	peaks	HepG2	EFO:0001187	H3K4me3-human	male	hg19	https://www.encodeproject.org/files/ENCFF001XDD/@@download/ENCFF001XDD.bed.gz	ec7b5a5a8ca1587fafb01d3fb5c94910	NA	1	1
+ENCFF001XDE	peaks	HepG2	EFO:0001187	H3K4me3-human	male	hg19	https://www.encodeproject.org/files/ENCFF001XDE/@@download/ENCFF001XDE.bed.gz	273db3fe5a43e5de25c047ae0a79337b	NA	1	2
+ENCFF001HNQ	raw signal	HepG2	EFO:0001187	CTCF-human	male	hg19	https://www.encodeproject.org/files/ENCFF001HNQ/@@download/ENCFF001HNQ.bigWig	d097a28b5ea0cc5cf8f38ecdc357a4c9	NA	1	1
+ENCFF001HNR	raw signal	HepG2	EFO:0001187	CTCF-human	male	hg19	https://www.encodeproject.org/files/ENCFF001HNR/@@download/ENCFF001HNR.bigWig	b589e6d47ba48f5a5bc7c4a5e25f7e69	NA	1	2
+ENCFF001XRB	peaks	HepG2	EFO:0001187	CTCF-human	male	hg19	https://www.encodeproject.org/files/ENCFF001XRB/@@download/ENCFF001XRB.bed.gz	9a0725360d6dbba1db63ea1c9da49d36	NA	1	1
+ENCFF001XRC	peaks	HepG2	EFO:0001187	CTCF-human	male	hg19	https://www.encodeproject.org/files/ENCFF001XRC/@@download/ENCFF001XRC.bed.gz	181f9e13579608834dd3fa3acf3bdff8	NA	1	2
+ENCFF001HNV	raw signal	HepG2	EFO:0001187	Control-human	male	hg19	https://www.encodeproject.org/files/ENCFF001HNV/@@download/ENCFF001HNV.bigWig	9f4c7465c8c117390afb748fd91e082e	NA	1	1
+ENCFF001FWL	raw signal	K562	EFO:0002067	H3K36me3-human	female	hg19	https://www.encodeproject.org/files/ENCFF001FWL/@@download/ENCFF001FWL.bigWig	630eecea42e9f9fb37962465149a840a	NA	1	1
+ENCFF001FWN	raw signal	K562	EFO:0002067	H3K36me3-human	female	hg19	https://www.encodeproject.org/files/ENCFF001FWN/@@download/ENCFF001FWN.bigWig	c956319c66e7dbb8cce557f3b7bbfac5	NA	1	2
+ENCFF001XGQ	peaks	K562	EFO:0002067	H3K36me3-human	female	hg19	https://www.encodeproject.org/files/ENCFF001XGQ/@@download/ENCFF001XGQ.bed.gz	93859de4af3813cd4d13749dd60121e2	NA	1	1
+ENCFF001XGR	peaks	K562	EFO:0002067	H3K36me3-human	female	hg19	https://www.encodeproject.org/files/ENCFF001XGR/@@download/ENCFF001XGR.bed.gz	c756b072eb8d34fe2c52bba15f9dc5d5	NA	1	2
+ENCFF001FWA	raw signal	K562	EFO:0002067	H3K27me3-human	female	hg19	https://www.encodeproject.org/files/ENCFF001FWA/@@download/ENCFF001FWA.bigWig	ab8d8a56d11436f926ac65e4bba570af	NA	1	1
+ENCFF001FWD	raw signal	K562	EFO:0002067	H3K27me3-human	female	hg19	https://www.encodeproject.org/files/ENCFF001FWD/@@download/ENCFF001FWD.bigWig	3b8ddf2ac52d1e8ca9b47f75a870ae0b	NA	1	2
+ENCFF001XGM	peaks	K562	EFO:0002067	H3K27me3-human	female	hg19	https://www.encodeproject.org/files/ENCFF001XGM/@@download/ENCFF001XGM.bed.gz	548c7a733ac18e9b716b351d1868f127	NA	1	1
+ENCFF001XGN	peaks	K562	EFO:0002067	H3K27me3-human	female	hg19	https://www.encodeproject.org/files/ENCFF001XGN/@@download/ENCFF001XGN.bed.gz	a56bf1a06307c81af8596f8eb43f684b	NA	1	2
+ENCFF001HTN	raw signal	K562	EFO:0002067	Control-human	female	hg19	https://www.encodeproject.org/files/ENCFF001HTN/@@download/ENCFF001HTN.bigWig	171d60dcfd75ec4e646532c6688a1ef3	NA	1	1
+ENCFF000XVO	signal	HepG2	EFO:0001187	EP300-human	male	hg19	https://www.encodeproject.org/files/ENCFF000XVO/@@download/ENCFF000XVO.bigWig	d4c5579e9c5946d50c157ba502e934f0	NA	NA	NA
+ENCFF001VKQ	peaks	HepG2	EFO:0001187	EP300-human	male	hg19	https://www.encodeproject.org/files/ENCFF001VKQ/@@download/ENCFF001VKQ.bed.gz	04470fbb0ce8e016739920216e6751bd	NA	NA	NA
+ENCFF001FLR	raw signal	HepG2	EFO:0001187	H3K36me3-human	male	hg19	https://www.encodeproject.org/files/ENCFF001FLR/@@download/ENCFF001FLR.bigWig	29116f3e0a47e52ebf4d357402a22f6e	NA	1	1
+ENCFF001FLS	raw signal	HepG2	EFO:0001187	H3K36me3-human	male	hg19	https://www.encodeproject.org/files/ENCFF001FLS/@@download/ENCFF001FLS.bigWig	99baeb8624d56d92887837711f10bf5f	NA	1	2
+ENCFF001XCZ	peaks	HepG2	EFO:0001187	H3K36me3-human	male	hg19	https://www.encodeproject.org/files/ENCFF001XCZ/@@download/ENCFF001XCZ.bed.gz	a33ef44a76d60d6b29cbbe17e978cc72	NA	1	1
+ENCFF001XDA	peaks	HepG2	EFO:0001187	H3K36me3-human	male	hg19	https://www.encodeproject.org/files/ENCFF001XDA/@@download/ENCFF001XDA.bed.gz	bd0fc51adc7ba0e6481d81f8a817814f	NA	1	2
+ENCFF000VUF	signal	GM12878	EFO:0002784	CTCF-human	female	hg19	https://www.encodeproject.org/files/ENCFF000VUF/@@download/ENCFF000VUF.bigWig	d806bfbb7d266c4a66bee9219551bbcb	NA	NA	NA
+ENCFF001VED	peaks	GM12878	EFO:0002784	CTCF-human	female	hg19	https://www.encodeproject.org/files/ENCFF001VED/@@download/ENCFF001VED.bed.gz	516f23be901386790d57744858feb099	NA	NA	NA
+ENCFF000VDK	signal	K562	EFO:0002067	H3K4me1-human	female	hg19	https://www.encodeproject.org/files/ENCFF000VDK/@@download/ENCFF000VDK.bigWig	aab5c2e0b2ec10cc89bb706d7e7161b7	NA	NA	NA
+ENCFF001VCQ	peaks	K562	EFO:0002067	H3K4me1-human	female	hg19	https://www.encodeproject.org/files/ENCFF001VCQ/@@download/ENCFF001VCQ.bed.gz	8664dfcb4d4d7fc30f05b0b71d7bed49	NA	NA	NA
+ENCFF000VDE	signal	K562	EFO:0002067	H3K27me3-human	female	hg19	https://www.encodeproject.org/files/ENCFF000VDE/@@download/ENCFF000VDE.bigWig	07986c25585e8f867aaed33f9a55d12a	NA	NA	NA
+ENCFF001VCP	peaks	K562	EFO:0002067	H3K27me3-human	female	hg19	https://www.encodeproject.org/files/ENCFF001VCP/@@download/ENCFF001VCP.bed.gz	f6617bce31addd03fb9ad1307fb70128	NA	NA	NA
+ENCFF000VDQ	signal	K562	EFO:0002067	H3K4me3-human	female	hg19	https://www.encodeproject.org/files/ENCFF000VDQ/@@download/ENCFF000VDQ.bigWig	8f6e3296c4fa702878987e71278ee82a	NA	NA	NA
+ENCFF001VCR	peaks	K562	EFO:0002067	H3K4me3-human	female	hg19	https://www.encodeproject.org/files/ENCFF001VCR/@@download/ENCFF001VCR.bed.gz	dad2b246ea317d2b49316952132b480e	NA	NA	NA
+ENCFF000VDZ	signal	K562	EFO:0002067	Control-human	female	hg19	https://www.encodeproject.org/files/ENCFF000VDZ/@@download/ENCFF000VDZ.bigWig	a3587534e1b7cabc939f95230896ab8e	NA	NA	NA
+ENCFF000WBU	signal	GM12878	EFO:0002784	POLR2A-human	female	hg19	https://www.encodeproject.org/files/ENCFF000WBU/@@download/ENCFF000WBU.bigWig	3d8773c82debcdfad9bc0f4e2c1542a4	NA	NA	NA
+ENCFF001VFA	peaks	GM12878	EFO:0002784	POLR2A-human	female	hg19	https://www.encodeproject.org/files/ENCFF001VFA/@@download/ENCFF001VFA.bed.gz	b4f62eb38ce26a32b3b1eb1fdbae0f2d	NA	NA	NA
+ENCFF000XSC	signal	HepG2	EFO:0001187	Control-human	male	hg19	https://www.encodeproject.org/files/ENCFF000XSC/@@download/ENCFF000XSC.bigWig	28841bc5a8353b5f63f343a51ca615fd	NA	NA	NA
+ENCFF000XSQ	signal	HepG2	EFO:0001187	Control-human	male	hg19	https://www.encodeproject.org/files/ENCFF000XSQ/@@download/ENCFF000XSQ.bigWig	19195f937505fd39abaa8fe7583aa813	NA	NA	NA
+ENCFF000XWH	signal	HepG2	EFO:0001187	POLR2A-human	male	hg19	https://www.encodeproject.org/files/ENCFF000XWH/@@download/ENCFF000XWH.bigWig	f7114cc0f62a7245b978b306d494ad1d	NA	NA	NA
+ENCFF001VKT	peaks	HepG2	EFO:0001187	POLR2A-human	male	hg19	https://www.encodeproject.org/files/ENCFF001VKT/@@download/ENCFF001VKT.bed.gz	88d3d67944fd3c139fc860c097be8c71	NA	NA	NA
+ENCFF001EXN	raw signal	GM12878	EFO:0002784	H3K36me3-human	female	hg19	https://www.encodeproject.org/files/ENCFF001EXN/@@download/ENCFF001EXN.bigWig	ff7ba7f2f24fd96c3be0b3bdfce1d40d	NA	1	1
+ENCFF001EXP	raw signal	GM12878	EFO:0002784	H3K36me3-human	female	hg19	https://www.encodeproject.org/files/ENCFF001EXP/@@download/ENCFF001EXP.bigWig	b904dfce2ecb1afe36b479517d4601c8	NA	1	2
+ENCFF001WYG	peaks	GM12878	EFO:0002784	H3K36me3-human	female	hg19	https://www.encodeproject.org/files/ENCFF001WYG/@@download/ENCFF001WYG.bed.gz	c8594f80d621264f0ad714d7f45d1270	NA	1	1
+ENCFF001WYI	peaks	GM12878	EFO:0002784	H3K36me3-human	female	hg19	https://www.encodeproject.org/files/ENCFF001WYI/@@download/ENCFF001WYI.bed.gz	bd444de0769239f45e9ca3c53d59b5b5	NA	1	2
+ENCFF000XSX	signal	HepG2	EFO:0001187	Control-human	male	hg19	https://www.encodeproject.org/files/ENCFF000XSX/@@download/ENCFF000XSX.bigWig	7c9e5a99d59426fa82bc2b6f961ed083	NA	NA	NA
+ENCFF000XWB	signal	HepG2	EFO:0001187	POLR2A-human	male	hg19	https://www.encodeproject.org/files/ENCFF000XWB/@@download/ENCFF000XWB.bigWig	af45c52b3c1d2e4949ef8d50de51c837	NA	NA	NA
+ENCFF001VKS	peaks	HepG2	EFO:0001187	POLR2A-human	male	hg19	https://www.encodeproject.org/files/ENCFF001VKS/@@download/ENCFF001VKS.bed.gz	b8e66bf6d7770eb2e827523dff0c0422	NA	NA	NA
+ENCFF001FWU	raw signal	K562	EFO:0002067	H3K4me3-human	female	hg19	https://www.encodeproject.org/files/ENCFF001FWU/@@download/ENCFF001FWU.bigWig	4ffd34d9c36655bd02f3daa48edf564e	NA	1	1
+ENCFF001FWX	raw signal	K562	EFO:0002067	H3K4me3-human	female	hg19	https://www.encodeproject.org/files/ENCFF001FWX/@@download/ENCFF001FWX.bigWig	76706bd5cdc6ad8e6073fb78442f9593	NA	1	2
+ENCFF001XGV	peaks	K562	EFO:0002067	H3K4me3-human	female	hg19	https://www.encodeproject.org/files/ENCFF001XGV/@@download/ENCFF001XGV.bed.gz	a33537cc1834d1d15c4f0c1eefd13ec3	NA	1	1
+ENCFF001XGW	peaks	K562	EFO:0002067	H3K4me3-human	female	hg19	https://www.encodeproject.org/files/ENCFF001XGW/@@download/ENCFF001XGW.bed.gz	576dbb558e807a6511feff478d4ba3f9	NA	1	2
+ENCFF001HTI	raw signal	K562	EFO:0002067	CTCF-human	female	hg19	https://www.encodeproject.org/files/ENCFF001HTI/@@download/ENCFF001HTI.bigWig	0290f47c68f51e4cfb256fb752cf3859	NA	1	1
+ENCFF001HTL	raw signal	K562	EFO:0002067	CTCF-human	female	hg19	https://www.encodeproject.org/files/ENCFF001HTL/@@download/ENCFF001HTL.bigWig	808fadd7b9494f469cd3c780fab77ee4	NA	1	2
+ENCFF001XST	peaks	K562	EFO:0002067	CTCF-human	female	hg19	https://www.encodeproject.org/files/ENCFF001XST/@@download/ENCFF001XST.bed.gz	e8332ac71efe7497fe88b557ce628c9c	NA	1	1
+ENCFF001XSU	peaks	K562	EFO:0002067	CTCF-human	female	hg19	https://www.encodeproject.org/files/ENCFF001XSU/@@download/ENCFF001XSU.bed.gz	ac9eb0f49655b416b767f25be87d0f8b	NA	1	2
+ENCFF001FLH	raw signal	HepG2	EFO:0001187	H3K27me3-human	male	hg19	https://www.encodeproject.org/files/ENCFF001FLH/@@download/ENCFF001FLH.bigWig	1ddfaa9da6cffdef6788871f6bcaad94	NA	1	1
+ENCFF001FLI	raw signal	HepG2	EFO:0001187	H3K27me3-human	male	hg19	https://www.encodeproject.org/files/ENCFF001FLI/@@download/ENCFF001FLI.bigWig	260ad86fa1132e6cf26f19b0d3d12520	NA	1	2
+ENCFF001XCU	peaks	HepG2	EFO:0001187	H3K27me3-human	male	hg19	https://www.encodeproject.org/files/ENCFF001XCU/@@download/ENCFF001XCU.bed.gz	32fd069198e9b0e1d387dacd49045abd	NA	1	1
+ENCFF001XCV	peaks	HepG2	EFO:0001187	H3K27me3-human	male	hg19	https://www.encodeproject.org/files/ENCFF001XCV/@@download/ENCFF001XCV.bed.gz	64a69597db00c8bbc7858ec6b97c300f	NA	1	2
+ENCFF001EXX	raw signal	GM12878	EFO:0002784	H3K4me3-human	female	hg19	https://www.encodeproject.org/files/ENCFF001EXX/@@download/ENCFF001EXX.bigWig	47a8f95126e8629366c03438653c0398	NA	1	1
+ENCFF001EXZ	raw signal	GM12878	EFO:0002784	H3K4me3-human	female	hg19	https://www.encodeproject.org/files/ENCFF001EXZ/@@download/ENCFF001EXZ.bigWig	e76960544902fb70c9bd83449d35253f	NA	1	2
+ENCFF001WYL	peaks	GM12878	EFO:0002784	H3K4me3-human	female	hg19	https://www.encodeproject.org/files/ENCFF001WYL/@@download/ENCFF001WYL.bed.gz	543c1f24869538ce05f705733fdd443b	NA	1	1
+ENCFF001WYM	peaks	GM12878	EFO:0002784	H3K4me3-human	female	hg19	https://www.encodeproject.org/files/ENCFF001WYM/@@download/ENCFF001WYM.bed.gz	ed1ebd79b14a7af67cd2360e25649628	NA	1	2
+ENCFF001EXC	raw signal	GM12878	EFO:0002784	H3K27me3-human	female	hg19	https://www.encodeproject.org/files/ENCFF001EXC/@@download/ENCFF001EXC.bigWig	e0c2dbf0f9972a27cbfa91f6b7e8f11b	NA	1	1
+ENCFF001EXD	raw signal	GM12878	EFO:0002784	H3K27me3-human	female	hg19	https://www.encodeproject.org/files/ENCFF001EXD/@@download/ENCFF001EXD.bigWig	4efe0a8f7a3b13f99c67fcea7de9be81	NA	1	2
+ENCFF001WYC	peaks	GM12878	EFO:0002784	H3K27me3-human	female	hg19	https://www.encodeproject.org/files/ENCFF001WYC/@@download/ENCFF001WYC.bed.gz	9600204146db9e8ce88e0ff7ff04bf1e	NA	1	1
+ENCFF001WYD	peaks	GM12878	EFO:0002784	H3K27me3-human	female	hg19	https://www.encodeproject.org/files/ENCFF001WYD/@@download/ENCFF001WYD.bed.gz	7d119e5aa92ddf2b6f815874c84e8160	NA	1	2
+ENCFF001HHT	raw signal	GM12878	EFO:0002784	CTCF-human	female	hg19	https://www.encodeproject.org/files/ENCFF001HHT/@@download/ENCFF001HHT.bigWig	8168210048a5192e2e06bc4fa9a8e4b3	NA	1	1
+ENCFF001HHV	raw signal	GM12878	EFO:0002784	CTCF-human	female	hg19	https://www.encodeproject.org/files/ENCFF001HHV/@@download/ENCFF001HHV.bigWig	da7a1e071607547b403f86feac3b499f	NA	1	2
+ENCFF001XPL	peaks	GM12878	EFO:0002784	CTCF-human	female	hg19	https://www.encodeproject.org/files/ENCFF001XPL/@@download/ENCFF001XPL.bed.gz	05c13c8ad1f8447216514287c9a8cbf9	NA	1	1
+ENCFF001XPM	peaks	GM12878	EFO:0002784	CTCF-human	female	hg19	https://www.encodeproject.org/files/ENCFF001XPM/@@download/ENCFF001XPM.bed.gz	db6a022f65cca2f4255919a9a665af29	NA	1	2
+ENCFF001HHY	raw signal	GM12878	EFO:0002784	Control-human	female	hg19	https://www.encodeproject.org/files/ENCFF001HHY/@@download/ENCFF001HHY.bigWig	2bab158907708d385774810cfdc727dc	NA	1	1
+ENCFF000YVX	signal	K562	EFO:0002067	EP300-human	female	hg19	https://www.encodeproject.org/files/ENCFF000YVX/@@download/ENCFF000YVX.bigWig	ef6983ae1dddb463f5bf79d2da56c091	NA	NA	NA
+ENCFF001VOB	peaks	K562	EFO:0002067	EP300-human	female	hg19	https://www.encodeproject.org/files/ENCFF001VOB/@@download/ENCFF001VOB.bed.gz	882d3a365a7eb97c3e086b11f094aa3a	NA	NA	NA
+ENCFF000YVQ	signal	K562	EFO:0002067	EP300-human	female	hg19	https://www.encodeproject.org/files/ENCFF000YVQ/@@download/ENCFF000YVQ.bigWig	3d0cdd83b8e548279cf55542a900cbe7	NA	NA	NA
+ENCFF001VOC	peaks	K562	EFO:0002067	EP300-human	female	hg19	https://www.encodeproject.org/files/ENCFF001VOC/@@download/ENCFF001VOC.bed.gz	68ae1503a36a8e4e49d5435a7ef819da	NA	NA	NA
+ENCFF000YMA	signal	K562	EFO:0002067	CTCF-human	female	hg19	https://www.encodeproject.org/files/ENCFF000YMA/@@download/ENCFF000YMA.bigWig	6509b380b70220484f8b6da053779d34	NA	NA	NA
+ENCFF001VMZ	peaks	K562	EFO:0002067	CTCF-human	female	hg19	https://www.encodeproject.org/files/ENCFF001VMZ/@@download/ENCFF001VMZ.bed.gz	e3fee0039ab77f91306e2853aafa3005	NA	NA	NA
+ENCFF000WTA	signal	H1-hESC	EFO:0003042	Control-human	male	hg19	https://www.encodeproject.org/files/ENCFF000WTA/@@download/ENCFF000WTA.bigWig	427e2ef594455f2d2d9b0dcb665d7af4	NA	NA	NA
+ENCFF000RSD	signal	H1-hESC	EFO:0003042	CTCF-human	male	hg19	https://www.encodeproject.org/files/ENCFF000RSD/@@download/ENCFF000RSD.bigWig	b22bd7d64bd459f3fd07ac0202fa48fd	NA	NA	NA
+ENCFF001USS	peaks	H1-hESC	EFO:0003042	CTCF-human	male	hg19	https://www.encodeproject.org/files/ENCFF001USS/@@download/ENCFF001USS.bed.gz	f184dbeabc74f58f3dcf39b997556962	NA	NA	NA
+ENCFF000RSI	signal	H1-hESC	EFO:0003042	POLR2A-human	male	hg19	https://www.encodeproject.org/files/ENCFF000RSI/@@download/ENCFF000RSI.bigWig	9e81c4b450c321317f715180a6c34f9f	NA	NA	NA
+ENCFF001UST	peaks	H1-hESC	EFO:0003042	POLR2A-human	male	hg19	https://www.encodeproject.org/files/ENCFF001UST/@@download/ENCFF001UST.bed.gz	9574fdb9b41b1a550abb70dc98e89964	NA	NA	NA
+ENCFF000OSJ	raw signal	H1-hESC	EFO:0003042	Control-human	male	hg19	https://www.encodeproject.org/files/ENCFF000OSJ/@@download/ENCFF000OSJ.bigWig	cba46c9f3b607d95e5b56c7fd4181bd0	NA	1	1
+ENCFF000OSK	raw signal	H1-hESC	EFO:0003042	Control-human	male	hg19	https://www.encodeproject.org/files/ENCFF000OSK/@@download/ENCFF000OSK.bigWig	4ea2ddb5d1165e50893d8b33bd40e055	NA	1	2
+ENCFF000ONO	raw signal	H1-hESC	EFO:0003042	CTCF-human	male	hg19	https://www.encodeproject.org/files/ENCFF000ONO/@@download/ENCFF000ONO.bigWig	5d0efb3187d5e1808c35fe0d38be2a7f	NA	1	1
+ENCFF000ONQ	raw signal	H1-hESC	EFO:0003042	CTCF-human	male	hg19	https://www.encodeproject.org/files/ENCFF000ONQ/@@download/ENCFF000ONQ.bigWig	7b8da3a60d4c81f9883b07f17aed766a	NA	1	2
+ENCFF001UBA	peaks	H1-hESC	EFO:0003042	CTCF-human	male	hg19	https://www.encodeproject.org/files/ENCFF001UBA/@@download/ENCFF001UBA.bed.gz	a617e93bd27850429c75bce1bd4d6c01	NA	1	1
+ENCFF001UBB	peaks	H1-hESC	EFO:0003042	CTCF-human	male	hg19	https://www.encodeproject.org/files/ENCFF001UBB/@@download/ENCFF001UBB.bed.gz	972e387e912e4447b384169e691558a8	NA	1	2
+ENCFF000OQR	raw signal	H1-hESC	EFO:0003042	EP300-human	male	hg19	https://www.encodeproject.org/files/ENCFF000OQR/@@download/ENCFF000OQR.bigWig	ab9ccf0a469d299d9d370f8cdad5ece9	NA	1	1
+ENCFF000OQS	raw signal	H1-hESC	EFO:0003042	EP300-human	male	hg19	https://www.encodeproject.org/files/ENCFF000OQS/@@download/ENCFF000OQS.bigWig	7ff1784899dec66226d8047592f771f8	NA	1	2
+ENCFF001UBU	peaks	H1-hESC	EFO:0003042	EP300-human	male	hg19	https://www.encodeproject.org/files/ENCFF001UBU/@@download/ENCFF001UBU.bed.gz	d284a8140197ac9ea2728ccd7d3630fe	NA	1	1
+ENCFF001UBV	peaks	H1-hESC	EFO:0003042	EP300-human	male	hg19	https://www.encodeproject.org/files/ENCFF001UBV/@@download/ENCFF001UBV.bed.gz	a0d122a46d26b98be194f4ce99e00a0f	NA	1	2
+ENCFF000ORH	raw signal	H1-hESC	EFO:0003042	POLR2A-human	male	hg19	https://www.encodeproject.org/files/ENCFF000ORH/@@download/ENCFF000ORH.bigWig	dcd36c05dd222e3fed9e0803ef1c2111	NA	1	1
+ENCFF000ORI	raw signal	H1-hESC	EFO:0003042	POLR2A-human	male	hg19	https://www.encodeproject.org/files/ENCFF000ORI/@@download/ENCFF000ORI.bigWig	047fd95891cc9353cdee506969fb5aa1	NA	1	2
+ENCFF001UBY	peaks	H1-hESC	EFO:0003042	POLR2A-human	male	hg19	https://www.encodeproject.org/files/ENCFF001UBY/@@download/ENCFF001UBY.bed.gz	207a27b3ac8c2efd9657c84c9b0f05a8	NA	1	1
+ENCFF001UBZ	peaks	H1-hESC	EFO:0003042	POLR2A-human	male	hg19	https://www.encodeproject.org/files/ENCFF001UBZ/@@download/ENCFF001UBZ.bed.gz	a36dedbf942458f5b481cb7a38619b9a	NA	1	2
+ENCFF000OSD	raw signal	H1-hESC	EFO:0003042	Control-human	male	hg19	https://www.encodeproject.org/files/ENCFF000OSD/@@download/ENCFF000OSD.bigWig	db114519e21400fce48a3ad7e0202286	NA	1	1
+ENCFF000BYB	signal	K562	EFO:0002067	H3K4me3-human	female	hg19	https://www.encodeproject.org/files/ENCFF000BYB/@@download/ENCFF000BYB.bigWig	96646e11fb2f33384ca6d625eb8cc03b	NA	NA	NA
+ENCFF001SZJ	peaks	K562	EFO:0002067	H3K4me3-human	female	hg19	https://www.encodeproject.org/files/ENCFF001SZJ/@@download/ENCFF001SZJ.bed.gz	34876fa055af19a8b56f8445ceb26a36	NA	NA	NA
+ENCFF000ARJ	signal	GM12878	EFO:0002784	CTCF-human	female	hg19	https://www.encodeproject.org/files/ENCFF000ARJ/@@download/ENCFF000ARJ.bigWig	9bfe3dff371df0ee25af4f8bff093556	NA	NA	NA
+ENCFF001SUB	peaks	GM12878	EFO:0002784	CTCF-human	female	hg19	https://www.encodeproject.org/files/ENCFF001SUB/@@download/ENCFF001SUB.bed.gz	e626948d9674dc6187dc88445178cff3	NA	NA	NA
+ENCFF000BXQ	signal	K562	EFO:0002067	H3K4me1-human	female	hg19	https://www.encodeproject.org/files/ENCFF000BXQ/@@download/ENCFF000BXQ.bigWig	00b5f5a38c21988b740ea4bfc626cde6	NA	NA	NA
+ENCFF001SZH	peaks	K562	EFO:0002067	H3K4me1-human	female	hg19	https://www.encodeproject.org/files/ENCFF001SZH/@@download/ENCFF001SZH.bed.gz	ef796f37e3a2e89324d619051700577b	NA	NA	NA
+ENCFF000AWE	signal	H1-hESC	EFO:0003042	H3K9me3-human	male	hg19	https://www.encodeproject.org/files/ENCFF000AWE/@@download/ENCFF000AWE.bigWig	b3c13cd56ff63c8843ad11dbccc1a225	NA	NA	NA
+ENCFF001SUW	peaks	H1-hESC	EFO:0003042	H3K9me3-human	male	hg19	https://www.encodeproject.org/files/ENCFF001SUW/@@download/ENCFF001SUW.bed.gz	c6fea42d0a92ec055af4cb53c89b5ad3	NA	NA	NA
+ENCFF000BEW	signal	HepG2	EFO:0001187	H3K9me3-human	male	hg19	https://www.encodeproject.org/files/ENCFF000BEW/@@download/ENCFF000BEW.bigWig	bc6ab7ea487edea5d534ab2ada591c34	NA	NA	NA
+ENCFF001SWJ	peaks	HepG2	EFO:0001187	H3K9me3-human	male	hg19	https://www.encodeproject.org/files/ENCFF001SWJ/@@download/ENCFF001SWJ.bed.gz	e80e36eb2c7832f79280108afbf353d6	NA	NA	NA
+ENCFF000BGB	signal	HepG2	EFO:0001187	H3K4me3-human	male	hg19	https://www.encodeproject.org/files/ENCFF000BGB/@@download/ENCFF000BGB.bigWig	a4c0451cf4407fea411de8120e75bc8d	NA	NA	NA
+ENCFF001SWO	peaks	HepG2	EFO:0001187	H3K4me3-human	male	hg19	https://www.encodeproject.org/files/ENCFF001SWO/@@download/ENCFF001SWO.bed.gz	ceeb657a9ca9a24a82d6cf1649fe2c81	NA	NA	NA
+ENCFF000BFJ	signal	HepG2	EFO:0001187	H3K27me3-human	male	hg19	https://www.encodeproject.org/files/ENCFF000BFJ/@@download/ENCFF000BFJ.bigWig	7e3f35d807be8e1306517234552cd2fe	NA	NA	NA
+ENCFF001SWL	peaks	HepG2	EFO:0001187	H3K27me3-human	male	hg19	https://www.encodeproject.org/files/ENCFF001SWL/@@download/ENCFF001SWL.bed.gz	239c8b15f6044debb345dff3cfbca614	NA	NA	NA
+ENCFF000AXO	signal	H1-hESC	EFO:0003042	H3K4me3-human	male	hg19	https://www.encodeproject.org/files/ENCFF000AXO/@@download/ENCFF000AXO.bigWig	98d1150a5ce3e5aa17bb55c7a2fd2aa3	NA	NA	NA
+ENCFF001SVC	peaks	H1-hESC	EFO:0003042	H3K4me3-human	male	hg19	https://www.encodeproject.org/files/ENCFF001SVC/@@download/ENCFF001SVC.bed.gz	26503906e4bd555bbda243fac44c0df0	NA	NA	NA
+ENCFF000AVN	signal	H1-hESC	EFO:0003042	CTCF-human	male	hg19	https://www.encodeproject.org/files/ENCFF000AVN/@@download/ENCFF000AVN.bigWig	49f05309f912a7a4be5711bfc26104f8	NA	NA	NA
+ENCFF001SUT	peaks	H1-hESC	EFO:0003042	CTCF-human	male	hg19	https://www.encodeproject.org/files/ENCFF001SUT/@@download/ENCFF001SUT.bed.gz	b4d9d714675ab19658a4dd70c293983e	NA	NA	NA
+ENCFF000AWQ	signal	H1-hESC	EFO:0003042	H3K27me3-human	male	hg19	https://www.encodeproject.org/files/ENCFF000AWQ/@@download/ENCFF000AWQ.bigWig	4267c005b8879a121af67a4ff831e238	NA	NA	NA
+ENCFF001SUY	peaks	H1-hESC	EFO:0003042	H3K27me3-human	male	hg19	https://www.encodeproject.org/files/ENCFF001SUY/@@download/ENCFF001SUY.bed.gz	e87748c5982ce0c3ba1a17562af463b2	NA	NA	NA
+ENCFF000BXJ	signal	K562	EFO:0002067	H3K36me3-human	female	hg19	https://www.encodeproject.org/files/ENCFF000BXJ/@@download/ENCFF000BXJ.bigWig	445969fedf4b02c869e56f51df749784	NA	NA	NA
+ENCFF001SZG	peaks	K562	EFO:0002067	H3K36me3-human	female	hg19	https://www.encodeproject.org/files/ENCFF001SZG/@@download/ENCFF001SZG.bed.gz	c73020d0b23215469ac0cab171db1602	NA	NA	NA
+ENCFF000AVH	signal	H1-hESC	EFO:0003042	Control-human	male	hg19	https://www.encodeproject.org/files/ENCFF000AVH/@@download/ENCFF000AVH.bigWig	a19d5fda9cbf2b1941a2e582763ac62a	NA	NA	NA
+ENCFF000CAL	signal	K562	EFO:0002067	EP300-human	female	hg19	https://www.encodeproject.org/files/ENCFF000CAL/@@download/ENCFF000CAL.bigWig	12858762d292cd5356e29592bc61f910	NA	NA	NA
+ENCFF001SZV	peaks	K562	EFO:0002067	EP300-human	female	hg19	https://www.encodeproject.org/files/ENCFF001SZV/@@download/ENCFF001SZV.bed.gz	a5435044c396204582db6ab525faaac8	NA	NA	NA
+ENCFF000BYX	signal	K562	EFO:0002067	H3K9me3-human	female	hg19	https://www.encodeproject.org/files/ENCFF000BYX/@@download/ENCFF000BYX.bigWig	e7d5f647aab8ef0f73e14f25f325298a	NA	NA	NA
+ENCFF001SZN	peaks	K562	EFO:0002067	H3K9me3-human	female	hg19	https://www.encodeproject.org/files/ENCFF001SZN/@@download/ENCFF001SZN.bed.gz	48ed2c350488cfaf5a41fbef5f4524ed	NA	NA	NA
+ENCFF000ARD	signal	GM12878	EFO:0002784	Control-human	female	hg19	https://www.encodeproject.org/files/ENCFF000ARD/@@download/ENCFF000ARD.bigWig	1c5fc0fdede07fa5b91b8d67a73dbeac	NA	NA	NA
+ENCFF000AXC	signal	H1-hESC	EFO:0003042	H3K4me1-human	male	hg19	https://www.encodeproject.org/files/ENCFF000AXC/@@download/ENCFF000AXC.bigWig	82655f8e6a8cec482bb03f3a1810328d	NA	NA	NA
+ENCFF001SVA	peaks	H1-hESC	EFO:0003042	H3K4me1-human	male	hg19	https://www.encodeproject.org/files/ENCFF001SVA/@@download/ENCFF001SVA.bed.gz	39c76ae70183e6e122c1f75b36022eaa	NA	NA	NA
+ENCFF000BER	signal	HepG2	EFO:0001187	H3K4me1-human	male	hg19	https://www.encodeproject.org/files/ENCFF000BER/@@download/ENCFF000BER.bigWig	332760916058b585dca5ec2b2e96de47	NA	NA	NA
+ENCFF001SWI	peaks	HepG2	EFO:0001187	H3K4me1-human	male	hg19	https://www.encodeproject.org/files/ENCFF001SWI/@@download/ENCFF001SWI.bed.gz	bd11f6a804b468ca0af1bb7b64ffdd23	NA	NA	NA
+ENCFF000ASJ	signal	GM12878	EFO:0002784	H3K27ac-human	female	hg19	https://www.encodeproject.org/files/ENCFF000ASJ/@@download/ENCFF000ASJ.bigWig	4fc2dec4b72bc85f6087be52267beec2	NA	NA	NA
+ENCFF001SUG	peaks	GM12878	EFO:0002784	H3K27ac-human	female	hg19	https://www.encodeproject.org/files/ENCFF001SUG/@@download/ENCFF001SUG.bed.gz	109d26a520f4f64fb46bf21fa50d6cd9	NA	NA	NA
+ENCFF000AWW	signal	H1-hESC	EFO:0003042	H3K36me3-human	male	hg19	https://www.encodeproject.org/files/ENCFF000AWW/@@download/ENCFF000AWW.bigWig	b901f6936fc8309898edded966ae287f	NA	NA	NA
+ENCFF001SUZ	peaks	H1-hESC	EFO:0003042	H3K36me3-human	male	hg19	https://www.encodeproject.org/files/ENCFF001SUZ/@@download/ENCFF001SUZ.bed.gz	c8c904e3d307da743ad4541332f58af7	NA	NA	NA
+ENCFF000ATA	signal	GM12878	EFO:0002784	H3K36me3-human	female	hg19	https://www.encodeproject.org/files/ENCFF000ATA/@@download/ENCFF000ATA.bigWig	7ecaf91174a491a9d4a4f456e0d5ead7	NA	NA	NA
+ENCFF001SUJ	peaks	GM12878	EFO:0002784	H3K36me3-human	female	hg19	https://www.encodeproject.org/files/ENCFF001SUJ/@@download/ENCFF001SUJ.bed.gz	1074436f58c7660802b31cc18c36730c	NA	NA	NA
+ENCFF000AZC	signal	H1-hESC	EFO:0003042	EP300-human	male	hg19	https://www.encodeproject.org/files/ENCFF000AZC/@@download/ENCFF000AZC.bigWig	04797e107fdc55f7f64ae7ab40b1d3d2	NA	NA	NA
+ENCFF001SVK	peaks	H1-hESC	EFO:0003042	EP300-human	male	hg19	https://www.encodeproject.org/files/ENCFF001SVK/@@download/ENCFF001SVK.bed.gz	3efd2d0723fbeda29cfefe42407a5de2	NA	NA	NA
+ENCFF000BDS	signal	HepG2	EFO:0001187	Control-human	male	hg19	https://www.encodeproject.org/files/ENCFF000BDS/@@download/ENCFF000BDS.bigWig	fd995002489c65749e8fc57e286f5665	NA	NA	NA
+ENCFF000BFO	signal	HepG2	EFO:0001187	H3K36me3-human	male	hg19	https://www.encodeproject.org/files/ENCFF000BFO/@@download/ENCFF000BFO.bigWig	c571bf789e856d362a929717be93c741	NA	NA	NA
+ENCFF001SWM	peaks	HepG2	EFO:0001187	H3K36me3-human	male	hg19	https://www.encodeproject.org/files/ENCFF001SWM/@@download/ENCFF001SWM.bed.gz	728270d7d82af5d17bacebef96c69fef	NA	NA	NA
+ENCFF000BEA	signal	HepG2	EFO:0001187	CTCF-human	male	hg19	https://www.encodeproject.org/files/ENCFF000BEA/@@download/ENCFF000BEA.bigWig	5a6c7a1da91c4f282554076542dc4262	NA	NA	NA
+ENCFF001SWF	peaks	HepG2	EFO:0001187	CTCF-human	male	hg19	https://www.encodeproject.org/files/ENCFF001SWF/@@download/ENCFF001SWF.bed.gz	2494093aaf2ea6173912c23d05abafbe	NA	NA	NA
+ENCFF000ARZ	signal	GM12878	EFO:0002784	H3K4me1-human	female	hg19	https://www.encodeproject.org/files/ENCFF000ARZ/@@download/ENCFF000ARZ.bigWig	b16abc080d5ac228e63aaae8b5b23d5d	NA	NA	NA
+ENCFF001SUE	peaks	GM12878	EFO:0002784	H3K4me1-human	female	hg19	https://www.encodeproject.org/files/ENCFF001SUE/@@download/ENCFF001SUE.bed.gz	34adb845d790386f518dd0f7bf3dc69f	NA	NA	NA
+ENCFF000BWA	signal	K562	EFO:0002067	Control-human	female	hg19	https://www.encodeproject.org/files/ENCFF000BWA/@@download/ENCFF000BWA.bigWig	0adb04af2206070e70a5cfd1448271b2	NA	NA	NA
+ENCFF000BWY	signal	K562	EFO:0002067	H3K27ac-human	female	hg19	https://www.encodeproject.org/files/ENCFF000BWY/@@download/ENCFF000BWY.bigWig	375b66adfebf3c4eab113fb4a449adf2	NA	NA	NA
+ENCFF001SZE	peaks	K562	EFO:0002067	H3K27ac-human	female	hg19	https://www.encodeproject.org/files/ENCFF001SZE/@@download/ENCFF001SZE.bed.gz	13f4e571d06ca5cf8b18cdc84030f438	NA	NA	NA
+ENCFF000ASF	signal	GM12878	EFO:0002784	H3K4me3-human	female	hg19	https://www.encodeproject.org/files/ENCFF000ASF/@@download/ENCFF000ASF.bigWig	0c9fc6c576454b0cdda175b393308ae8	NA	NA	NA
+ENCFF001SUF	peaks	GM12878	EFO:0002784	H3K4me3-human	female	hg19	https://www.encodeproject.org/files/ENCFF001SUF/@@download/ENCFF001SUF.bed.gz	8c6914d0d444aeffe483fcae3897cace	NA	NA	NA
+ENCFF000BWF	signal	K562	EFO:0002067	CTCF-human	female	hg19	https://www.encodeproject.org/files/ENCFF000BWF/@@download/ENCFF000BWF.bigWig	48b7abb9bd3fa7935f0f9a5043bfb59e	NA	NA	NA
+ENCFF001SZB	peaks	K562	EFO:0002067	CTCF-human	female	hg19	https://www.encodeproject.org/files/ENCFF001SZB/@@download/ENCFF001SZB.bed.gz	905a8320cd3c7e37a4244360f8e34306	NA	NA	NA
+ENCFF000BXD	signal	K562	EFO:0002067	H3K27me3-human	female	hg19	https://www.encodeproject.org/files/ENCFF000BXD/@@download/ENCFF000BXD.bigWig	4539844ca93ca1c8dc629592bbd3b19d	NA	NA	NA
+ENCFF001SZF	peaks	K562	EFO:0002067	H3K27me3-human	female	hg19	https://www.encodeproject.org/files/ENCFF001SZF/@@download/ENCFF001SZF.bed.gz	d6787d2dbe19ef10d713c91317ff93da	NA	NA	NA
+ENCFF000AST	signal	GM12878	EFO:0002784	H3K27me3-human	female	hg19	https://www.encodeproject.org/files/ENCFF000AST/@@download/ENCFF000AST.bigWig	d7d3fb6cf86f55982278e0265e588c46	NA	NA	NA
+ENCFF001SUI	peaks	GM12878	EFO:0002784	H3K27me3-human	female	hg19	https://www.encodeproject.org/files/ENCFF001SUI/@@download/ENCFF001SUI.bed.gz	6f044a3e75bc50d3e25a0a21f5767dc8	NA	NA	NA
+ENCFF000BFC	signal	HepG2	EFO:0001187	H3K27ac-human	male	hg19	https://www.encodeproject.org/files/ENCFF000BFC/@@download/ENCFF000BFC.bigWig	24024df3455a04d022f44355a541ac47	NA	NA	NA
+ENCFF001SWK	peaks	HepG2	EFO:0001187	H3K27ac-human	male	hg19	https://www.encodeproject.org/files/ENCFF001SWK/@@download/ENCFF001SWK.bed.gz	984acde06b609abb6475d4bf6e763e85	NA	NA	NA
+ENCFF000AWK	signal	H1-hESC	EFO:0003042	H3K27ac-human	male	hg19	https://www.encodeproject.org/files/ENCFF000AWK/@@download/ENCFF000AWK.bigWig	e89e3efed7655c85adba862e2ef2fa11	NA	NA	NA
+ENCFF001SUX	peaks	H1-hESC	EFO:0003042	H3K27ac-human	male	hg19	https://www.encodeproject.org/files/ENCFF001SUX/@@download/ENCFF001SUX.bed.gz	2526f289ef11f8b8f2f0fc57c58005e2	NA	NA	NA
+ENCFF000AUL	signal	GM12878	EFO:0002784	H3K9me3-human	female	hg19	https://www.encodeproject.org/files/ENCFF000AUL/@@download/ENCFF000AUL.bigWig	a9a5ca01a0726837838d8afafc7ff18b	NA	NA	NA
+ENCFF001SUP	peaks	GM12878	EFO:0002784	H3K9me3-human	female	hg19	https://www.encodeproject.org/files/ENCFF001SUP/@@download/ENCFF001SUP.bed.gz	d0349429273520174599efee37d57393	NA	NA	NA
+ENCFF000RWI	signal	K562	EFO:0002067	CTCF-human	female	hg19	https://www.encodeproject.org/files/ENCFF000RWI/@@download/ENCFF000RWI.bigWig	71923247a2a46e312b55a484700e8f5e	NA	NA	NA
+ENCFF001UTE	peaks	K562	EFO:0002067	CTCF-human	female	hg19	https://www.encodeproject.org/files/ENCFF001UTE/@@download/ENCFF001UTE.bed.gz	984abaf5e5a6fa22237906bc107644ac	NA	NA	NA
+ENCFF000ROT	signal	GM12878	EFO:0002784	CTCF-human	female	hg19	https://www.encodeproject.org/files/ENCFF000ROT/@@download/ENCFF000ROT.bigWig	9f97e9172995f5241263237eb5e91b20	NA	NA	NA
+ENCFF001USH	peaks	GM12878	EFO:0002784	CTCF-human	female	hg19	https://www.encodeproject.org/files/ENCFF001USH/@@download/ENCFF001USH.bed.gz	a6f856eb3742b57cd1515cf4669b620d	NA	NA	NA
+ENCFF000RUH	signal	HepG2	EFO:0001187	Control-human	male	hg19	https://www.encodeproject.org/files/ENCFF000RUH/@@download/ENCFF000RUH.bigWig	fdbceaaf29af05ddf745da26e4cc2f36	NA	NA	NA
+ENCFF000RWL	signal	K562	EFO:0002067	Control-human	female	hg19	https://www.encodeproject.org/files/ENCFF000RWL/@@download/ENCFF000RWL.bigWig	782bf5a344f4a710fe91b369b1d9ee71	NA	NA	NA
+ENCFF000ROY	signal	GM12878	EFO:0002784	Control-human	female	hg19	https://www.encodeproject.org/files/ENCFF000ROY/@@download/ENCFF000ROY.bigWig	c8ac97d5267c4a404cc519c3057e5751	NA	NA	NA
+ENCFF000XST	signal	HepG2	EFO:0001187	Control-human	male	hg19	https://www.encodeproject.org/files/ENCFF000XST/@@download/ENCFF000XST.bigWig	a9c5d318fb6b54f82926821eaea3d69a	NA	NA	NA
+ENCFF000XWN	signal	HepG2	EFO:0001187	POLR2A-human	male	hg19	https://www.encodeproject.org/files/ENCFF000XWN/@@download/ENCFF000XWN.bigWig	3dbf1663c8899dcaea6b4fdf34cfafa0	NA	NA	NA
+ENCFF001VKU	peaks	HepG2	EFO:0001187	POLR2A-human	male	hg19	https://www.encodeproject.org/files/ENCFF001VKU/@@download/ENCFF001VKU.bed.gz	972c5ce2f823b520d52b1ae57310108d	NA	NA	NA
+ENCFF000YQD	signal	K562	EFO:0002067	Control-human	female	hg19	https://www.encodeproject.org/files/ENCFF000YQD/@@download/ENCFF000YQD.bigWig	e9faff47abda33d343f595f65d503c9f	NA	NA	NA
+ENCFF000YQH	signal	K562	EFO:0002067	Control-human	female	hg19	https://www.encodeproject.org/files/ENCFF000YQH/@@download/ENCFF000YQH.bigWig	07f5d5ce21aaad039ef44b1364ea9ba9	NA	NA	NA
+ENCFF000YQF	signal	K562	EFO:0002067	Control-human	female	hg19	https://www.encodeproject.org/files/ENCFF000YQF/@@download/ENCFF000YQF.bigWig	77f06e3f27d59f8787463b7a26b4ab68	NA	NA	NA
+ENCFF000YQJ	signal	K562	EFO:0002067	Control-human	female	hg19	https://www.encodeproject.org/files/ENCFF000YQJ/@@download/ENCFF000YQJ.bigWig	31795b8e5c798488a6c19d3debe8dd63	NA	NA	NA
+ENCFF000YWB	signal	K562	EFO:0002067	POLR2A-human	female	hg19	https://www.encodeproject.org/files/ENCFF000YWB/@@download/ENCFF000YWB.bigWig	887fd3a5d52d62b974e3be3544cbfbeb	NA	NA	NA
+ENCFF001VOD	peaks	K562	EFO:0002067	POLR2A-human	female	hg19	https://www.encodeproject.org/files/ENCFF001VOD/@@download/ENCFF001VOD.bed.gz	d0fcc2fae7c18772508d2e9676a411ea	NA	NA	NA
+ENCFF000YWF	signal	K562	EFO:0002067	POLR2A-human	female	hg19	https://www.encodeproject.org/files/ENCFF000YWF/@@download/ENCFF000YWF.bigWig	d1a90667a60324bd242c793a70e535c0	NA	NA	NA
+ENCFF001VOE	peaks	K562	EFO:0002067	POLR2A-human	female	hg19	https://www.encodeproject.org/files/ENCFF001VOE/@@download/ENCFF001VOE.bed.gz	12aaf5f1a39afac91f5ca2aba90eb3dd	NA	NA	NA
+ENCFF000YWN	signal	K562	EFO:0002067	POLR2A-human	female	hg19	https://www.encodeproject.org/files/ENCFF000YWN/@@download/ENCFF000YWN.bigWig	33bdbc45bc5e954f44faefb097f937a5	NA	NA	NA
+ENCFF001VOG	peaks	K562	EFO:0002067	POLR2A-human	female	hg19	https://www.encodeproject.org/files/ENCFF001VOG/@@download/ENCFF001VOG.bed.gz	8d7e4dc4e4c06518eba48533e260b289	NA	NA	NA
+ENCFF000ODK	raw signal	GM12878	EFO:0002784	Control-human	female	hg19	https://www.encodeproject.org/files/ENCFF000ODK/@@download/ENCFF000ODK.bigWig	7e4b927b1e231240f3bd92a17c52273a	NA	1	1
+ENCFF000QFD	raw signal	K562	EFO:0002067	Control-human	female	hg19	https://www.encodeproject.org/files/ENCFF000QFD/@@download/ENCFF000QFD.bigWig	e47c83821afea7a5ee82321147479d44	NA	1	1
+ENCFF000QFE	raw signal	K562	EFO:0002067	Control-human	female	hg19	https://www.encodeproject.org/files/ENCFF000QFE/@@download/ENCFF000QFE.bigWig	311df1c5124049335aa02ca3f88e751f	NA	1	2
+ENCFF000QFF	raw signal	K562	EFO:0002067	Control-human	female	hg19	https://www.encodeproject.org/files/ENCFF000QFF/@@download/ENCFF000QFF.bigWig	b9cb06b0118247be402b7a346eee4a2e	NA	1	3
+ENCFF000QFH	raw signal	K562	EFO:0002067	Control-human	female	hg19	https://www.encodeproject.org/files/ENCFF000QFH/@@download/ENCFF000QFH.bigWig	d924b384c1436417fdfb110d5b39fa40	NA	1	4
+ENCFF000PMS	raw signal	HepG2	EFO:0001187	EP300-human	male	hg19	https://www.encodeproject.org/files/ENCFF000PMS/@@download/ENCFF000PMS.bigWig	5b8b52d1688bd6bdb62e58473937b840	NA	1	1
+ENCFF000PMT	raw signal	HepG2	EFO:0001187	EP300-human	male	hg19	https://www.encodeproject.org/files/ENCFF000PMT/@@download/ENCFF000PMT.bigWig	d93a735595f5f1addc30033c49e69dae	NA	1	2
+ENCFF001UHA	peaks	HepG2	EFO:0001187	EP300-human	male	hg19	https://www.encodeproject.org/files/ENCFF001UHA/@@download/ENCFF001UHA.bed.gz	073190c3926d5be0a05c0e4c3998497f	NA	1	1
+ENCFF001UHB	peaks	HepG2	EFO:0001187	EP300-human	male	hg19	https://www.encodeproject.org/files/ENCFF001UHB/@@download/ENCFF001UHB.bed.gz	e6fab04d0f65cae0a91276051353f5b5	NA	1	2
+ENCFF000YQS	signal	K562	EFO:0002067	Control-human	female	hg19	https://www.encodeproject.org/files/ENCFF000YQS/@@download/ENCFF000YQS.bigWig	f5009f6a706f12cea60c92e589b4182c	NA	NA	NA
+ENCFF000YWY	signal	K562	EFO:0002067	POLR2A-human	female	hg19	https://www.encodeproject.org/files/ENCFF000YWY/@@download/ENCFF000YWY.bigWig	86e02c859d476b4fdc69d6ddf4d014ce	NA	NA	NA
+ENCFF001VOI	peaks	K562	EFO:0002067	POLR2A-human	female	hg19	https://www.encodeproject.org/files/ENCFF001VOI/@@download/ENCFF001VOI.bed.gz	41d68a9c6796b020e88d2adcf9be1ba3	NA	NA	NA
+ENCFF000RPF	signal	GM12878	EFO:0002784	POLR2A-human	female	hg19	https://www.encodeproject.org/files/ENCFF000RPF/@@download/ENCFF000RPF.bigWig	216df87085ad3667fe9963c01f4a0756	NA	NA	NA
+ENCFF001USI	peaks	GM12878	EFO:0002784	POLR2A-human	female	hg19	https://www.encodeproject.org/files/ENCFF001USI/@@download/ENCFF001USI.bed.gz	15373f463f3d6821047e8a4167a978c1	NA	NA	NA
+ENCFF000ODE	raw signal	GM12878	EFO:0002784	Control-human	female	hg19	https://www.encodeproject.org/files/ENCFF000ODE/@@download/ENCFF000ODE.bigWig	7f4578111d7bf0342afa923aca140631	NA	1	1
+ENCFF000ODF	raw signal	GM12878	EFO:0002784	Control-human	female	hg19	https://www.encodeproject.org/files/ENCFF000ODF/@@download/ENCFF000ODF.bigWig	3d69ecd4fcbe5a4bad00bddf904d1a20	NA	1	2
+ENCFF000OAT	raw signal	GM12878	EFO:0002784	POLR2A-human	female	hg19	https://www.encodeproject.org/files/ENCFF000OAT/@@download/ENCFF000OAT.bigWig	0259bbc36bcc0424779084adccd69da5	NA	1	1
+ENCFF000OAV	raw signal	GM12878	EFO:0002784	POLR2A-human	female	hg19	https://www.encodeproject.org/files/ENCFF000OAV/@@download/ENCFF000OAV.bigWig	c82dfa76a8d96a4534d4487857286c3f	NA	1	2
+ENCFF001TYI	peaks	GM12878	EFO:0002784	POLR2A-human	female	hg19	https://www.encodeproject.org/files/ENCFF001TYI/@@download/ENCFF001TYI.bed.gz	feb44a14128795975f3153b197ec79af	NA	1	1
+ENCFF001TYJ	peaks	GM12878	EFO:0002784	POLR2A-human	female	hg19	https://www.encodeproject.org/files/ENCFF001TYJ/@@download/ENCFF001TYJ.bed.gz	43e06571a01b40fe48958f157bee3915	NA	1	2
+ENCFF000OCT	raw signal	GM12878	EFO:0002784	Control-human	female	hg19	https://www.encodeproject.org/files/ENCFF000OCT/@@download/ENCFF000OCT.bigWig	5a50b3336e2d4ccdbb129c7e63ceeadc	NA	1	1
+ENCFF000OCV	raw signal	GM12878	EFO:0002784	Control-human	female	hg19	https://www.encodeproject.org/files/ENCFF000OCV/@@download/ENCFF000OCV.bigWig	36abc1405146cc993793e7c1aa07884f	NA	1	2
+ENCFF000OCX	raw signal	GM12878	EFO:0002784	Control-human	female	hg19	https://www.encodeproject.org/files/ENCFF000OCX/@@download/ENCFF000OCX.bigWig	d550a98726c3fe720d07ab9225e85ec7	NA	1	3
+ENCFF000ODB	raw signal	GM12878	EFO:0002784	Control-human	female	hg19	https://www.encodeproject.org/files/ENCFF000ODB/@@download/ENCFF000ODB.bigWig	e69c8f5fdca624eaeba3975b356f6e36	NA	1	2
+ENCFF000QEM	raw signal	K562	EFO:0002067	Control-human	female	hg19	https://www.encodeproject.org/files/ENCFF000QEM/@@download/ENCFF000QEM.bigWig	0ada227a3484493f487690ba536107b9	NA	1	1
+ENCFF000QEN	raw signal	K562	EFO:0002067	Control-human	female	hg19	https://www.encodeproject.org/files/ENCFF000QEN/@@download/ENCFF000QEN.bigWig	3011c9ebe84e441c29a8d7a83d068664	NA	1	2
+ENCFF000QEP	raw signal	K562	EFO:0002067	Control-human	female	hg19	https://www.encodeproject.org/files/ENCFF000QEP/@@download/ENCFF000QEP.bigWig	b57e305c0ade7dbdc17bb1ee6c57948d	NA	1	3
+ENCFF000QEQ	raw signal	K562	EFO:0002067	Control-human	female	hg19	https://www.encodeproject.org/files/ENCFF000QEQ/@@download/ENCFF000QEQ.bigWig	ffff1daec20198d545a732f96230a657	NA	1	4
+ENCFF000PGW	raw signal	HepG2	EFO:0001187	CTCF-human	male	hg19	https://www.encodeproject.org/files/ENCFF000PGW/@@download/ENCFF000PGW.bigWig	dfc7811af0b42ece5df7126b026d5d4a	NA	1	1
+ENCFF000PGY	raw signal	HepG2	EFO:0001187	CTCF-human	male	hg19	https://www.encodeproject.org/files/ENCFF000PGY/@@download/ENCFF000PGY.bigWig	3e28bfa0fd04ef9e403a79307144fe47	NA	1	2
+ENCFF001UFO	peaks	HepG2	EFO:0001187	CTCF-human	male	hg19	https://www.encodeproject.org/files/ENCFF001UFO/@@download/ENCFF001UFO.bed.gz	b47ce98eda1cac3d9f3b835db067c111	NA	1	1
+ENCFF001UFP	peaks	HepG2	EFO:0001187	CTCF-human	male	hg19	https://www.encodeproject.org/files/ENCFF001UFP/@@download/ENCFF001UFP.bed.gz	8d0adcbc204a2fc95640f1428372e544	NA	1	2
+ENCFF000POA	raw signal	HepG2	EFO:0001187	Control-human	male	hg19	https://www.encodeproject.org/files/ENCFF000POA/@@download/ENCFF000POA.bigWig	5a3e4284b9b82cde03d006e260c468c8	NA	1	1
+ENCFF000POB	raw signal	HepG2	EFO:0001187	Control-human	male	hg19	https://www.encodeproject.org/files/ENCFF000POB/@@download/ENCFF000POB.bigWig	b653b48ed167466b35124e3e6d057116	NA	1	2
+ENCFF000RUQ	signal	HepG2	EFO:0001187	POLR2A-human	male	hg19	https://www.encodeproject.org/files/ENCFF000RUQ/@@download/ENCFF000RUQ.bigWig	95bc2e50be5484c40556f4ec6172a27d	NA	NA	NA
+ENCFF001UTA	peaks	HepG2	EFO:0001187	POLR2A-human	male	hg19	https://www.encodeproject.org/files/ENCFF001UTA/@@download/ENCFF001UTA.bed.gz	405b4330b21e58252dfa43bb6f4f244d	NA	NA	NA
+ENCFF000RWT	signal	K562	EFO:0002067	POLR2A-human	female	hg19	https://www.encodeproject.org/files/ENCFF000RWT/@@download/ENCFF000RWT.bigWig	5bb41aa2179a19a05518a75aea37e446	NA	NA	NA
+ENCFF001UTF	peaks	K562	EFO:0002067	POLR2A-human	female	hg19	https://www.encodeproject.org/files/ENCFF001UTF/@@download/ENCFF001UTF.bed.gz	cce54edb5e2bd0631db9d67b6025055e	NA	NA	NA
+ENCFF000RUE	signal	HepG2	EFO:0001187	CTCF-human	male	hg19	https://www.encodeproject.org/files/ENCFF000RUE/@@download/ENCFF000RUE.bigWig	d33260c7525ff41275cf26d62229b776	NA	NA	NA
+ENCFF001USY	peaks	HepG2	EFO:0001187	CTCF-human	male	hg19	https://www.encodeproject.org/files/ENCFF001USY/@@download/ENCFF001USY.bed.gz	aefe60b388b602f45494cebd7fe7b00c	NA	NA	NA
+ENCFF000ODI	raw signal	GM12878	EFO:0002784	Control-human	female	hg19	https://www.encodeproject.org/files/ENCFF000ODI/@@download/ENCFF000ODI.bigWig	8b114c3f6a54bc738ac7a85d298112c4	NA	1	1
+ENCFF000QDP	raw signal	K562	EFO:0002067	POLR2A-human	female	hg19	https://www.encodeproject.org/files/ENCFF000QDP/@@download/ENCFF000QDP.bigWig	e8421b5c7bf0f7469f28811a9cc3572d	NA	1	1
+ENCFF000QDQ	raw signal	K562	EFO:0002067	POLR2A-human	female	hg19	https://www.encodeproject.org/files/ENCFF000QDQ/@@download/ENCFF000QDQ.bigWig	9006e1f933bf5eb538d8130609202ceb	NA	1	2
+ENCFF001UKT	peaks	K562	EFO:0002067	POLR2A-human	female	hg19	https://www.encodeproject.org/files/ENCFF001UKT/@@download/ENCFF001UKT.bed.gz	565f9ad826cef16de8d415a996a4ad7f	NA	1	1
+ENCFF001UKU	peaks	K562	EFO:0002067	POLR2A-human	female	hg19	https://www.encodeproject.org/files/ENCFF001UKU/@@download/ENCFF001UKU.bed.gz	c28ca2b77ed0744ecc40bf064d950949	NA	1	2
+ENCFF000PNJ	raw signal	HepG2	EFO:0001187	POLR2A-human	male	hg19	https://www.encodeproject.org/files/ENCFF000PNJ/@@download/ENCFF000PNJ.bigWig	0de2373773795528cc106d36c9d22c4c	NA	1	1
+ENCFF000PNK	raw signal	HepG2	EFO:0001187	POLR2A-human	male	hg19	https://www.encodeproject.org/files/ENCFF000PNK/@@download/ENCFF000PNK.bigWig	32abd144e7c243d18c805dd4c7a626cc	NA	1	2
+ENCFF001UHE	peaks	HepG2	EFO:0001187	POLR2A-human	male	hg19	https://www.encodeproject.org/files/ENCFF001UHE/@@download/ENCFF001UHE.bed.gz	92a3618d434809d3ba6425c87985209c	NA	1	1
+ENCFF001UHF	peaks	HepG2	EFO:0001187	POLR2A-human	male	hg19	https://www.encodeproject.org/files/ENCFF001UHF/@@download/ENCFF001UHF.bed.gz	0817b6d1f2ac0fdb7c331342729f8a41	NA	1	2
+ENCFF000NYV	raw signal	GM12878	EFO:0002784	EP300-human	female	hg19	https://www.encodeproject.org/files/ENCFF000NYV/@@download/ENCFF000NYV.bigWig	10c4ca4024c96d05a7e4d81f0b886008	NA	1	1
+ENCFF000NYX	raw signal	GM12878	EFO:0002784	EP300-human	female	hg19	https://www.encodeproject.org/files/ENCFF000NYX/@@download/ENCFF000NYX.bigWig	a05c1182b3269efa5353f54d7238e810	NA	1	2
+ENCFF001TXW	peaks	GM12878	EFO:0002784	EP300-human	female	hg19	https://www.encodeproject.org/files/ENCFF001TXW/@@download/ENCFF001TXW.bed.gz	f24789c55ae60cf5179f98e5964a4fd1	NA	1	1
+ENCFF001TXX	peaks	GM12878	EFO:0002784	EP300-human	female	hg19	https://www.encodeproject.org/files/ENCFF001TXX/@@download/ENCFF001TXX.bed.gz	0786f37aa6f0692d2aaef5817f7e4054	NA	1	2
+ENCFF000ODQ	raw signal	GM12878	EFO:0002784	Control-human	female	hg19	https://www.encodeproject.org/files/ENCFF000ODQ/@@download/ENCFF000ODQ.bigWig	e0015a88c476d0b81d451259d601f5e4	NA	1	1
+ENCFF000ODS	raw signal	GM12878	EFO:0002784	Control-human	female	hg19	https://www.encodeproject.org/files/ENCFF000ODS/@@download/ENCFF000ODS.bigWig	d6bffbf9981723a929852397f1b601eb	NA	1	3
+ENCFF000ODT	raw signal	GM12878	EFO:0002784	Control-human	female	hg19	https://www.encodeproject.org/files/ENCFF000ODT/@@download/ENCFF000ODT.bigWig	c6a739e31ae24579e7cc193219cf18ed	NA	1	4
+ENCFF000POW	raw signal	HepG2	EFO:0001187	Control-human	male	hg19	https://www.encodeproject.org/files/ENCFF000POW/@@download/ENCFF000POW.bigWig	4a4bdba5de514b1e68fec681f9d63bd5	NA	1	1
+ENCFF000POX	raw signal	HepG2	EFO:0001187	Control-human	male	hg19	https://www.encodeproject.org/files/ENCFF000POX/@@download/ENCFF000POX.bigWig	c3ff334eaa3ec82d052a705e75300aa7	NA	1	2
+ENCFF000POZ	raw signal	HepG2	EFO:0001187	Control-human	male	hg19	https://www.encodeproject.org/files/ENCFF000POZ/@@download/ENCFF000POZ.bigWig	1a8f38c80f19c3aadd245d9979c79dee	NA	1	3
+ENCFF000PYA	raw signal	K562	EFO:0002067	CTCF-human	female	hg19	https://www.encodeproject.org/files/ENCFF000PYA/@@download/ENCFF000PYA.bigWig	64972e0aa9b844e1fe02ee6bf01e5841	NA	1	1
+ENCFF000PYB	raw signal	K562	EFO:0002067	CTCF-human	female	hg19	https://www.encodeproject.org/files/ENCFF000PYB/@@download/ENCFF000PYB.bigWig	f37b17ce52368968d27284ae5b62a8fb	NA	1	2
+ENCFF001UJL	peaks	K562	EFO:0002067	CTCF-human	female	hg19	https://www.encodeproject.org/files/ENCFF001UJL/@@download/ENCFF001UJL.bed.gz	d48bb62e6f61c79a64d8a4a277d0873a	NA	1	1
+ENCFF001UJM	peaks	K562	EFO:0002067	CTCF-human	female	hg19	https://www.encodeproject.org/files/ENCFF001UJM/@@download/ENCFF001UJM.bed.gz	192c6cd042b8dc7ecafa5dcaca4aea57	NA	1	2
+ENCFF000VWN	signal	GM12878	EFO:0002784	Control-human	female	hg19	https://www.encodeproject.org/files/ENCFF000VWN/@@download/ENCFF000VWN.bigWig	51a897284454a8d4e9b95d8e09a4cea0	NA	NA	NA
+ENCFF000WCA	signal	GM12878	EFO:0002784	POLR2A-human	female	hg19	https://www.encodeproject.org/files/ENCFF000WCA/@@download/ENCFF000WCA.bigWig	3cbbea1a057b67488089a73e8a7fd3ca	NA	NA	NA
+ENCFF001VFB	peaks	GM12878	EFO:0002784	POLR2A-human	female	hg19	https://www.encodeproject.org/files/ENCFF001VFB/@@download/ENCFF001VFB.bed.gz	baa946e99406eabeb4f24296985983bf	NA	NA	NA
+ENCFF000POK	raw signal	HepG2	EFO:0001187	Control-human	male	hg19	https://www.encodeproject.org/files/ENCFF000POK/@@download/ENCFF000POK.bigWig	2fb2cab4348640fd5e9fd3bb11768f14	NA	1	1
+ENCFF000POL	raw signal	HepG2	EFO:0001187	Control-human	male	hg19	https://www.encodeproject.org/files/ENCFF000POL/@@download/ENCFF000POL.bigWig	6e17025ad8a0eb1dd5ee1e710579e534	NA	1	2
+ENCFF000POP	raw signal	HepG2	EFO:0001187	Control-human	male	hg19	https://www.encodeproject.org/files/ENCFF000POP/@@download/ENCFF000POP.bigWig	2c98382ee875a45626f7d2a7647952b0	NA	1	1
+ENCFF000POR	raw signal	HepG2	EFO:0001187	Control-human	male	hg19	https://www.encodeproject.org/files/ENCFF000POR/@@download/ENCFF000POR.bigWig	c85f65ed7bab9539e2467a8ada0be086	NA	1	2
+ENCFF000QEV	raw signal	K562	EFO:0002067	Control-human	female	hg19	https://www.encodeproject.org/files/ENCFF000QEV/@@download/ENCFF000QEV.bigWig	fa20b05ea082dcb063463b73b6a5af2f	NA	1	1
+ENCFF000QEW	raw signal	K562	EFO:0002067	Control-human	female	hg19	https://www.encodeproject.org/files/ENCFF000QEW/@@download/ENCFF000QEW.bigWig	1e2967cfc1b93b23fea86ed0a36e699c	NA	1	2
