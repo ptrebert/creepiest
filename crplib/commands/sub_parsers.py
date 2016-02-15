@@ -1,0 +1,299 @@
+# coding=utf-8
+
+"""
+This module defines all sub-parsers for the different commands
+and contains the appropriate execute functions
+"""
+
+import importlib as implib
+
+
+def add_sub_parsers(main_parser):
+    """
+    :param main_parser:
+    :return:
+    """
+    subparsers = main_parser.add_subparsers(dest='subparser_name', title='Subcommands')
+    subparsers = _add_tests_command(subparsers, main_parser)
+    subparsers = _add_regmatch_command(subparsers, main_parser)
+    subparsers = _add_convert_command(subparsers, main_parser)
+    subparsers = _add_mkmap_command(subparsers, main_parser)
+    subparsers = _add_sigmap_command(subparsers, main_parser)
+    subparsers = _add_tfscan_command(subparsers, main_parser)
+    return main_parser
+
+
+def _add_tests_command(subparsers, parent):
+    """
+    :param subparser:
+    :return:
+    """
+    parser_tests = subparsers.add_parser('tests',
+                                         help='Run unit tests',
+                                         description='This command executes all unit tests, among them is an '
+                                                     'import test that attempts to import all modules necessary '
+                                                     'to run any CREEPIEST tool. It is highly recommended to run '
+                                                     'unit tests prior to any analysis run.',
+                                         parents=[parent])
+    parser_tests.set_defaults(execute=_tests_execute)
+    return subparsers
+
+
+def _tests_execute(args):
+    """
+    :param args:
+    :return:
+    """
+    tests = implib.import_module('lib.commands.tests')
+    retval = tests.run_tests()
+    return retval
+
+
+def _add_convert_command(subparsers, parent):
+    """
+    :param subparsers:
+    :return:
+    """
+    parser_convert = subparsers.add_parser('convert',
+                                           help='Convert datafiles to HDF5 format',
+                                           description='...to be updated...',
+                                           parents=[parent])
+    parser_convert.add_argument('--type', '-t', type=str, dest='datatype', required=True,
+                                choices=['genome', 'signal', 'region'],
+                                help='Select correct datatype for file to be converted.')
+    parser_convert.add_argument('--assembly', '-a', type=str, required=True, dest='assembly',
+                                help='Specify name of assembly.')
+    parser_convert.add_argument('--chrom-sizes', '-c', type=str, required=True, dest='chromsizes',
+                                help='Full path to UCSC-style 2 column file with chromosome sizes')
+    parser_convert.add_argument('--keep-chrom', '-k', type=str, default='"(chr)?[0-9]+\s"', dest='keepchroms',
+                                help='Regular expression pattern (needs to be double quoted) matching'
+                                     ' chromosomes to keep. Default: "(chr)?[0-9]+\s" (i.e. autosomes)')
+    parser_convert.add_argument('--input', '-i', type=str, required=True, dest='inputfile',
+                                help='Full path to input file to be converted')
+    parser_convert.add_argument('--output', '-o', type=str, required=True, dest='outputfile',
+                                help='Full path to output file')
+
+    # TODO: think, can everything go into on subcommand? Merging replicates will be quite different...
+
+    # TODO: continue here
+
+    parser_convert.add_argument('--server-cfg', '-srv', dest='srvconfig', required=True, type=str,
+                                help='Specify the full path to the CREEPIEST annotation server configuration file.')
+    parser_convert.add_argument('--project', '-pjt', dest='project', required=True, type=str,
+                                help='Specify the project, e.g. ENCODE, to which the files belong.')
+    parser_convert.add_argument('--type', '-t', dest='filetype', required=True, type=str, choices=['peak', 'signal'],
+                                help='Specify type of files to convert, either peak or signal')
+    parser_convert.add_argument('--genome', '-g', dest='genome', required=True, type=str,
+                                help='Correct assembly for file to convert, e.g. hg19 or mm10')
+    parser_convert.add_argument('--match-lines', '-m', dest='match', default='.+', type=str,
+                                help='Regular expression enclosed in quotes to match lines from file;'
+                                ' lines starting with # are always ignored')
+    parser_convert.add_argument('--keep-names', '-kn', dest='keepnames', type=int, default=-1,
+                                help='Keep region names from input file; specify column with region name')
+    parser_convert.add_argument('--convert', '-c', dest='convert', required=True,
+                                help='Path to directory with files to convert, must all belong to the same '
+                                     'genome assembly')
+    parser_convert.add_argument('--output', '-o', dest='output', required=True,
+                                help='Specify path to output directory')
+    parser_convert.add_argument('--resolution', '-res', dest='resolution', default=25, type=int,
+                                help='Specify target resolution for signal track conversion. Default is 25')
+    parser_convert.add_argument('--percentiles', '-prc', dest='percentiles', type=int, nargs='+',
+                                default=[25, 50, 75, 90, 95, 100], help='Specify the percentiles to compute'
+                                                                        ' percentile scores for signal tracks.'
+                                                                        ' Default is [25, 50, 75, 90, 95, 100]')
+    parser_convert.add_argument('--accept-cov', '-acc', dest='accept', type=int, default=70, choices=range(1, 100),
+                                help='Accept bins during the weighted average smoothing that are at least covered by'
+                                     ' this percentage in the input signal track. Default is 70 percent')
+    parser_convert.set_defaults(execute=_convert_execute)
+    return subparsers
+
+
+def _convert_execute(args):
+    """
+    :param args:
+    :return:
+    """
+    convert = implib.import_module('lib.commands.convert')
+    retval = convert.run_conversion(args)
+    return retval
+
+
+def _add_regmatch_command(subparsers, parent):
+    """
+    :param subparsers:
+    :return:
+    """
+    parser_regmatch = subparsers.add_parser('regmatch',
+                                            help='Search for matching genomic regions based on sequence features',
+                                            description='This command works on a set of genomic regions. It computes'
+                                                        ' the basic sequence features requested by the user and then'
+                                                        ' searches in the genomic complement (the whole genome minus'
+                                                        ' the input regions) for similar regions. A common usecase is'
+                                                        ' the search for a set of background regions closely matching'
+                                                        ' the set of input (foreground) regions.',
+                                            parents=[parent])
+    mutex_group = parser_regmatch.add_mutually_exclusive_group(required=True)
+    mutex_group.add_argument('--crpk-source', '-crpkf', dest='crpksource', nargs='+',
+                             help='List full paths to individual CRPK files or give a list of paths to folders'
+                                  ' containing CRPK files.')
+    mutex_group.add_argument('--bed-source', '-bed', dest='bedsource', nargs='+',
+                             help='List full path to individual BED files or give a list of paths to folders'
+                                  ' containing the input BED files.')
+    parser_regmatch.add_argument('--genome', '-gen', dest='genome', type=str, required=True,
+                                 help='The genomic sequence as one FASTA file (can be gzipped)')
+    parser_regmatch.add_argument('--chrom-sizes', '-chrs', dest='chromsizes', type=str, required=True,
+                                 help='Path to file containing chromosome sizes (as provided by UCSC) compatible'
+                                      ' to the FASTA sequence file (e.g. concerning chromosome names)')
+    parser_regmatch.add_argument('--filter-ambig', '-fltn', dest='filtern', type=float, default=5.0,
+                                 help='Filter out sequences with too many ambiguous positions (letter N).'
+                                      ' Default is 5 percent.')
+    parser_regmatch.add_argument('--features', '-feat', dest='features', nargs='+', required=True,
+                                 help='List the features that should be used to select a match for an input region.')
+    parser_regmatch.add_argument('--dist-chr', '-dchr', dest='distchrom', action='store_true', default=False,
+                                 help='Set if the chromosomal distribution of the input regions should be matched, i.e.'
+                                 ' a match is only searched for on the same chromosome. This can increase the runtime'
+                                 ' quite considerably.')
+    parser_regmatch.add_argument('--relaxation', '-rel', dest='relax', type=float, default=2.,
+                                 help='Initial relaxation as percentage points (default: 2.0), i.e. a value of 50'
+                                 ' percent will be matched by any value between 48 and 52 whereas an absolute'
+                                 ' value of 50 will be matched by any value roughly between 49 and 51.')
+    parser_regmatch.add_argument('--increment', '-incr', dest='increment', type=float, default=1.0,
+                                 help='Increase the relaxation by this value in each iteration. Default is 1.0')
+    parser_regmatch.add_argument('--limit-relax', '-lim', dest='limitrelax', type=float, default=5.0,
+                                 help='Limit the relaxation to that value. In the next iteration, it will be set'
+                                 ' to its initial value again.')
+    parser_regmatch.add_argument('--run-limit', '-rl', dest='runlimit', type=float, default=0.,
+                                 help='Limit the runtime to this number of hours. Default runtime is unlimited.')
+    parser_regmatch.add_argument('--no-clobber', '-noclb', dest='noclobber', action='store_true', default=False,
+                                 help='If set, make a backup copy of the input file instead of replacing it.')
+    parser_regmatch.set_defaults(execute=_regmatch_execute)
+    return subparsers
+
+
+def _regmatch_execute(args):
+    """
+    :param args:
+    :return:
+    """
+    regmatch = implib.import_module('lib.commands.regmatch')
+    retval = regmatch.run_region_matching(args)
+    return retval
+
+
+def _add_mkmap_command(subparsers, parent):
+    """
+    :param subparsers:
+    :return:
+    """
+    parser_mkmap = subparsers.add_parser('mkmap',
+                                         help='Create a CREEP for signal mapping based on a pairwise alignment'
+                                              ' in UCSC axt format or UCSC chain file.',
+                                         parents=[parent])
+    parser_mkmap.add_argument('--server-cfg', '-srv', dest='srvconfig', required=True, type=str,
+                              help='Specify the full path to the CREEPIEST annotation server configuration file.')
+    parser_mkmap.add_argument('--reference', '-r', dest='reference', type=str, required=True,
+                              help='Specify reference assembly, e.g. hg19 or mm10 (also: primary assembly)')
+    parser_mkmap.add_argument('--target', '-t', dest='target', type=str, required=True,
+                              help='Specify target assembly, e.g. mm10 or hg19 (also: aligning assembly)')
+    parser_mkmap.add_argument('--chrom', '-c', dest='chrom', type=str, default='.*',
+                              help='Specify a regular expression to restrict the output to chromosomes'
+                                   ' matching the expression. This filtering applies to both reference'
+                                   ' and target species.')
+    grp = parser_mkmap.add_mutually_exclusive_group(required=True)
+    grp.add_argument('--axt-input', '-ai', dest='axtinput', type=str,
+                     help='Specify full path to input file in axt format')
+    grp.add_argument('--chain-input', '-ci', dest='chaininput', type=str,
+                     help='Specify full path to chain file (reference to target)')
+    parser_mkmap.add_argument('--gap', '-g', dest='gap', type=int, default=25,
+                              help='Specify the acceptable gap length between two consecutive alignment blocks.'
+                                   ' That length should be smaller than the (average) region size in the signal'
+                                   ' tracks to be mapped.')
+    parser_mkmap.add_argument('--outdir', '-o', dest='outdir', type=str, required=True,
+                              help='Specify path to output directory (file name will be assembled automatically).')
+    parser_mkmap.set_defaults(execute=_mkmap_execute)
+    return subparsers
+
+
+def _mkmap_execute(args):
+    """
+    :param args:
+    :return:
+    """
+    mapbed = implib.import_module('lib.commands.mkmap')
+    retval = mapbed.run_mkmap(args)
+    return retval
+
+
+def _add_sigmap_command(subparsers, parent):
+    """
+    :param subparsers:
+    :return:
+    """
+    parser_sigmap = subparsers.add_parser('sigmap',
+                                          help='Take an arbitrary number of signal CREEPs and one mapping CREEP'
+                                               ' with compatible reference and map all signal tracks from the'
+                                               ' reference to the target assembly.',
+                                          parents=[parent])
+    parser_sigmap.add_argument('--map-creep', '-crmp', dest='mapcreep', required=True, type=str,
+                               help='Specify full path to map CREEP with compatible resolution and correct'
+                                    ' reference assembly.')
+    parser_sigmap.add_argument('--sig-creep', '-crsg', dest='sigcreeps', required=True, nargs='+', type=str,
+                               help='Specify full path to single or multiple signal CREEPs (as space separated list)'
+                                    ' or provide folder path(s) containing an arbitrary number of signal CREEPs.')
+    parser_sigmap.add_argument('--self-map', '-self', dest='selfmap', default=False, action='store_true',
+                               help='If the map CREEP represents a self alignment of an assembly, this option'
+                                    ' must be set to ensure proper mapping of the signal values. This option'
+                                    ' assumes that the map CREEP only contains non-trivial alignment regions'
+                                    ' for the self alignment.')
+    parser_sigmap.set_defaults(execute=_sigmap_execute)
+    return subparsers
+
+
+def _sigmap_execute(args):
+    """
+    :param args:
+    :return:
+    """
+    sigmap = implib.import_module('lib.commands.sigmap')
+    retval = sigmap.run_sigmap(args)
+    return retval
+
+
+def _add_tfscan_command(subparsers, parent):
+    """
+    :param subparsers:
+    :return:
+    """
+    parser_tfscan = subparsers.add_parser('tfscan',
+                                          help='Scan a set of sequences for transcription factor binding sites using'
+                                               ' the MEME suite (Fimo). The Fimo executable must be available in PATH.',
+                                          parents=[parent])
+    parser_tfscan.add_argument('--genome', '-g', dest='genome', required=True, type=str,
+                               help='Identifier of genome assembly, e.g. hg19, used for file/folder naming.')
+    parser_tfscan.add_argument('--source', '-s', dest='source', required=True, type=str,
+                               help='Folder with sequence files (FASTA format) of genome assembly.')
+    parser_tfscan.add_argument('--tf-motifs', '-t', dest='motiffile', required=True, type=str,
+                               help='Full path to TF motif file in MEME format containing PWMs and character'
+                                    ' frequencies for A, C, G and T.')
+    parser_tfscan.add_argument('--match-files', '-mf', dest='matchfile', default='all', type=str,
+                               help='Regular expression to match sequence files; defaults to match all files'
+                                    ' with .fa/.fasta file extension. Enclose expression with double quotes > " <')
+    parser_tfscan.add_argument('--output', '-o', dest='output', type=str, required=True,
+                               help='Base output folder, sub-folder <genome> will be created and'
+                                    'output files stored; base directory will be created if it does not exist.')
+    parser_tfscan.add_argument('--pvalue', '-p', dest='pthresh', type=str, default='1e-5',
+                               help='Threshold for p-value to report motif match, can be in scientific'
+                                    '>e< notation (default: 1e-5).')
+    parser_tfscan.set_defaults(execute=_tfscan_execute)
+    return subparsers
+
+
+def _tfscan_execute(args):
+    """
+    :param args:
+    :return:
+    """
+    tfscan = implib.import_module('lib.commands.tfscan')
+    retval = tfscan.run_tfscan(args)
+    return retval
+
