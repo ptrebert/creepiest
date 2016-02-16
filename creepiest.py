@@ -119,6 +119,7 @@ def dump_config(args, ignored_args):
         except KeyError:
             dump[envk][key] = 'N/A'
     dump[envk]['TIMESTAMP'] = time.ctime()
+    dump[envk]['CREEPIEST_VERSION'] = __version__
 
     cfgk = 'CONFIGURATION'
     dump.add_section(cfgk)

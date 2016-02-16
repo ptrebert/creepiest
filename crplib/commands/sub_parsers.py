@@ -16,7 +16,7 @@ def add_sub_parsers(main_parser):
     subparsers = main_parser.add_subparsers(dest='subparser_name', title='Subcommands')
     subparsers = _add_tests_command(subparsers, main_parser)
     subparsers = _add_regmatch_command(subparsers, main_parser)
-    subparsers = _add_convert_command(subparsers, main_parser)
+    subparsers = _add_convfna_command(subparsers, main_parser)
     subparsers = _add_mkmap_command(subparsers, main_parser)
     subparsers = _add_sigmap_command(subparsers, main_parser)
     subparsers = _add_tfscan_command(subparsers, main_parser)
@@ -44,76 +44,43 @@ def _tests_execute(args):
     :param args:
     :return:
     """
-    tests = implib.import_module('lib.commands.tests')
+    tests = implib.import_module('crplib.commands.tests')
     retval = tests.run_tests()
     return retval
 
 
-def _add_convert_command(subparsers, parent):
+def _add_convfna_command(subparsers, parent):
     """
     :param subparsers:
     :return:
     """
-    parser_convert = subparsers.add_parser('convert',
-                                           help='Convert datafiles to HDF5 format',
+    parser_convfna = subparsers.add_parser('convfna',
+                                           help='Convert assembly in (FASTA nucleotide file) to HDF5 format',
                                            description='...to be updated...',
                                            parents=[parent])
-    parser_convert.add_argument('--type', '-t', type=str, dest='datatype', required=True,
-                                choices=['genome', 'signal', 'region'],
-                                help='Select correct datatype for file to be converted.')
-    parser_convert.add_argument('--assembly', '-a', type=str, required=True, dest='assembly',
+    parser_convfna.add_argument('--assembly', '-a', type=str, required=True, dest='assembly',
                                 help='Specify name of assembly.')
-    parser_convert.add_argument('--chrom-sizes', '-c', type=str, required=True, dest='chromsizes',
+    parser_convfna.add_argument('--chrom-sizes', '-s', type=str, required=True, dest='chromsizes',
                                 help='Full path to UCSC-style 2 column file with chromosome sizes')
-    parser_convert.add_argument('--keep-chrom', '-k', type=str, default='"(chr)?[0-9]+\s"', dest='keepchroms',
+    parser_convfna.add_argument('--keep-chroms', '-c', type=str, default='"(chr)?[0-9]+\s"', dest='keepchroms',
                                 help='Regular expression pattern (needs to be double quoted) matching'
                                      ' chromosomes to keep. Default: "(chr)?[0-9]+\s" (i.e. autosomes)')
-    parser_convert.add_argument('--input', '-i', type=str, required=True, dest='inputfile',
+    parser_convfna.add_argument('--no-replace', '-norp', action='store_true', default=False, dest='noreplace',
+                                help='Replace all non ACGTN letters in the sequence with N (case sensitive)')
+    parser_convfna.add_argument('--input', '-i', type=str, required=True, dest='inputfile',
                                 help='Full path to input file to be converted')
-    parser_convert.add_argument('--output', '-o', type=str, required=True, dest='outputfile',
+    parser_convfna.add_argument('--output', '-o', type=str, required=True, dest='outputfile',
                                 help='Full path to output file')
-
-    # TODO: think, can everything go into on subcommand? Merging replicates will be quite different...
-
-    # TODO: continue here
-
-    parser_convert.add_argument('--server-cfg', '-srv', dest='srvconfig', required=True, type=str,
-                                help='Specify the full path to the CREEPIEST annotation server configuration file.')
-    parser_convert.add_argument('--project', '-pjt', dest='project', required=True, type=str,
-                                help='Specify the project, e.g. ENCODE, to which the files belong.')
-    parser_convert.add_argument('--type', '-t', dest='filetype', required=True, type=str, choices=['peak', 'signal'],
-                                help='Specify type of files to convert, either peak or signal')
-    parser_convert.add_argument('--genome', '-g', dest='genome', required=True, type=str,
-                                help='Correct assembly for file to convert, e.g. hg19 or mm10')
-    parser_convert.add_argument('--match-lines', '-m', dest='match', default='.+', type=str,
-                                help='Regular expression enclosed in quotes to match lines from file;'
-                                ' lines starting with # are always ignored')
-    parser_convert.add_argument('--keep-names', '-kn', dest='keepnames', type=int, default=-1,
-                                help='Keep region names from input file; specify column with region name')
-    parser_convert.add_argument('--convert', '-c', dest='convert', required=True,
-                                help='Path to directory with files to convert, must all belong to the same '
-                                     'genome assembly')
-    parser_convert.add_argument('--output', '-o', dest='output', required=True,
-                                help='Specify path to output directory')
-    parser_convert.add_argument('--resolution', '-res', dest='resolution', default=25, type=int,
-                                help='Specify target resolution for signal track conversion. Default is 25')
-    parser_convert.add_argument('--percentiles', '-prc', dest='percentiles', type=int, nargs='+',
-                                default=[25, 50, 75, 90, 95, 100], help='Specify the percentiles to compute'
-                                                                        ' percentile scores for signal tracks.'
-                                                                        ' Default is [25, 50, 75, 90, 95, 100]')
-    parser_convert.add_argument('--accept-cov', '-acc', dest='accept', type=int, default=70, choices=range(1, 100),
-                                help='Accept bins during the weighted average smoothing that are at least covered by'
-                                     ' this percentage in the input signal track. Default is 70 percent')
-    parser_convert.set_defaults(execute=_convert_execute)
+    parser_convfna.set_defaults(execute=_convfna_execute)
     return subparsers
 
 
-def _convert_execute(args):
+def _convfna_execute(args):
     """
     :param args:
     :return:
     """
-    convert = implib.import_module('lib.commands.convert')
+    convert = implib.import_module('crplib.commands.convert')
     retval = convert.run_conversion(args)
     return retval
 
