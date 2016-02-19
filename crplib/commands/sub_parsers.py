@@ -15,8 +15,8 @@ def add_sub_parsers(main_parser):
     """
     subparsers = main_parser.add_subparsers(dest='subparser_name', title='Subcommands')
     subparsers = _add_tests_command(subparsers, main_parser)
-    subparsers = _add_regmatch_command(subparsers, main_parser)
     subparsers = _add_convfna_command(subparsers, main_parser)
+    subparsers = _add_regmatch_command(subparsers, main_parser)
     subparsers = _add_mkmap_command(subparsers, main_parser)
     subparsers = _add_sigmap_command(subparsers, main_parser)
     subparsers = _add_tfscan_command(subparsers, main_parser)
@@ -33,8 +33,7 @@ def _add_tests_command(subparsers, parent):
                                          description='This command executes all unit tests, among them is an '
                                                      'import test that attempts to import all modules necessary '
                                                      'to run any CREEPIEST tool. It is highly recommended to run '
-                                                     'unit tests prior to any analysis run.',
-                                         parents=[parent])
+                                                     'unit tests prior to any analysis run.')
     parser_tests.set_defaults(execute=_tests_execute)
     return subparsers
 
@@ -56,21 +55,21 @@ def _add_convfna_command(subparsers, parent):
     """
     parser_convfna = subparsers.add_parser('convfna',
                                            help='Convert assembly in (FASTA nucleotide file) to HDF5 format',
-                                           description='...to be updated...',
-                                           parents=[parent])
-    parser_convfna.add_argument('--assembly', '-a', type=str, required=True, dest='assembly',
-                                help='Specify name of assembly.')
-    parser_convfna.add_argument('--chrom-sizes', '-s', type=str, required=True, dest='chromsizes',
-                                help='Full path to UCSC-style 2 column file with chromosome sizes')
-    parser_convfna.add_argument('--keep-chroms', '-c', type=str, default='"(chr)?[0-9]+\s"', dest='keepchroms',
-                                help='Regular expression pattern (needs to be double quoted) matching'
-                                     ' chromosomes to keep. Default: "(chr)?[0-9]+\s" (i.e. autosomes)')
-    parser_convfna.add_argument('--no-replace', '-norp', action='store_true', default=False, dest='noreplace',
-                                help='Replace all non ACGTN letters in the sequence with N (case sensitive)')
-    parser_convfna.add_argument('--input', '-i', type=str, required=True, dest='inputfile',
-                                help='Full path to input file to be converted')
-    parser_convfna.add_argument('--output', '-o', type=str, required=True, dest='outputfile',
-                                help='Full path to output file')
+                                           description='...to be updated...')
+    comgroup = parser_convfna.add_argument_group('Convfna parameters')
+    comgroup.add_argument('--assembly', '-a', type=str, required=True, dest='assembly',
+                          help='Specify name of assembly.')
+    comgroup.add_argument('--chrom-sizes', '-s', type=str, required=True, dest='chromsizes',
+                          help='Full path to UCSC-style 2 column file with chromosome sizes')
+    comgroup.add_argument('--keep-chroms', '-c', type=str, default='"(chr)?[0-9]+(\s|$)"', dest='keepchroms',
+                          help='Regular expression pattern (needs to be double quoted) matching'
+                               ' chromosomes to keep. Default: "(chr)?[0-9]+(\s|$)" (i.e. autosomes)')
+    comgroup.add_argument('--no-replace', '-norp', action='store_true', default=False, dest='noreplace',
+                          help='Replace all non ACGTN letters in the sequence with N (case sensitive)')
+    comgroup.add_argument('--input', '-i', type=str, required=True, dest='inputfile',
+                          help='Full path to input file to be converted')
+    comgroup.add_argument('--output', '-o', type=str, required=True, dest='outputfile',
+                          help='Full path to output file')
     parser_convfna.set_defaults(execute=_convfna_execute)
     return subparsers
 
@@ -97,8 +96,7 @@ def _add_regmatch_command(subparsers, parent):
                                                         ' searches in the genomic complement (the whole genome minus'
                                                         ' the input regions) for similar regions. A common usecase is'
                                                         ' the search for a set of background regions closely matching'
-                                                        ' the set of input (foreground) regions.',
-                                            parents=[parent])
+                                                        ' the set of input (foreground) regions.')
     mutex_group = parser_regmatch.add_mutually_exclusive_group(required=True)
     mutex_group.add_argument('--crpk-source', '-crpkf', dest='crpksource', nargs='+',
                              help='List full paths to individual CRPK files or give a list of paths to folders'
@@ -154,8 +152,7 @@ def _add_mkmap_command(subparsers, parent):
     """
     parser_mkmap = subparsers.add_parser('mkmap',
                                          help='Create a CREEP for signal mapping based on a pairwise alignment'
-                                              ' in UCSC axt format or UCSC chain file.',
-                                         parents=[parent])
+                                              ' in UCSC axt format or UCSC chain file.')
     parser_mkmap.add_argument('--server-cfg', '-srv', dest='srvconfig', required=True, type=str,
                               help='Specify the full path to the CREEPIEST annotation server configuration file.')
     parser_mkmap.add_argument('--reference', '-r', dest='reference', type=str, required=True,
@@ -199,8 +196,7 @@ def _add_sigmap_command(subparsers, parent):
     parser_sigmap = subparsers.add_parser('sigmap',
                                           help='Take an arbitrary number of signal CREEPs and one mapping CREEP'
                                                ' with compatible reference and map all signal tracks from the'
-                                               ' reference to the target assembly.',
-                                          parents=[parent])
+                                               ' reference to the target assembly.')
     parser_sigmap.add_argument('--map-creep', '-crmp', dest='mapcreep', required=True, type=str,
                                help='Specify full path to map CREEP with compatible resolution and correct'
                                     ' reference assembly.')
@@ -233,8 +229,7 @@ def _add_tfscan_command(subparsers, parent):
     """
     parser_tfscan = subparsers.add_parser('tfscan',
                                           help='Scan a set of sequences for transcription factor binding sites using'
-                                               ' the MEME suite (Fimo). The Fimo executable must be available in PATH.',
-                                          parents=[parent])
+                                               ' the MEME suite (Fimo). The Fimo executable must be available in PATH.')
     parser_tfscan.add_argument('--genome', '-g', dest='genome', required=True, type=str,
                                help='Identifier of genome assembly, e.g. hg19, used for file/folder naming.')
     parser_tfscan.add_argument('--source', '-s', dest='source', required=True, type=str,

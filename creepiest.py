@@ -57,7 +57,7 @@ def build_main_parser(stdincfg):
         args, remain_args = conf_parser.parse_known_args(stdincfg)
     else:
         args, remain_args = conf_parser.parse_known_args()
-    main_parser = argp.ArgumentParser(add_help=False, parents=[conf_parser], description=prog_desc,
+    main_parser = argp.ArgumentParser(add_help=True, parents=[conf_parser], description=prog_desc,
                                       formatter_class=argp.RawDescriptionHelpFormatter)
     generics = main_parser.add_argument_group('General')
     generics.add_argument('--version', '-v', action='version', version=__version__,
@@ -78,7 +78,7 @@ def build_main_parser(stdincfg):
                           help='Profile this run of the CREEPIEST tool. This only works if the C'
                                ' profiling libraries are available to limit the overhead. Creates a'
                                ' cProfile output file in the working directory. Default: FALSE')
-    generics.add_argument('--no-dump', '-nod', action='store_true', default=False, dest='nodump',
+    generics.add_argument('--no-dump', '-nod', action='store_true', default=True, dest='nodump',
                           help='If set to TRUE, do not dump a summary of the current configuration'
                                ' and run parameters. Default: FALSE')
     generics.add_argument('--dump-dir', '-dmp', type=str, default=os.getcwd(), dest='dumpdir',
