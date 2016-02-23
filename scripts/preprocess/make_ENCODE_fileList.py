@@ -16,7 +16,8 @@ import traceback as trb
 
 BIOSAMPLES = ['HepG2', 'K562', 'GM12878', 'H1-hESC', 'MEL cell line', 'CH12.LX', 'ES-Bruce4', 'ES-E14']
 FORMATS = ['bigWig', 'gtf', 'bigBed narrowPeak', 'bigBed broadPeak']
-OUTPUTS = ['peaks', 'signal', 'raw signal', 'base overlap signal', 'exon quantifications', 'transcript quantifications']
+OUTPUTS = ['peaks', 'signal', 'raw signal', 'base overlap signal',
+           'exon quantifications', 'transcript quantifications', 'gene quantifications']
 
 DL_FOLDER = '/TL/deep/fhgfs/projects/pebert/thesis/biodata/dlfolder/encode'
 

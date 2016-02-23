@@ -14,16 +14,16 @@ def add_sub_parsers(main_parser):
     :return:
     """
     subparsers = main_parser.add_subparsers(dest='subparser_name', title='Subcommands')
-    subparsers = _add_tests_command(subparsers, main_parser)
-    subparsers = _add_convfna_command(subparsers, main_parser)
-    subparsers = _add_regmatch_command(subparsers, main_parser)
-    subparsers = _add_mkmap_command(subparsers, main_parser)
-    subparsers = _add_sigmap_command(subparsers, main_parser)
-    subparsers = _add_tfscan_command(subparsers, main_parser)
+    subparsers = _add_tests_command(subparsers)
+    subparsers = _add_convfna_command(subparsers)
+    subparsers = _add_regmatch_command(subparsers)
+    subparsers = _add_mkmap_command(subparsers)
+    subparsers = _add_sigmap_command(subparsers)
+    subparsers = _add_tfscan_command(subparsers)
     return main_parser
 
 
-def _add_tests_command(subparsers, parent):
+def _add_tests_command(subparsers):
     """
     :param subparser:
     :return:
@@ -48,7 +48,7 @@ def _tests_execute(args):
     return retval
 
 
-def _add_convfna_command(subparsers, parent):
+def _add_convfna_command(subparsers):
     """
     :param subparsers:
     :return:
@@ -56,25 +56,57 @@ def _add_convfna_command(subparsers, parent):
     parser_convfna = subparsers.add_parser('convfna',
                                            help='Convert assembly in (FASTA nucleotide file) to HDF5 format',
                                            description='...to be updated...')
-    comgroup = parser_convfna.add_argument_group('Convfna parameters')
+    comgroup = parser_convfna.add_argument_group('Convert FASTA parameters')
     comgroup.add_argument('--assembly', '-a', type=str, required=True, dest='assembly',
                           help='Specify name of assembly.')
     comgroup.add_argument('--chrom-sizes', '-s', type=str, required=True, dest='chromsizes',
                           help='Full path to UCSC-style 2 column file with chromosome sizes')
     comgroup.add_argument('--keep-chroms', '-c', type=str, default='"(chr)?[0-9]+(\s|$)"', dest='keepchroms',
                           help='Regular expression pattern (needs to be double quoted) matching'
-                               ' chromosomes to keep. Default: "(chr)?[0-9]+(\s|$)" (i.e. autosomes)')
+                               ' chromosome names to keep. Default: "(chr)?[0-9]+(\s|$)" (i.e. autosomes)')
     comgroup.add_argument('--no-replace', '-norp', action='store_true', default=False, dest='noreplace',
                           help='Replace all non ACGTN letters in the sequence with N (case sensitive)')
     comgroup.add_argument('--input', '-i', type=str, required=True, dest='inputfile',
                           help='Full path to input file to be converted')
     comgroup.add_argument('--output', '-o', type=str, required=True, dest='outputfile',
                           help='Full path to output file')
-    parser_convfna.set_defaults(execute=_convfna_execute)
+    parser_convfna.set_defaults(execute=_convert_execute)
     return subparsers
 
 
-def _convfna_execute(args):
+def _add_convbg_command(subparsers):
+    """
+    :param subparsers:
+    :return:
+    """
+    parser_convfna = subparsers.add_parser('convbg',
+                                           help='Convert bedGraph signal tracks to HDF5. If several signal'
+                                                ' tracks are specified as input, build a single merged track.',
+                                           description='...to be updated...')
+    comgroup = parser_convfna.add_argument_group('Convert bedGraph parameters')
+    comgroup.add_argument('--chrom-sizes', '-s', type=str, required=True, dest='chromsizes',
+                          help='Full path to UCSC-style 2 column file with chromosome sizes')
+    comgroup.add_argument('--keep-chroms', '-c', type=str, default='"(chr)?[0-9]+(\s|$)"', dest='keepchroms',
+                          help='Regular expression pattern (needs to be double quoted) matching'
+                               ' chromosome names to keep. Default: "(chr)?[0-9]+(\s|$)" (i.e. autosomes)')
+    comgroup.add_argument('--no-qnorm', '-nq', action='store_true', default=False, dest='noqnorm',
+                          help='Do not perform quantile normalization before merging several input files.'
+                               ' This will substantially decrease the run time. When merging several replicate'
+                               ' experiments, performing quantile normalization is recommended. Default: FALSE')
+    comgroup.add_argument('--merge-stat', '-ms', type=str, default='mean', choices=['mean', 'median', 'max', 'min'],
+                          dest='mergestat',
+                          help='Use this statistic to merge several input files: mean, median, min, max. Default: mean')
+    comgroup.add_argument('--group-root', type=str, default='', dest='grouproot',
+                          help='Specify a root path to store the individual chromosomes in the HDF5. Default: <empty>')
+    comgroup.add_argument('--input', '-i', type=str, required=True, dest='inputfile', nargs='+',
+                          help='Full path to input file(s) to be converted.')
+    comgroup.add_argument('--output', '-o', type=str, required=True, dest='outputfile',
+                          help='Full path to output file')
+    parser_convfna.set_defaults(execute=_convert_execute)
+    return subparsers
+
+
+def _convert_execute(args):
     """
     :param args:
     :return:
@@ -84,7 +116,7 @@ def _convfna_execute(args):
     return retval
 
 
-def _add_regmatch_command(subparsers, parent):
+def _add_regmatch_command(subparsers):
     """
     :param subparsers:
     :return:
@@ -145,7 +177,7 @@ def _regmatch_execute(args):
     return retval
 
 
-def _add_mkmap_command(subparsers, parent):
+def _add_mkmap_command(subparsers):
     """
     :param subparsers:
     :return:
@@ -188,7 +220,7 @@ def _mkmap_execute(args):
     return retval
 
 
-def _add_sigmap_command(subparsers, parent):
+def _add_sigmap_command(subparsers):
     """
     :param subparsers:
     :return:
@@ -222,7 +254,7 @@ def _sigmap_execute(args):
     return retval
 
 
-def _add_tfscan_command(subparsers, parent):
+def _add_tfscan_command(subparsers):
     """
     :param subparsers:
     :return:

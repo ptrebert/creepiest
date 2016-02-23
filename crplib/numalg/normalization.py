@@ -21,12 +21,14 @@ def quant_norm(*args, statistic='mean'):
      :rtype: pandas.core.frame.DataFrame
     """
     # dataframe with samples (rows) X values (cols)
-    df = pd.DataFrame([*args], dtype='float64')
+    # avoid: "can use starred expression only as assignment target"
+    # df = pd.DataFrame([*args], dtype='float64')
+    df = pd.DataFrame([arg for arg in args], dtype='float64')
     # compute ranks for each sample
     # use average to identify ties later
     rk = df.rank(axis=1, method='average')
     # sort values in each sample (row)
-    df = df.apply(np.sort, axis=1)
+    df = df.apply(np.sort, axis=1, raw=True)
     # generate series with data (statistic of values, for each col)
     # and index (= ranking of statistic)
     if statistic == 'mean':
@@ -38,12 +40,31 @@ def quant_norm(*args, statistic='mean'):
     # drop duplicates to get single element when accessing col_means
     col_stats.drop_duplicates(keep='first', inplace=True)
     # sort for faster access
+    # ...could be premature optimization here...
     col_stats.sort_index(inplace=True)
     # get indices of those elements that have an averaged rank (e.g. 3.5)
     idx_ties = list(rk[~rk.isin(col_stats.index)].stack().index)
     # replace all non-average ranks with corresponding means
     rk.replace(to_replace=col_stats.index, value=col_stats.values, inplace=True)
     for row, col in idx_ties:
-        # replace values with an averaged rank with the average of the two means (floor and ceiling positon)
+        # replace values with an averaged rank with the average of the two means (floor and ceiling position)
         rk.iat[row, col] = (col_stats.loc[int(rk.iat[row, col])] + col_stats.loc[int(rk.iat[row, col]) + 1]) / 2.
     return rk
+
+
+def merge_1d_datasets(*args, mergestat, qnorm):
+    """
+    :param args:
+    :param mergestat:
+    :param qnorm:
+    :return:
+    """
+    if qnorm:
+        df = quant_norm(args)
+    else:
+        # avoid: "can use starred expression only as assignment target"
+        # df = pd.DataFrame([*args], dtype='float64')
+        df = pd.DataFrame([arg for arg in args], dtype='float64')
+    mergers = {'mean': np.mean, 'median': np.median, 'max': np.max, 'min': np.min}
+    col_mrg = df.apply(mergers[mergestat], axis=0, raw=True)
+    return col_mrg.values

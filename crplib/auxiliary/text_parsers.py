@@ -19,7 +19,7 @@ def read_chromosome_sizes(fpath, keep='.+'):
     chroms = dict()
     keeper = re.compile(keep)
     opn, mode = text_file_mode(fpath)
-    with opn(fpath, mode=mode, encoding='utf-8') as infile:
+    with opn(fpath, mode=mode, encoding='ascii') as infile:
         for line in infile:
             if not line.strip():
                 continue
