@@ -13,8 +13,8 @@ import traceback as trb
 import argparse as argp
 import configparser as confp
 import select as select
+import datetime as dt
 import random as rand
-import time as time
 import cProfile as cprf
 
 from crplib.__init__ import __version__
@@ -49,7 +49,7 @@ def build_main_parser(stdincfg):
     :param stdincfg:
     :return:
     """
-    conf_parser = argp.ArgumentParser(prog='CREEPIEST', add_help=False)
+    conf_parser = argp.ArgumentParser(prog='CREEPIEST', add_help=False, allow_abbrev=False)
     fbconf = conf_parser.add_argument_group('File-based configuration')
     fbconf.add_argument('--config-file', '-cfg', dest='configfile', metavar='FILEPATH',
                         help='Specify full path to configuration file')
@@ -58,7 +58,7 @@ def build_main_parser(stdincfg):
     else:
         args, remain_args = conf_parser.parse_known_args()
     main_parser = argp.ArgumentParser(add_help=True, parents=[conf_parser], description=prog_desc,
-                                      formatter_class=argp.RawDescriptionHelpFormatter)
+                                      formatter_class=argp.RawDescriptionHelpFormatter, allow_abbrev=False)
     generics = main_parser.add_argument_group('General')
     generics.add_argument('--version', '-v', action='version', version=__version__,
                           help='Print version information and exit')
@@ -78,7 +78,7 @@ def build_main_parser(stdincfg):
                           help='Profile this run of the CREEPIEST tool. This only works if the C'
                                ' profiling libraries are available to limit the overhead. Creates a'
                                ' cProfile output file in the working directory. Default: FALSE')
-    generics.add_argument('--no-dump', '-nod', action='store_true', default=True, dest='nodump',
+    generics.add_argument('--no-dump', '-nod', action='store_true', default=False, dest='nodump',
                           help='If set to TRUE, do not dump a summary of the current configuration'
                                ' and run parameters. Default: FALSE')
     generics.add_argument('--dump-dir', '-dmp', type=str, default=os.getcwd(), dest='dumpdir',
@@ -87,8 +87,6 @@ def build_main_parser(stdincfg):
                           help='Number of worker processes allowed to start. Note that for I/O intensive'
                                ' task, e.g. data conversion, this number should only be set to a large'
                                ' value if the storage hardware can handle parallel writes. Default: 1')
-    # due to the parent-child hierarchy for the subcommands [add_help=False for the parents],
-    # this is necessary to print the help message when calling ./creepiest.py --help
     main_parser.set_defaults(execute=lambda arg: main_parser.print_help())
     if args.configfile:
         cfgp = confp.ConfigParser()
@@ -118,7 +116,8 @@ def dump_config(args, ignored_args):
             dump[envk][key] = current_env[key]
         except KeyError:
             dump[envk][key] = 'N/A'
-    dump[envk]['TIMESTAMP'] = time.ctime()
+    dtobj = dt.datetime.now()
+    dump[envk]['TIMESTAMP'] = dtobj.strftime('%Y-%m-%d - %H:%M:%S')
     dump[envk]['CREEPIEST_VERSION'] = __version__
 
     cfgk = 'CONFIGURATION'
@@ -130,8 +129,13 @@ def dump_config(args, ignored_args):
 
     fname = get_full_filestamp() + '_crp.ini'
     fpath = os.path.join(args.dumpdir, fname)
-    with open(os.path.join(args.dumpdir, fname), 'w') as outf:
-        dump.write(outf)
+    try:
+        with open(os.path.join(args.dumpdir, fname), 'w') as outf:
+            dump.write(outf)
+    except FileNotFoundError:
+        os.makedirs(os.path.dirname(fname), exist_ok=True)
+        with open(os.path.join(args.dumpdir, fname), 'w') as outf:
+            dump.write(outf)
     return fpath
 
 
@@ -154,7 +158,7 @@ def init_logging_system(args, logbuf):
         bufhdl = logging.StreamHandler(stream=logbuf)
         bufhdl.setFormatter(formatter)
         logger.addHandler(bufhdl)
-    loglevel = logging.DEBUG if args.verbose else logging.ERROR
+    loglevel = logging.DEBUG if args.verbose else logging.WARNING
     logger.setLevel(loglevel)
     return logger
 
@@ -171,7 +175,8 @@ def run():
     rand.seed()
     retcode = 0
     conf_dump = ''
-    starttime = time.ctime()
+    dtobj = dt.datetime.now()
+    starttime = dtobj.strftime('%Y%m%d - %H%M%S')
     try:
         recv_stdin = check_stdin_config()
         mainprs, remain_args = build_main_parser(recv_stdin)
@@ -204,7 +209,8 @@ def run():
             sys.stderr.write('\nError: {}\nTraceback: {}\n'.format(e, trbbuf.getvalue()))
         retcode = e.args[0]
     finally:
-        endtime = time.ctime()
+        dtobj = dt.datetime.now()
+        endtime = dtobj.strftime('%Y%m%d - %H%M%S')
         if args and args.notify:
             send_notification(args.notify, args.subparser_name, retcode, starttime, endtime, logbuf)
         logging.shutdown()

@@ -34,6 +34,7 @@ def convert_bedgraph_signal(args, logger):
         'Invalid path to chromosome sizes file: {}'.format(args.chromsizes)
     assert all([os.path.isfile(f) for f in args.inputfile]),\
         'Invalid path(s) to input file(s): {}'.format(args.inputfile)
+    assert 0. <= args.clip <= 100., 'Clip value outside of range 0..100: {}'.format(args.clip)
     args.__dict__['keepchroms'] = args.keepchroms.strip('"')
     logger.debug('Chromosome select pattern: {}'.format(args.keepchroms))
     mod = imp.import_module('crplib.commands.convert_bedgraph')

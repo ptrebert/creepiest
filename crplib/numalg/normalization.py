@@ -2,31 +2,36 @@
 
 import pandas as pd
 import numpy as np
+import scipy.stats as stats
 
 
-def quant_norm(*args, statistic='mean'):
+def quant_norm_deprecated(*args, statistic='mean', nzonly=False):
     """ Perform quantile normalization as proposed by Bolstad et al.
-    Specifically, this method mimicks the behavior of the R library preprocessCore,
-    i.e. of the function normalize.quantiles (v1.32) [NB here: samples X values]
-    Ties when ranking the data are broken as follows during the replacement step:
-    value(rk=N.f) = (value(rk=N) + value(rk=N+1)) / 2
-    More conservative normalization is possible using the median.
-    This function does not handle missing data.
+    Since the handling of ties during the ranking is not specified in the original paper,
+    this method uses dense ranking (rank always increases by 1 between groups)
+    Hence, the result of this function is slightly different to, e.g., the R function
+    normalize.quantiles from the preprocessCore package
 
     :param args:
-     :type: numpy.ndarray, list
+     :type: numpy.ndarray, tuple of numpy.ndarray
     :param statistic: which statistic to use; default: mean
      :type: str
+    :param nzonly: reduce data to columns where at least one sample has a non-zero entry
     :return: the quantile normalized data
      :rtype: pandas.core.frame.DataFrame
     """
+    #
+    # This method consumes too much memory (Pandas overhead???)
+    # Use only for small data sizes (num data points < 10e6)
+    #
     # dataframe with samples (rows) X values (cols)
     # avoid: "can use starred expression only as assignment target"
     # df = pd.DataFrame([*args], dtype='float64')
     df = pd.DataFrame([arg for arg in args], dtype='float64')
+    if nzonly:
+        raise NotImplementedError('Using only non-zero columns not yet implemented')
     # compute ranks for each sample
-    # use average to identify ties later
-    rk = df.rank(axis=1, method='average')
+    rk = df.rank(axis=1, method='dense')
     # sort values in each sample (row)
     df = df.apply(np.sort, axis=1, raw=True)
     # generate series with data (statistic of values, for each col)
@@ -37,19 +42,37 @@ def quant_norm(*args, statistic='mean'):
         col_stats = pd.Series(df.median(axis=0).values, index=df.median(axis=0).rank(method='dense'))
     else:
         raise ValueError('Unknown statistic: {}'.format(statistic))
-    # drop duplicates to get single element when accessing col_means
-    col_stats.drop_duplicates(keep='first', inplace=True)
     # sort for faster access
     # ...could be premature optimization here...
     col_stats.sort_index(inplace=True)
-    # get indices of those elements that have an averaged rank (e.g. 3.5)
-    idx_ties = list(rk[~rk.isin(col_stats.index)].stack().index)
-    # replace all non-average ranks with corresponding means
+    # replace rank values with averages
     rk.replace(to_replace=col_stats.index, value=col_stats.values, inplace=True)
-    for row, col in idx_ties:
-        # replace values with an averaged rank with the average of the two means (floor and ceiling position)
-        rk.iat[row, col] = (col_stats.loc[int(rk.iat[row, col])] + col_stats.loc[int(rk.iat[row, col]) + 1]) / 2.
     return rk
+
+
+def quant_norm(*args):
+    """ Perform quantile normalization as proposed by Bolstad et al.
+    Since the handling of ties during the ranking is not specified in the original paper,
+    this method uses dense ranking (rank always increases by 1 between groups)
+    Hence, the result of this function is slightly different to, e.g., the R function
+    normalize.quantiles from the preprocessCore package
+
+    :param args: arbitrary number of numpy arrays with dtype float64
+    :return: quantile normalized arrays, same number as input
+    """
+    ranks = list()
+    for arg in args:
+        rk = stats.rankdata(arg, method='dense')
+        ranks.append(rk)
+        arg.sort()
+    col_stat = np.mean([arg for arg in args], axis=0, dtype='float64')
+    col_stat = np.unique(col_stat)
+    col_ranks = stats.rankdata(col_stat, method='dense')
+    for idx, rarr in enumerate(ranks):
+        indices = np.digitize(rarr, col_ranks, right=True)
+        rarr = col_stat[indices]
+        ranks[idx] = rarr
+    return ranks
 
 
 def merge_1d_datasets(*args, mergestat, qnorm):
@@ -60,11 +83,7 @@ def merge_1d_datasets(*args, mergestat, qnorm):
     :return:
     """
     if qnorm:
-        df = quant_norm(args)
-    else:
-        # avoid: "can use starred expression only as assignment target"
-        # df = pd.DataFrame([*args], dtype='float64')
-        df = pd.DataFrame([arg for arg in args], dtype='float64')
+        args = quant_norm(*args)
     mergers = {'mean': np.mean, 'median': np.median, 'max': np.max, 'min': np.min}
-    col_mrg = df.apply(mergers[mergestat], axis=0, raw=True)
-    return col_mrg.values
+    col_mrg = mergers[mergestat]([arg for arg in args], axis=0)
+    return col_mrg

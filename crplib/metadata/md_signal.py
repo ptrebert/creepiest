@@ -28,10 +28,17 @@ def gen_obj_and_md(mdframe, rootpath, chrom, srcfiles, datavals):
     tmpsrc = ','.join([os.path.basename(f) for f in srcfiles])
     ctime = dt.datetime.now()
     dataobj = pd.Series(data=datavals, dtype='float64')
-    size_mem = (dataobj.values.nbytes + dataobj.index.nbytes) / DIV_B_TO_MB
+    size_mem = dataobj.nbytes / DIV_B_TO_MB
     datalen = datavals.size
     mtime = dt.datetime.now()
-    entries = [grp, chrom, ctime, mtime, int(size_mem), datalen, tmpsrc] + pct_scores
-    tmp = pd.DataFrame([entries, ], columns=MD_SIGNAL_COLDEFS)
-    mdframe = mdframe.append(tmp, ignore_index=True)
+    entries = [grp, chrom, ctime, mtime, int(size_mem), datalen, tmpsrc]
+    entries.extend(list(pct_scores))
+    if grp in mdframe.group.values:
+        tmp = mdframe.where(mdframe.group == 'grp').dropna().index
+        assert len(tmp) == 1, 'Group {} multiple times in metadata'.format(grp)
+        idx = tmp[0]
+        mdframe.iloc[idx, ] = entries
+    else:
+        tmp = pd.DataFrame([entries, ], columns=MD_SIGNAL_COLDEFS)
+        mdframe = mdframe.append(tmp, ignore_index=True)
     return grp, dataobj, mdframe

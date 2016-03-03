@@ -15,7 +15,7 @@ def add_sub_parsers(main_parser):
     """
     subparsers = main_parser.add_subparsers(dest='subparser_name', title='Subcommands')
     subparsers = _add_tests_command(subparsers)
-    subparsers = _add_convfna_command(subparsers)
+    subparsers = _add_convbg_command(subparsers)
     subparsers = _add_regmatch_command(subparsers)
     subparsers = _add_mkmap_command(subparsers)
     subparsers = _add_sigmap_command(subparsers)
@@ -79,11 +79,11 @@ def _add_convbg_command(subparsers):
     :param subparsers:
     :return:
     """
-    parser_convfna = subparsers.add_parser('convbg',
-                                           help='Convert bedGraph signal tracks to HDF5. If several signal'
-                                                ' tracks are specified as input, build a single merged track.',
-                                           description='...to be updated...')
-    comgroup = parser_convfna.add_argument_group('Convert bedGraph parameters')
+    parser_convbg = subparsers.add_parser('convbg',
+                                          help='Convert bedGraph signal tracks to HDF5. If several signal'
+                                               ' tracks are specified as input, build a single merged track.',
+                                          description='...to be updated...')
+    comgroup = parser_convbg.add_argument_group('Convert bedGraph parameters')
     comgroup.add_argument('--chrom-sizes', '-s', type=str, required=True, dest='chromsizes',
                           help='Full path to UCSC-style 2 column file with chromosome sizes')
     comgroup.add_argument('--keep-chroms', '-c', type=str, default='"(chr)?[0-9]+(\s|$)"', dest='keepchroms',
@@ -98,11 +98,13 @@ def _add_convbg_command(subparsers):
                           help='Use this statistic to merge several input files: mean, median, min, max. Default: mean')
     comgroup.add_argument('--group-root', type=str, default='', dest='grouproot',
                           help='Specify a root path to store the individual chromosomes in the HDF5. Default: <empty>')
+    comgroup.add_argument('--clip', '-cl', type=float, default=99.95, dest='clip',
+                          help='Clip signal values above this percentile. Default: 99.95')
     comgroup.add_argument('--input', '-i', type=str, required=True, dest='inputfile', nargs='+',
                           help='Full path to input file(s) to be converted.')
     comgroup.add_argument('--output', '-o', type=str, required=True, dest='outputfile',
                           help='Full path to output file')
-    parser_convfna.set_defaults(execute=_convert_execute)
+    parser_convbg.set_defaults(execute=_convert_execute)
     return subparsers
 
 
