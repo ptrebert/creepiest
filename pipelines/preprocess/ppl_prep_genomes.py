@@ -51,10 +51,17 @@ def build_pipeline(args, config, sci_obj):
                             name='conv2bit',
                             input=output_from(init, filtchrom),
                             filter=formatter('(?P<ASSEMBLY>\w+)\.(2bit|selected)'),
-                            output=os.path.join(tempdir, '{ASSEMBLY[0]}.fa.gz'),
+                            output=os.path.join(tempdir, '{ASSEMBLY[0]}.fa'),
                             extras=[cmd, '.selected', jobcall])
 
-    # step 3: convert fasta files into HDF5 files
-    #convert_fasta = ruf.transform()
+    # step 3: run FIMO on genomes
+    cmd = config.get('Pipeline', 'tfscan')
+    base_out = os.path.join(tempdir, 'tfscan')
+    tfscan = pipe.subdivide(task_func=sci_obj.get_jobf('in_pat'),
+                            name='tfscan',
+                            input=output_from(conv2bit),
+                            filter=formatter('(?P<ASSEMBLY>\w+)\.fa'),
+                            output=os.path.join(base_out, '{ASSEMBLY[0]}', 'fimo*'),
+                            extras=[os.path.join(base_out, '{ASSEMBLY[0]}'), 'fimo*', cmd, jobcall]).mkdir(os.path.join(tempdir, 'tfscan'))
 
     return pipe

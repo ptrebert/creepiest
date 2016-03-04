@@ -28,11 +28,20 @@ def link_encode_files(mdfile, jsfile, indir, trgdir):
     with open(mdfile, 'r') as infile:
         rows = csv.DictReader(infile, delimiter='\t')
         for r in rows:
-            if r['File accession'] in accnums and r['File format'] == 'bigWig':
-                facc = r['File accession']
-                expid = r['Experiment accession']
-                asmbl = r['Assembly']
-                labid = LAB_MAP[r['Lab']]
+            facc = r['File accession']
+            ffmt = r['File format']
+            if facc in accnums and ffmt in ['bigWig', 'bigBed narrowPeak', 'bigBed broadPeak']:
+                if ffmt == 'bigWig':
+                    new_ext = '.bigWig'
+                    old_ext = '.bigWig'
+                elif ffmt == 'bigBed narrowPeak':
+                    new_ext = '.narrow.bigBed'
+                    old_ext = '.bigBed'
+                elif ffmt == 'bigBed broadPeak':
+                    new_ext = '.broad.bigBed'
+                    old_ext = '.bigBed'
+                else:
+                    continue
                 sample = SAMPLE_MAP[r['Biosample term name']]
                 mark = r['Experiment target'].rsplit('-', 1)[0]
                 if 'IgG' in mark:
@@ -45,6 +54,9 @@ def link_encode_files(mdfile, jsfile, indir, trgdir):
                     mark = 'DNaseI'
                 else:
                     continue  # ignore others for now
+                expid = r['Experiment accession']
+                asmbl = r['Assembly']
+                labid = LAB_MAP[r['Lab']]
                 try:
                     dsid = map_encsr_encds[expid]
                 except KeyError:
@@ -57,13 +69,13 @@ def link_encode_files(mdfile, jsfile, indir, trgdir):
                     dsid = 'ENCDS000CRP'
                 dscounter[dsid] += 1
                 repnum = 'R0' if not r['Biological replicate(s)'] else 'R' + r['Biological replicate(s)']
-                fname = '_'.join([dsid, facc, asmbl, sample, mark, labid, repnum]) + '.bigWig'
+                fname = '_'.join([dsid, facc, asmbl, sample, mark, labid, repnum]) + new_ext
                 tpath = os.path.join(trgdir, fname)
                 if os.path.islink(tpath):
                     linked_files.append(tpath)
                     continue
                 else:
-                    fpath = os.path.join(indir, facc + '.bigWig')
+                    fpath = os.path.join(indir, facc + old_ext)
                     os.link(fpath, tpath)
                     linked_files.append(tpath)
     # remove controls for non-histone ChIPseq etc and datasets with only
@@ -120,6 +132,15 @@ def build_pipeline(args, config, sci_obj):
                             input=output_from(init),
                             filter=suffix('.bigWig'),
                             output='.bg.gz',
+                            output_dir=tempdir,
+                            extras=[cmd, jobcall]).mkdir(tempdir)
+
+    cmd = config.get('Pipeline', 'convbb')
+    convbb = pipe.transform(task_func=sci_obj.get_jobf('in_out'),
+                            name='convbb',
+                            input=output_from(init),
+                            filter=suffix('.bigBed'),
+                            output='.bed.gz',
                             output_dir=tempdir,
                             extras=[cmd, jobcall]).mkdir(tempdir)
 
