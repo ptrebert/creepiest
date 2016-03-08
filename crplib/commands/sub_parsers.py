@@ -96,7 +96,7 @@ def _add_convbg_command(subparsers):
     comgroup.add_argument('--merge-stat', '-ms', type=str, default='mean', choices=['mean', 'median', 'max', 'min'],
                           dest='mergestat',
                           help='Use this statistic to merge several input files: mean, median, min, max. Default: mean')
-    comgroup.add_argument('--group-root', type=str, default='', dest='grouproot',
+    comgroup.add_argument('--group-root', '-gr', type=str, default='', dest='grouproot',
                           help='Specify a root path to store the individual chromosomes in the HDF5. Default: <empty>')
     comgroup.add_argument('--clip', '-cl', type=float, default=99.95, dest='clip',
                           help='Clip signal values above this percentile. Default: 99.95')
@@ -105,6 +105,38 @@ def _add_convbg_command(subparsers):
     comgroup.add_argument('--output', '-o', type=str, required=True, dest='outputfile',
                           help='Full path to output file')
     parser_convbg.set_defaults(execute=_convert_execute)
+    return subparsers
+
+
+def _add_convreg_command(subparsers):
+    """
+    :param subparsers:
+    :return:
+    """
+    parser_convreg = subparsers.add_parser('convreg',
+                                           help='Convert genomic regions (e.g. peaks) to HDF5. If serveral files'
+                                                ' are specified as input, build a single merged set.',
+                                           description='... to be updated ...')
+    comgroup = parser_convreg.add_argument_group('Convert region parameters')
+    comgroup.add_argument('--keep-chroms', '-c', type=str, default='"(chr)?[0-9]+(\s|$)"', dest='keepchroms',
+                          help='Regular expression pattern (needs to be double quoted) matching'
+                               ' chromosome names to keep. Default: "(chr)?[0-9]+(\s|$)" (i.e. autosomes)')
+    comgroup.add_argument('--name-idx', '-n', type=int, default=-1, dest='namecol',
+                          help='Specify column index (0-based) with region names. If set to -1,'
+                               ' new names will be assigned based on genomic sort order. Default: -1')
+    comgroup.add_argument('--score-idx', '-s', type=int, default=-1, dest='scorecol',
+                          help='Specify column index (0-based) with score to rank regions. If set to'
+                               ' -1 no ranking can be performed. Default: -1')
+    comgroup.add_argument('--keep-top', '-k', type=float, default=95, dest='keeptop',
+                          help='Specify top N percent of regions to keep after ranking. Requires --score-idx'
+                               ' to be set. Default: 95')
+    comgroup.add_argument('--group-root', '-gr', type=str, default='', dest='grouproot',
+                          help='Specify a root path to store the individual chromosomes in the HDF5. Default: <empty>')
+    comgroup.add_argument('--input', '-i', type=str, required=True, dest='inputfile', nargs='+',
+                          help='Full path to input file(s) to be converted.')
+    comgroup.add_argument('--output', '-o', type=str, required=True, dest='outputfile',
+                          help='Full path to output file.')
+    parser_convreg.set_defaults(execute=_convert_execute)
     return subparsers
 
 

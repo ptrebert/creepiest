@@ -9,7 +9,6 @@ import multiprocessing as mp
 import numpy as np
 import psutil as psu
 import scipy.stats as stats
-import gc as gc
 
 from crplib.auxiliary.text_parsers import read_chromosome_sizes
 from crplib.auxiliary.file_ops import text_file_mode
@@ -95,7 +94,7 @@ def run_bedgraph_conversion(args, logger):
     :return:
     """
     csizes = read_chromosome_sizes(args.chromsizes, args.keepchroms)
-    logger.debug('Processing {} chromosomes'.format(len(csizes)))
+    logger.debug('Processing {} chromosome(s)'.format(len(csizes)))
     arglist = assemble_worker_args(csizes, args)
     wgsize, chromidx = define_chromosome_indices(csizes)
     # allocate enough memory for whole genome signal

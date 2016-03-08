@@ -21,7 +21,8 @@ def build_pipeline(args, config, sci_obj):
     else:
         jobcall = sci_obj.ruffus_localjob()
 
-    tempdir = config.get('Pipeline', 'tempdir')
+    genome_temp = config.get('Pipeline', 'gentemp')
+    chrom_temp = config.get('Pipeline', 'chromtemp')
     outdir = config.get('Pipeline', 'outdir')
 
     inputfiles = []
@@ -36,32 +37,32 @@ def build_pipeline(args, config, sci_obj):
     init = pipe.originate(task_func=lambda x: x, output=inputfiles)
 
     cmd = config.get('Pipeline', 'filtchrom')
-    # step 1: select only autosomes from chrom sizes file
-    filtchrom = pipe.transform(task_func=sci_obj.get_jobf('in_out'),
+    regexp = '(?P<ASSEMBLY>\w+)\.chrom\.sizes'
+    # step 1: select only autosomes from chrom sizes file and create single dummy files
+    filtchrom = pipe.subdivide(task_func=sci_obj.get_jobf('in_pat'),
                                name='filtchrom',
                                input=output_from(init),
-                               filter=suffix('.chrom.sizes'),
-                               output='.selected',
-                               output_dir=tempdir,
-                               extras=[cmd, jobcall]).mkdir(tempdir)
+                               filter=formatter(regexp),
+                               output=os.path.join(chrom_temp, '{ASSEMBLY[0]}_chr*'),
+                               extras=[chrom_temp, '{ASSEMBLY[0]}_chr*', cmd, jobcall]).mkdir(chrom_temp)
 
     cmd = config.get('Pipeline', 'conv2bit')
     # step 2: convert 2bit files into gzipped fasta files
-    conv2bit = pipe.collate(task_func=sci_obj.get_jobf('inref_out'),
-                            name='conv2bit',
-                            input=output_from(init, filtchrom),
-                            filter=formatter('(?P<ASSEMBLY>\w+)\.(2bit|selected)'),
-                            output=os.path.join(tempdir, '{ASSEMBLY[0]}.fa'),
-                            extras=[cmd, '.selected', jobcall])
+    conv2bit = pipe.transform(task_func=sci_obj.get_jobf('inref_out'),
+                              name='conv2bit',
+                              input=output_from(filtchrom),
+                              filter=formatter('(?P<ASSEMBLY>\w+)_(?P<CHROM>chr[0-9]+)\.sg\.txt'),
+                              output=os.path.join(genome_temp, '{ASSEMBLY[0]}_{CHROM[0]}.fa'),
+                              add_inputs=add_inputs(os.path.join(outdir, '{ASSEMBLY[0]}.2bit')),
+                              extras=[cmd, '.2bit', jobcall])
 
     # step 3: run FIMO on genomes
     cmd = config.get('Pipeline', 'tfscan')
-    base_out = os.path.join(tempdir, 'tfscan')
-    tfscan = pipe.subdivide(task_func=sci_obj.get_jobf('in_pat'),
+    tfscan = pipe.transform(task_func=sci_obj.get_jobf('in_out'),
                             name='tfscan',
                             input=output_from(conv2bit),
-                            filter=formatter('(?P<ASSEMBLY>\w+)\.fa'),
-                            output=os.path.join(base_out, '{ASSEMBLY[0]}', 'fimo*'),
-                            extras=[os.path.join(base_out, '{ASSEMBLY[0]}'), 'fimo*', cmd, jobcall]).mkdir(os.path.join(tempdir, 'tfscan'))
+                            filter=suffix('.fa'),
+                            output='.tsv.gz',
+                            extras=[cmd, jobcall]).mkdir(os.path.join(genome_temp, 'tfscan'))
 
     return pipe
