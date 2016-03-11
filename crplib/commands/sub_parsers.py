@@ -16,6 +16,7 @@ def add_sub_parsers(main_parser):
     subparsers = main_parser.add_subparsers(dest='subparser_name', title='Subcommands')
     subparsers = _add_tests_command(subparsers)
     subparsers = _add_convbg_command(subparsers)
+    subparsers = _add_convreg_command(subparsers)
     subparsers = _add_regmatch_command(subparsers)
     subparsers = _add_mkmap_command(subparsers)
     subparsers = _add_sigmap_command(subparsers)
@@ -121,10 +122,10 @@ def _add_convreg_command(subparsers):
     comgroup.add_argument('--keep-chroms', '-c', type=str, default='"(chr)?[0-9]+(\s|$)"', dest='keepchroms',
                           help='Regular expression pattern (needs to be double quoted) matching'
                                ' chromosome names to keep. Default: "(chr)?[0-9]+(\s|$)" (i.e. autosomes)')
-    comgroup.add_argument('--name-idx', '-n', type=int, default=-1, dest='namecol',
+    comgroup.add_argument('--name-idx', '-n', type=int, default=-1, dest='nameidx',
                           help='Specify column index (0-based) with region names. If set to -1,'
                                ' new names will be assigned based on genomic sort order. Default: -1')
-    comgroup.add_argument('--score-idx', '-s', type=int, default=-1, dest='scorecol',
+    comgroup.add_argument('--score-idx', '-s', type=int, default=-1, dest='scoreidx',
                           help='Specify column index (0-based) with score to rank regions. If set to'
                                ' -1 no ranking can be performed. Default: -1')
     comgroup.add_argument('--keep-top', '-k', type=float, default=95, dest='keeptop',

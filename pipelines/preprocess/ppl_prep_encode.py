@@ -150,16 +150,33 @@ def build_pipeline(args, config, sci_obj):
     else:
         jobcall = sci_obj.ruffus_localjob()
 
-    cmd = config.get('Pipeline', 'convbg')
     # ENCDS062CRP_ENCFF001MLR_mm9_CH12_InpControl_L05_R1.bg.gz
     regexp = '(?P<DSID>ENCDS[0-9]+CRP)_(?P<FFID>ENCFF[0-9A-Z]+)_(?P<ASSEMBLY>[a-zA-Z0-9]+)_' \
              '(?P<CELL>[0-9A-Za-z]+)_(?P<DTYPE>[0-9A-Za-z]+)_(?P<LAB>L[0-9]+)_(?P<REP>R[0-9])\.bg\.gz'
     # step 2: convert fasta files into HDF5 files
+    cmd = config.get('Pipeline', 'convbg')
     convbg = pipe.collate(task_func=sci_obj.get_jobf('ins_out_ref'),
                           name='convbg',
                           input=output_from(convbw),
                           filter=formatter(regexp),
-                          output=os.path.join(outdir, '{DSID[0]}_{ASSEMBLY[0]}_{CELL[0]}_{DTYPE[0]}_{LAB[0]}.h5'),
-                          extras=[os.path.join(refdir, '{ASSEMBLY[0]}.chrom.sizes'), cmd, jobcall])
+                          output=os.path.join(outdir, '{DSID[0]}_{ASSEMBLY[0]}_{CELL[0]}_{DTYPE[0]}_{LAB[0]}.sig.h5'),
+                          extras=[os.path.join(refdir, '{ASSEMBLY[0]}.chrom.sizes'), cmd, jobcall]).mkdir(outdir)
+
+    sci_obj.set_config_env(dict(config.items('JobConfig')), dict(config.items('EnvConfig')))
+    if args.gridmode:
+        jobcall = sci_obj.ruffus_gridjob()
+    else:
+        jobcall = sci_obj.ruffus_localjob()
+
+    # ENCDS062CRP_ENCFF001MLR_mm9_CH12_InpControl_L05_R1.broad/narrow.bed.gz
+    regexp = '(?P<DSID>ENCDS[0-9]+CRP)_(?P<FFID>ENCFF[0-9A-Z]+)_(?P<ASSEMBLY>[a-zA-Z0-9]+)_' \
+             '(?P<CELL>[0-9A-Za-z]+)_(?P<DTYPE>[0-9A-Za-z]+)_(?P<LAB>L[0-9]+)_(?P<REP>R[0-9])\.(broad|narrow)\.bed\.gz'
+    cmd = config.get('Pipeline', 'convbed')
+    convbed = pipe.collate(task_func=sci_obj.get_jobf('ins_out'),
+                           name='convbed',
+                           input=output_from(convbb),
+                           filter=formatter(regexp),
+                           output=os.path.join(outdir, '{DSID[0]}_{ASSEMBLY[0]}_{CELL[0]}_{DTYPE[0]}_{LAB[0]}.peak.h5'),
+                           extras=[cmd, jobcall]).mkdir(outdir)
 
     return pipe

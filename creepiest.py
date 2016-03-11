@@ -182,12 +182,14 @@ def run():
         mainprs, remain_args = build_main_parser(recv_stdin)
         mainprs = add_sub_parsers(mainprs)
         args, remain_args = mainprs.parse_known_args(remain_args)
-        if not args.nodump:
-            conf_dump = dump_config(args, remain_args)
         if args.sendlog:
             logbuf = io.StringIO()
         logger = init_logging_system(args, logbuf)
         logger.debug('Logging system initialized')
+        if remain_args:
+            logger.warning('Unknown parameters at command line: {}'.format(remain_args))
+        if not args.nodump:
+            conf_dump = dump_config(args, remain_args)
         if conf_dump:
             logger.debug('Configuration dumped to: {}'.format(conf_dump))
         logger.debug('Executing command: {}'.format(args.subparser_name))

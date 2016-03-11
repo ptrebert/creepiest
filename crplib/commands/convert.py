@@ -56,7 +56,7 @@ def convert_genomic_region(args, logger):
     args.__dict__['keepchroms'] = args.keepchroms.strip('"')
     logger.debug('Chromosome select pattern: {}'.format(args.keepchroms))
     mod = imp.import_module('crplib.commands.convert_region')
-    rv = mod.run_bedgraph_conversion(args, logger)
+    rv = mod.run_region_conversion(args, logger)
     assert os.path.isfile(args.outputfile), 'No output file created - conversion failed? {}'.format(args.outputfile)
     return rv
 
