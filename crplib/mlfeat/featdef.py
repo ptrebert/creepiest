@@ -3,29 +3,95 @@
 """
 Configuration module to hold feature definitions and
 isolated functions to compute these features
+
 """
 
+import numpy as np
+import scipy.stats as stats
 import re as re
+import copy as cp
 import itertools as itt
+import functools as funct
 import collections as col
 
-FEAT_LENGTH = 'feat_scn_abs_length'
-FEAT_OECPG = 'feat_scn_rat_oeCpG'
-FEAT_GC = 'feat_scn_pct_GC'
-FEAT_CPG = 'feat_scn_pct_CpG'
-FEAT_REPCONT = 'feat_scn_pct_repcont'
-
-FEAT_KMER_VALUES = 2, 3, 4
+FEAT_LENGTH = 'ftlen_abs_length'
+FEAT_OECPG = 'ftgc_rat_oeCpG'
+FEAT_GC = 'ftgc_pct_GC'
+FEAT_CPG = 'ftgc_pct_CpG'
+FEAT_REPCONT = 'ftrep_pct_repcon'
 
 # the k avoids singular occurrence of string NA
 # can cause problems when feat name is stripped
-# to just the kmer: feat_scn_pct_NA --> NA
-FEAT_KMERFREQ_PREFIX = 'feat_scn_pct_k'
-FEAT_COREPROM_PREFIX = 'feat_scn_pct_'
+# to just the kmer: ftkm_pct_NA --> NA
+FEAT_KMERFREQ_PREFIX = 'ftkm_pct_k'
+FEAT_COREPROM_PREFIX = 'ftprm_pct_'
+
+# all features for signal regression
+FEAT_DIST_MEAN = 'ftdst_abs_mean_'
+FEAT_DIST_VAR = 'ftdst_abs_var_'
+FEAT_DIST_MIN = 'ftdst_abs_min_'
+FEAT_DIST_MAX = 'ftdst_abs_max_'
+FEAT_DIST_SKEW = 'ftdst_abs_skew_'
+FEAT_DIST_KURT = 'ftdst_abs_kurt_'
+
+FEAT_MAPSIG_PREFIX = 'ftmap_'
+
+
+def _get_feat_fun_map():
+    feat_fun_map = {'len': feat_region_length,
+                    'prm': feat_coreprom_motifs,
+                    'gc': feat_gccpg_content,
+                    'cpg': feat_gccpg_content,
+                    'oecpg': feat_gccpg_content,
+                    'rep': feat_repetitive_content,
+                    'kmers': feat_kmer_frequency,
+                    'tfm': None}
+    return feat_fun_map
+
+
+def _make_kmer_dict(k, alphabet='ACGTN'):
+    """
+    :param k:
+    :param alphabet:
+    :return:
+    """
+    kmerit = itt.product(alphabet, repeat=k)
+    kmers = dict()
+    while 1:
+        try:
+            kmers[FEAT_KMERFREQ_PREFIX + ("".join(next(kmerit)))] = 0
+        except StopIteration:
+            break
+    return kmers
+
+
+def get_online_version(features, kmers=None):
+    """ Return a closure encompassing all feature
+    functions - intended to use is with
+    multiprocessing.Pool.map() or similar
+    """
+    if 'kmers' in features:
+        assert kmers is not None, 'No values for k-mer frequency specified'
+    funmap = _get_feat_fun_map()
+    exec_functions = set()
+    for ft in features:
+        if ft == 'kmers':
+            for k in kmers:
+                kd = _make_kmer_dict(k)
+                part = funct.partial(feat_single_kmer, *(k, kd))
+                exec_functions.add(part)
+        else:
+            exec_functions.add(funmap[ft])
+
+    def compute_features(d):
+        for f in exec_functions:
+            d = f(d)
+        return d
+    return compute_features
 
 
 def feat_region_length(region):
-    """ over engineering, anyone?
+    """ overengineering, anyone?
     :param region:
     :return:
     """
@@ -51,7 +117,34 @@ def feat_repetitive_content(region):
         return region
 
 
-def feat_kmer_frequency(region, kmers=FEAT_KMER_VALUES):
+def feat_single_kmer(k, kmers, region):
+    """
+    :param k:
+    :param kmers:
+    :param region:
+    :return:
+    """
+    # TODO the deep copy is probably necessary for the intended
+    # use case, see get_online_version
+    mykmers = cp.deepcopy(kmers)
+    tmpseq = region['seq'].upper()  # kmers are not case-sensitive
+    seqlen = len(tmpseq)
+    total_klen = float(seqlen - k + 1)
+    wordfreqs = col.defaultdict(int)
+    for i in range(0, k):
+        # curly braces in literal part of format string
+        # need to be escaped with curly braces
+        words = re.findall('.{{{}}}'.format(k), tmpseq[i:])
+        for w in words:
+            wordfreqs[FEAT_KMERFREQ_PREFIX + w] += 1
+    for key, val in wordfreqs.items():
+        val = round((val / total_klen) * 100., 2)
+        mykmers[key] = val
+    region.update(mykmers)
+    return region
+
+
+def feat_kmer_frequency(kmers, region):
     """
     :param region:
     :param kmers:
@@ -121,24 +214,24 @@ def feat_coreprom_motifs(region):
     # Yang et al., 2007 Gene
     # Refer specifically to TATA-less promoters
 
-    core_motifs = core_motifs.append(('elkM3', '[GC]CGGAAG[CT]'))  # not sure if that is a reasonable one
-    core_motifs = core_motifs.append(('sp1M6', 'GGGCGG[AG]'))  # not sure if that is a reasonable one
-    core_motifs = core_motifs.append(('novelM22', 'TGCGCA[ACGTN][GT]'))
+    core_motifs.append(('elkM3', '[GC]CGGAAG[CT]'))  # not sure if that is a reasonable one
+    core_motifs.append(('sp1M6', 'GGGCGG[AG]'))  # not sure if that is a reasonable one
+    core_motifs.append(('novelM22', 'TGCGCA[ACGTN][GT]'))
 
     # DOI:10.1016/j.ydbio.2009.08.009
     # Juven-Gershon, Kadonaga 2010, Dev. Bio
-    # 10.1101/gad.1026202
+    # DOI:10.1101/gad.1026202
     # Butler, Kadonaga 2002, Genes & Dev.
 
-    core_motifs = core_motifs.append(('tataM3', 'TATA[AT]AA[AG]'))  # TATA box
-    core_motifs = core_motifs.append(('inrM4', '[TC][TC]A[ACGTN][AT][TC][TC]'))  # initiator (Inr)
-    core_motifs = core_motifs.append(('breMx', '[GC][GC][AG]CGCC'))  # TFIIB recognition element (BRE)
-    core_motifs = core_motifs.append(('dpeM9', '[AG]G[AT][TC][GAC](T)?'))  # downstream core promoter element (DPE)
-    core_motifs = core_motifs.append(('mteM10', 'C[GC]A[AG]C[GC][GC]AACG[GC]'))  # motif ten (MTE)
+    core_motifs.append(('tataM3', 'TATA[AT]AA[AG]'))  # TATA box
+    core_motifs.append(('inrM4', '[TC][TC]A[ACGTN][AT][TC][TC]'))  # initiator (Inr)
+    core_motifs.append(('breMx', '[GC][GC][AG]CGCC'))  # TFIIB recognition element (BRE)
+    core_motifs.append(('dpeM9', '[AG]G[AT][TC][GAC](T)?'))  # downstream core promoter element (DPE)
+    core_motifs.append(('mteM10', 'C[GC]A[AG]C[GC][GC]AACG[GC]'))  # motif ten (MTE)
 
     # DOI:10.1093/nar/gkv1032
     # Marbach-Bar et al., 2016 NAR
-    core_motifs = core_motifs.append(('dtieMx', 'G[CGT][CGT][AG][AGT][ACGTN][ACT]GG'))  # Downstream Transcription Initiation Element (DTIE)
+    core_motifs.append(('dtieMx', 'G[CGT][CGT][AG][AGT][ACGTN][ACT]GG'))  # Downstream Transcription Initiation Element (DTIE)
 
     try:
         reglen = region[FEAT_LENGTH]
@@ -153,3 +246,43 @@ def feat_coreprom_motifs(region):
     return region
 
 
+def feat_dist(sample, suffix):
+    """
+    :param sample:
+    :param suffix:
+    :return:
+    """
+    desc = stats.describe(sample)
+    kurt = stats.kurtosis(sample, fisher=False)
+    ret = dict()
+    ret[FEAT_DIST_MEAN + suffix] = desc.mean
+    ret[FEAT_DIST_VAR + suffix] = desc.variance
+    ret[FEAT_DIST_SKEW + suffix] = desc.skewness
+    ret[FEAT_DIST_MIN + suffix] = desc.minmax[0]
+    ret[FEAT_DIST_MAX + suffix] = desc.minmax[1]
+    ret[FEAT_DIST_KURT + suffix] = kurt
+    return ret
+
+
+def feat_mapsig(sample):
+    """
+    :param sample:
+     :type: numpy.MaskedArray
+    :return:
+    """
+    conserved = np.ma.count(sample)
+    len = sample.size
+    ret = dict()
+    ret[FEAT_MAPSIG_PREFIX + 'pct_cons'] = round((conserved / len) * 100, 2)
+    if conserved == 0:
+        cons_mean = 0
+        cons_max = 0
+        cons_min = 0
+    else:
+        cons_mean = np.ma.mean(sample)
+        cons_max = np.ma.max(sample)
+        cons_min = np.ma.min(sample)
+    ret[FEAT_MAPSIG_PREFIX + 'abs_mean'] = cons_mean
+    ret[FEAT_MAPSIG_PREFIX + 'abs_max'] = cons_max
+    ret[FEAT_MAPSIG_PREFIX + 'abs_min'] = cons_min
+    return ret

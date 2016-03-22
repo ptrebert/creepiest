@@ -7,6 +7,7 @@ Convenience module for file operations
 import os as os
 import gzip as gz
 import bz2 as bz
+import pandas as pd
 
 
 def text_file_mode(fpath):
@@ -25,3 +26,18 @@ def text_file_mode(fpath):
     else:
         f, m = open, 'r'
     return f, m
+
+
+def get_valid_hdf5_groups(filepath, prefix):
+    """
+    :param filepath:
+    :param prefix:
+    :return:
+    """
+    if not prefix.startswith('/'):
+        prefix = '/' + prefix
+    groups = []
+    with pd.HDFStore(filepath, 'r', complevel=9, complib='blosc') as hdf:
+        groups = [grp for grp in hdf.keys() if grp.startswith(prefix)]
+
+    return groups

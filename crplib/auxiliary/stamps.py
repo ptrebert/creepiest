@@ -36,7 +36,7 @@ def get_time_stamp(fmt='%H%M%S'):
     return stamp
 
 
-def get_char_stamp(upper=False, length=4):
+def get_char_stamp(upper=False, length=5):
     """
     :param upper:
      :type: bool
@@ -52,7 +52,7 @@ def get_char_stamp(upper=False, length=4):
     return stamp
 
 
-def get_full_filestamp(sep='_', clen=4):
+def get_full_filestamp(sep='_', clen=5):
     """
     :param clen:
     :return:
