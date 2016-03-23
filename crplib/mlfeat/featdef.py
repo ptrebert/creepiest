@@ -124,7 +124,8 @@ def feat_single_kmer(k, kmers, region):
     :param region:
     :return:
     """
-    # TODO the deep copy is probably necessary for the intended
+    # TODO
+    # the deep copy is probably necessary for the intended
     # use case, see get_online_version
     mykmers = cp.deepcopy(kmers)
     tmpseq = region['seq'].upper()  # kmers are not case-sensitive

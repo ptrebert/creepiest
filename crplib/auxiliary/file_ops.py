@@ -37,7 +37,7 @@ def get_valid_hdf5_groups(filepath, prefix):
     if not prefix.startswith('/'):
         prefix = '/' + prefix
     groups = []
-    with pd.HDFStore(filepath, 'r', complevel=9, complib='blosc') as hdf:
+    with pd.HDFStore(filepath, 'r') as hdf:
         groups = [grp for grp in hdf.keys() if grp.startswith(prefix)]
 
     return groups
