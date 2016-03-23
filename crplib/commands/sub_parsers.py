@@ -46,7 +46,8 @@ def _tests_execute(args):
     :return:
     """
     tests = implib.import_module('crplib.commands.tests')
-    retval = tests.run_tests()
+    module_path = tests.__file__
+    retval = tests.run_tests(args, module_path)
     return retval
 
 

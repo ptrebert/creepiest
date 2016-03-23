@@ -188,7 +188,7 @@ def run():
         logger.debug('Logging system initialized')
         if remain_args:
             logger.warning('Unknown parameters at command line: {}'.format(remain_args))
-        if not args.nodump:
+        if not args.nodump and args.subparser_name != 'tests':
             conf_dump = dump_config(args, remain_args)
         if conf_dump:
             logger.debug('Configuration dumped to: {}'.format(conf_dump))
