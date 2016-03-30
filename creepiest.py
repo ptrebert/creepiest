@@ -78,7 +78,7 @@ def build_main_parser(stdincfg):
                           help='Profile this run of the CREEPIEST tool. This only works if the C'
                                ' profiling libraries are available to limit the overhead. Creates a'
                                ' cProfile output file in the working directory. Default: FALSE')
-    generics.add_argument('--no-dump', '-nod', action='store_true', default=False, dest='nodump',
+    generics.add_argument('--no-dump', '-nod', action='store_true', default=True, dest='nodump',
                           help='If set to TRUE, do not dump a summary of the current configuration'
                                ' and run parameters. Default: FALSE')
     generics.add_argument('--dump-dir', '-dmp', type=str, default=os.getcwd(), dest='dumpdir',

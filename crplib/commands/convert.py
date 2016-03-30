@@ -69,7 +69,6 @@ def run_conversion(args):
      :rtype: int
     """
     logger = args.module_logger
-    rv = 0
     try:
         logger.debug('Running conversion type: {}'.format(args.subparser_name))
         convtype = {'convfna': convert_fasta_genome,

@@ -18,9 +18,11 @@ def add_sub_parsers(main_parser):
     subparsers = _add_convbg_command(subparsers)
     subparsers = _add_convreg_command(subparsers)
     subparsers = _add_traindata_command(subparsers)
+    subparsers = _add_train_command(subparsers)
+    subparsers = _add_mapsig_command(subparsers)
     #subparsers = _add_regmatch_command(subparsers)
     #subparsers = _add_mkmap_command(subparsers)
-    #subparsers = _add_sigmap_command(subparsers)
+
     #subparsers = _add_tfscan_command(subparsers)
     return main_parser
 
@@ -168,7 +170,7 @@ def _add_traindata_command(subparsers):
     comgroup.add_argument('--keep-chroms', '-c', type=str, default='"(chr)?[0-9]+(\s|$)"', dest='keepchroms',
                           help='Regular expression pattern (needs to be double quoted) matching'
                                ' chromosome names to keep. Default: "(chr)?[0-9]+(\s|$)" (i.e. autosomes)')
-    comgroup.add_argument('--num-samples', '-smp', type=int, default=50000, dest='numsamples',
+    comgroup.add_argument('--num-samples', '-smp', type=int, default=20000, dest='numsamples',
                           help='Number of training samples to collect')
     comgroup.add_argument('--resolution', '-res', type=int, default=25, dest='resolution')
     comgroup.add_argument('--two-pass', '-tp', action='store_true', default=False, dest='twopass')
@@ -195,6 +197,45 @@ def _traindata_execute(args):
     return retval
 
 
+def _add_train_command(subparsers):
+    """
+    :param subparsers:
+    :return:
+    """
+    parser_train = subparsers.add_parser('train',
+                                         help='Train a model on a given training dataset',
+                                         description='...to be updated...')
+    comgroup = parser_train.add_argument_group('Train model')
+    comgroup.add_argument('--train-data', '-td', type=str, required=True, dest='traindata',
+                          help='Full path to training data file')
+    comgroup.add_argument('--train-group', '-tg', type=str, default='', dest='traingroup',
+                          help='Specify group root in training data file to be loaded.')
+    comgroup.add_argument('--model-spec', '-ms', type=str, required=True, dest='modelspec',
+                          help='Full path to model specification in JSON format.')
+    comgroup.add_argument('--no-tuning', '-nt', action='store_true', default=False, dest='notuning',
+                          help='Do not search for better model parameters via cross validation. Default: False')
+    comgroup.add_argument('--cv-folds', '-fld', type=int, default=10, dest='cvfolds',
+                          help='Number of folds in cross validation. Default: 10')
+    comgroup.add_argument('--model-output', '-mo', type=str, dest='modelout',
+                          help='Specify file path to store the serialized representation of the trained model.')
+    comgroup.add_argument('--metadata-output', '-do', type=str, dest='metadataout',
+                          help='Specify file path to store the metadata of the trained model. If not specified,'
+                               ' the model output path will be used and the file extension replaced with ".json".'
+                               ' Default: <empty>')
+    parser_train.set_defaults(execute=_train_execute)
+    return subparsers
+
+
+def _train_execute(args):
+    """
+    :param args:
+    :return:
+    """
+    train = implib.import_module('crplib.commands.train')
+    retval = train.run_train_model(args)
+    return retval
+
+
 def _add_mapsig_command(subparsers):
     """
     :param subparsers:
@@ -205,13 +246,23 @@ def _add_mapsig_command(subparsers):
                                           description='...to be updated...')
     comgroup = parser_mapsig.add_argument_group('Map signal track')
     comgroup.add_argument('--chain-file', '-ch', type=str, required=True, dest='chainfile',
-                          help='Full path to chain file for mapping information from reference (target) to query')
-    comgroup.add_argument('--query-group', '-qgr', type=str, required=True, dest='querygroup',
-                          help='Specify group root path for mapped signal')
+                          help='Full path to chain file with pairwise alignment information between'
+                               ' reference (in liftOver parlance: target) and query.')
     comgroup.add_argument('--query-chroms', '-qch', type=str, required=True, dest='querychroms',
                           help='Full path to file with chromosome sizes of the query assembly.')
+    comgroup.add_argument('--keep-chroms', '-c', type=str, default='"(chr)?[0-9]+(\s|$)"', dest='keepchroms',
+                          help='Regular expression pattern (needs to be double quoted) matching'
+                               ' chromosome names to keep. Default: "(chr)?[0-9]+(\s|$)" (i.e. autosomes)')
+    comgroup.add_argument('--allocate-chroms', '-ac', type=int, default=2, dest='allocate',
+                          help='Number of chromosomes to be hold in memory simultaneously. Default: 2')
     comgroup.add_argument('--input', '-i', type=str, required=True, dest='inputfile',
                           help='Full path to input file in HDF5 format.')
+    comgroup.add_argument('--input-group', '-ig', type=str, default='', dest='inputgroup',
+                          help='Group root in input file for signal to map. Default: <empty>')
+    comgroup.add_argument('--output', '-o', type=str, dest='outputfile',
+                          help='Full path to output file.')
+    comgroup.add_argument('--output-group', '-og', type=str, default='', dest='outputgroup',
+                          help='Specify group root path for mapped signal in output file.')
     parser_mapsig.set_defaults(execute=_mapsig_execute)
     return subparsers
 
@@ -332,119 +383,3 @@ def _regmatch_execute(args):
     regmatch = implib.import_module('lib.commands.regmatch')
     retval = regmatch.run_region_matching(args)
     return retval
-
-
-def _add_mkmap_command(subparsers):
-    """
-    :param subparsers:
-    :return:
-    """
-    parser_mkmap = subparsers.add_parser('mkmap',
-                                         help='Create a CREEP for signal mapping based on a pairwise alignment'
-                                              ' in UCSC axt format or UCSC chain file.')
-    parser_mkmap.add_argument('--server-cfg', '-srv', dest='srvconfig', required=True, type=str,
-                              help='Specify the full path to the CREEPIEST annotation server configuration file.')
-    parser_mkmap.add_argument('--reference', '-r', dest='reference', type=str, required=True,
-                              help='Specify reference assembly, e.g. hg19 or mm10 (also: primary assembly)')
-    parser_mkmap.add_argument('--target', '-t', dest='target', type=str, required=True,
-                              help='Specify target assembly, e.g. mm10 or hg19 (also: aligning assembly)')
-    parser_mkmap.add_argument('--chrom', '-c', dest='chrom', type=str, default='.*',
-                              help='Specify a regular expression to restrict the output to chromosomes'
-                                   ' matching the expression. This filtering applies to both reference'
-                                   ' and target species.')
-    grp = parser_mkmap.add_mutually_exclusive_group(required=True)
-    grp.add_argument('--axt-input', '-ai', dest='axtinput', type=str,
-                     help='Specify full path to input file in axt format')
-    grp.add_argument('--chain-input', '-ci', dest='chaininput', type=str,
-                     help='Specify full path to chain file (reference to target)')
-    parser_mkmap.add_argument('--gap', '-g', dest='gap', type=int, default=25,
-                              help='Specify the acceptable gap length between two consecutive alignment blocks.'
-                                   ' That length should be smaller than the (average) region size in the signal'
-                                   ' tracks to be mapped.')
-    parser_mkmap.add_argument('--outdir', '-o', dest='outdir', type=str, required=True,
-                              help='Specify path to output directory (file name will be assembled automatically).')
-    parser_mkmap.set_defaults(execute=_mkmap_execute)
-    return subparsers
-
-
-def _mkmap_execute(args):
-    """
-    :param args:
-    :return:
-    """
-    mapbed = implib.import_module('lib.commands.mkmap')
-    retval = mapbed.run_mkmap(args)
-    return retval
-
-
-def _add_sigmap_command(subparsers):
-    """
-    :param subparsers:
-    :return:
-    """
-    parser_sigmap = subparsers.add_parser('sigmap',
-                                          help='Take an arbitrary number of signal CREEPs and one mapping CREEP'
-                                               ' with compatible reference and map all signal tracks from the'
-                                               ' reference to the target assembly.')
-    parser_sigmap.add_argument('--map-creep', '-crmp', dest='mapcreep', required=True, type=str,
-                               help='Specify full path to map CREEP with compatible resolution and correct'
-                                    ' reference assembly.')
-    parser_sigmap.add_argument('--sig-creep', '-crsg', dest='sigcreeps', required=True, nargs='+', type=str,
-                               help='Specify full path to single or multiple signal CREEPs (as space separated list)'
-                                    ' or provide folder path(s) containing an arbitrary number of signal CREEPs.')
-    parser_sigmap.add_argument('--self-map', '-self', dest='selfmap', default=False, action='store_true',
-                               help='If the map CREEP represents a self alignment of an assembly, this option'
-                                    ' must be set to ensure proper mapping of the signal values. This option'
-                                    ' assumes that the map CREEP only contains non-trivial alignment regions'
-                                    ' for the self alignment.')
-    parser_sigmap.set_defaults(execute=_sigmap_execute)
-    return subparsers
-
-
-def _sigmap_execute(args):
-    """
-    :param args:
-    :return:
-    """
-    sigmap = implib.import_module('lib.commands.sigmap')
-    retval = sigmap.run_sigmap(args)
-    return retval
-
-
-def _add_tfscan_command(subparsers):
-    """
-    :param subparsers:
-    :return:
-    """
-    parser_tfscan = subparsers.add_parser('tfscan',
-                                          help='Scan a set of sequences for transcription factor binding sites using'
-                                               ' the MEME suite (Fimo). The Fimo executable must be available in PATH.')
-    parser_tfscan.add_argument('--genome', '-g', dest='genome', required=True, type=str,
-                               help='Identifier of genome assembly, e.g. hg19, used for file/folder naming.')
-    parser_tfscan.add_argument('--source', '-s', dest='source', required=True, type=str,
-                               help='Folder with sequence files (FASTA format) of genome assembly.')
-    parser_tfscan.add_argument('--tf-motifs', '-t', dest='motiffile', required=True, type=str,
-                               help='Full path to TF motif file in MEME format containing PWMs and character'
-                                    ' frequencies for A, C, G and T.')
-    parser_tfscan.add_argument('--match-files', '-mf', dest='matchfile', default='all', type=str,
-                               help='Regular expression to match sequence files; defaults to match all files'
-                                    ' with .fa/.fasta file extension. Enclose expression with double quotes > " <')
-    parser_tfscan.add_argument('--output', '-o', dest='output', type=str, required=True,
-                               help='Base output folder, sub-folder <genome> will be created and'
-                                    'output files stored; base directory will be created if it does not exist.')
-    parser_tfscan.add_argument('--pvalue', '-p', dest='pthresh', type=str, default='1e-5',
-                               help='Threshold for p-value to report motif match, can be in scientific'
-                                    '>e< notation (default: 1e-5).')
-    parser_tfscan.set_defaults(execute=_tfscan_execute)
-    return subparsers
-
-
-def _tfscan_execute(args):
-    """
-    :param args:
-    :return:
-    """
-    tfscan = implib.import_module('lib.commands.tfscan')
-    retval = tfscan.run_tfscan(args)
-    return retval
-
