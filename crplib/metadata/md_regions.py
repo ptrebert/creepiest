@@ -19,7 +19,12 @@ def gen_obj_and_md(mdframe, rootpath, chrom, srcfiles, datavals):
     :return:
     """
     grp = rootpath + '/' + chrom
-    tmpsrc = ','.join([os.path.basename(f) for f in srcfiles])
+    if isinstance(srcfiles, (list, tuple)):
+        tmpsrc = ','.join([os.path.basename(f) for f in srcfiles])
+    elif isinstance(srcfiles, str):
+        tmpsrc = os.path.basename(srcfiles)
+    else:
+        raise TypeError('Cannot handle source file references: {}'.format(srcfiles))
     ctime = dt.datetime.now()
     numreg = len(datavals)
     datavals = [(reg[1], reg[2], reg[3]) for reg in datavals]

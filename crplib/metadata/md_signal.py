@@ -25,7 +25,12 @@ def gen_obj_and_md(mdframe, rootpath, chrom, srcfiles, datavals):
     """
     grp = rootpath + '/' + chrom
     pct_scores = np.percentile(datavals, q=_PCT_LEVELS)
-    tmpsrc = ','.join([os.path.basename(f) for f in srcfiles])
+    if isinstance(srcfiles, (list, tuple)):
+        tmpsrc = ','.join([os.path.basename(f) for f in srcfiles])
+    elif isinstance(srcfiles, str):
+        tmpsrc = os.path.basename(srcfiles)
+    else:
+        raise TypeError('Cannot handle source file references: {}'.format(srcfiles))
     ctime = dt.datetime.now()
     dataobj = pd.Series(data=datavals, dtype='float64')
     size_mem = dataobj.nbytes / DIV_B_TO_MB
