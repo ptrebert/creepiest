@@ -3,7 +3,6 @@
 """
 Module to collect training data
 Data are stored in separate files in the form of Pandas dataframes
-Allows to train new/different learning algorithms
 """
 
 import random as rand
@@ -16,7 +15,7 @@ from crplib.auxiliary.file_ops import text_file_mode
 from crplib.auxiliary.text_parsers import read_chromosome_sizes
 from crplib.auxiliary.text_parsers import get_chain_iterator
 from crplib.auxiliary.seq_parsers import get_twobit_seq
-from crplib.mlfeat.featdef import feat_dist, feat_mapsig, get_online_version
+from crplib.mlfeat.featdef import feat_mapsig, get_online_version
 
 
 def build_conservation_mask(chainfile, chrom, csize):
@@ -47,7 +46,7 @@ def load_masked_sigtrack(hdfsig, chainfile, group, chrom, csize):
     return signal
 
 
-def sample_twopass(params):
+def sample_signal_traindata(params):
     """
     :param params:
     :return:
@@ -63,26 +62,14 @@ def sample_twopass(params):
     stepsize = res * 2
     step_bw = res * 4
     step_fw = res * 6
-    local_win = res * 5
-    far_win = res * 100
     # memory-wise large objects
     chromseq = get_twobit_seq(params['seqfile'], params['chrom'])
     signal = load_masked_sigtrack(params['inputfile'], params['chainfile'], params['group'],
                                   params['chrom'], params['size'])
     pass_one = []
-    pass_two = []
-    dstfeat = feat_dist
     mapfeat = feat_mapsig
     for n in range(params['numsamples']):
         pos = rand.randint(lolim, hilim)
-        dist_reg = {'sample_n': n, 'start': pos, 'end': pos + res}
-        dist_reg.update(dstfeat(signal[pos - local_win:pos + local_win], 'local'))
-        dist_reg.update(dstfeat(signal[pos - far_win:pos], 'upst'))
-        dist_reg.update(dstfeat(signal[pos:pos + far_win], 'dwnst'))
-        # for dist estimator/2nd pass, get full information
-        y_dep = np.average(signal[pos:pos + res].data)
-        dist_reg['y_depvar'] = y_dep
-        pass_two.append(dist_reg)
         for move in range(pos - step_bw, pos + step_fw, stepsize):
             seq_reg = {'sample_n': n, 'start': move, 'end': move + res}
             y_dep = np.average(signal[move:move + res].data)
@@ -90,9 +77,9 @@ def sample_twopass(params):
             seq_reg['seq'] = chromseq[move:move + res]
             seq_reg.update(feat_mapsig(signal[move:move + res]))
             pass_one.append(seq_reg)
-    seqfeat = get_online_version(params['features'], params['kmers'])
-    pass_one = list(map(seqfeat, pass_one))
-    return mypid, params['chrom'], pass_one, pass_two
+    comp_seqfeat = get_online_version(params['features'], params['kmers'])
+    pass_one = list(map(comp_seqfeat, pass_one))
+    return mypid, params['chrom'], pass_one
 
 
 def assemble_worker_args(chroms, chromlim, args):
@@ -145,22 +132,15 @@ def collect_sigres_trainsamples(args, csizes, chromlim, logger):
 
     with pd.HDFStore(args.outputfile, 'w', complevel=9, complib='blosc') as hdfout:
         with mp.Pool(args.workers) as pool:
-            if args.twopass:
-                mapres = pool.map_async(sample_twopass, arglist)
-                metadata = pd.DataFrame(columns=MD_TRAINDATA_COLDEFS)
-                for pid, chrom, pass_one, pass_two in mapres.get():
-                    logger.debug('Process {} finished chromosome {}'.format(pid, chrom))
-                    grp, dataobj, metadata = gen_obj_and_md(metadata, args.grouproot, chrom, 'seq',
-                                                            args.inputfile, args.chainfile, pass_one)
-                    hdfout.put(grp, dataobj, format='fixed')
-                    hdfout.flush()
-                    grp, dataobj, metadata = gen_obj_and_md(metadata, args.grouproot, chrom, 'dist',
-                                                            args.inputfile, args.chainfile, pass_two)
-                    hdfout.put(grp, dataobj, format='fixed')
-                    hdfout.flush()
-                hdfout.put('metadata', metadata, format='table')
-            else:
-                raise NotImplementedError('One-pass sampling not available')
+            mapres = pool.map_async(sample_signal_traindata, arglist)
+            metadata = pd.DataFrame(columns=MD_TRAINDATA_COLDEFS)
+            for pid, chrom, samples in mapres.get():
+                logger.debug('Process {} finished chromosome {}'.format(pid, chrom))
+                grp, dataobj, metadata = gen_obj_and_md(metadata, args.grouproot, chrom, 'seq',
+                                                        args.inputfile, args.chainfile, samples)
+                hdfout.put(grp, dataobj, format='fixed')
+                hdfout.flush()
+            hdfout.put('metadata', metadata, format='table')
     return 0
 
 
@@ -171,14 +151,13 @@ def run_collect_traindata(args):
     """
     logger = args.module_logger
     args.__dict__['keepchroms'] = args.keepchroms.strip('"')
+    logger.debug('Chromosome select pattern: {}'.format(args.keepchroms))
     if args.task == 'regsig':
         logger.debug('Collecting training data for task {}'.format(args.task))
         csizes = read_chromosome_sizes(args.chromsizes, args.keepchroms)
-        if args.twopass:
-            chromlim = max(args.resolution * 100, 10000)
-            _ = collect_sigres_trainsamples(args, csizes, chromlim, logger)
-        else:
-            chromlim = 10000
+        # "magic number" following common limits, e.g., in ChromImpute
+        chromlim = 10000
+        _ = collect_sigres_trainsamples(args, csizes, chromlim, logger)
     else:
         raise NotImplementedError('Task unknown: {}'.format(args.task))
     return 0
