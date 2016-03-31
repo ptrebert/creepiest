@@ -11,39 +11,10 @@ import multiprocessing as mp
 import pandas as pd
 
 from crplib.metadata.md_traindata import gen_obj_and_md, MD_TRAINDATA_COLDEFS
-from crplib.auxiliary.file_ops import text_file_mode
+from crplib.auxiliary.file_ops import load_masked_sigtrack
 from crplib.auxiliary.text_parsers import read_chromosome_sizes
-from crplib.auxiliary.text_parsers import get_chain_iterator
 from crplib.auxiliary.seq_parsers import get_twobit_seq
 from crplib.mlfeat.featdef import feat_mapsig, get_online_version
-
-
-def build_conservation_mask(chainfile, chrom, csize):
-    """ Build a mask that indicates
-    1: is not conserved (= is masked)
-    0: is conserved (= is not masked)
-    :param chainfile:
-    :param chrom:
-    :param csize:
-    :return:
-    """
-    mask = np.ones(csize, dtype=np.bool)
-    opn, mode = text_file_mode(chainfile)
-    with opn(chainfile, mode) as cf:
-        chainit = get_chain_iterator(cf, select=chrom)
-        for aln in chainit:
-            mask[aln[1]:aln[2] + 1] = 0
-    return mask
-
-
-def load_masked_sigtrack(hdfsig, chainfile, group, chrom, csize):
-    """
-    :return:
-    """
-    mask = build_conservation_mask(chainfile, chrom, csize)
-    with pd.HDFStore(hdfsig, 'r', complib='blosc', complevel=9) as hdf:
-        signal = np.ma.array(hdf[group + '/' + chrom].values, mask=mask)
-    return signal
 
 
 def sample_signal_traindata(params):
@@ -66,7 +37,8 @@ def sample_signal_traindata(params):
     chromseq = get_twobit_seq(params['seqfile'], params['chrom'])
     signal = load_masked_sigtrack(params['inputfile'], params['chainfile'], params['group'],
                                   params['chrom'], params['size'])
-    pass_one = []
+    samples = []
+    # make function available in local namespace
     mapfeat = feat_mapsig
     for n in range(params['numsamples']):
         pos = rand.randint(lolim, hilim)
@@ -75,11 +47,11 @@ def sample_signal_traindata(params):
             y_dep = np.average(signal[move:move + res].data)
             seq_reg['y_depvar'] = y_dep
             seq_reg['seq'] = chromseq[move:move + res]
-            seq_reg.update(feat_mapsig(signal[move:move + res]))
-            pass_one.append(seq_reg)
+            seq_reg.update(mapfeat(signal[move:move + res]))
+            samples.append(seq_reg)
     comp_seqfeat = get_online_version(params['features'], params['kmers'])
-    pass_one = list(map(comp_seqfeat, pass_one))
-    return mypid, params['chrom'], pass_one
+    samples = list(map(comp_seqfeat, samples))
+    return mypid, params['chrom'], samples
 
 
 def assemble_worker_args(chroms, chromlim, args):
