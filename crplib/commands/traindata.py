@@ -11,10 +11,11 @@ import multiprocessing as mp
 import pandas as pd
 
 from crplib.metadata.md_traindata import gen_obj_and_md, MD_TRAINDATA_COLDEFS
-from crplib.auxiliary.file_ops import load_masked_sigtrack
+from crplib.auxiliary.hdf_ops import load_masked_sigtrack
 from crplib.auxiliary.text_parsers import read_chromosome_sizes
 from crplib.auxiliary.seq_parsers import get_twobit_seq
 from crplib.mlfeat.featdef import feat_mapsig, get_online_version
+from crplib.auxiliary.constants import CHROMOSOME_BOUNDARY
 
 
 def sample_signal_traindata(params):
@@ -99,17 +100,14 @@ def collect_sigres_trainsamples(args, csizes, chromlim, logger):
     :param logger:
     :return:
     """
-
     arglist = assemble_worker_args(csizes, chromlim, args)
-
     with pd.HDFStore(args.outputfile, 'w', complevel=9, complib='blosc') as hdfout:
         with mp.Pool(args.workers) as pool:
             mapres = pool.map_async(sample_signal_traindata, arglist)
             metadata = pd.DataFrame(columns=MD_TRAINDATA_COLDEFS)
             for pid, chrom, samples in mapres.get():
                 logger.debug('Process {} finished chromosome {}'.format(pid, chrom))
-                grp, dataobj, metadata = gen_obj_and_md(metadata, args.grouproot, chrom, 'seq',
-                                                        args.inputfile, args.chainfile, samples)
+                grp, dataobj, metadata = gen_obj_and_md(metadata, args, chrom, samples)
                 hdfout.put(grp, dataobj, format='fixed')
                 hdfout.flush()
             hdfout.put('metadata', metadata, format='table')
@@ -128,7 +126,7 @@ def run_collect_traindata(args):
         logger.debug('Collecting training data for task {}'.format(args.task))
         csizes = read_chromosome_sizes(args.chromsizes, args.keepchroms)
         # "magic number" following common limits, e.g., in ChromImpute
-        chromlim = 10000
+        chromlim = CHROMOSOME_BOUNDARY
         _ = collect_sigres_trainsamples(args, csizes, chromlim, logger)
     else:
         raise NotImplementedError('Task unknown: {}'.format(args.task))

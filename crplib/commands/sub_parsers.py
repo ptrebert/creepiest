@@ -20,6 +20,7 @@ def add_sub_parsers(main_parser):
     subparsers = _add_traindata_command(subparsers)
     subparsers = _add_train_command(subparsers)
     subparsers = _add_mapsig_command(subparsers)
+    subparsers = _add_apply_command(subparsers)
     #subparsers = _add_regmatch_command(subparsers)
     #subparsers = _add_mkmap_command(subparsers)
 
@@ -173,9 +174,8 @@ def _add_traindata_command(subparsers):
     comgroup.add_argument('--num-samples', '-smp', type=int, default=20000, dest='numsamples',
                           help='Number of training samples to collect')
     comgroup.add_argument('--resolution', '-res', type=int, default=25, dest='resolution')
-    comgroup.add_argument('--two-pass', '-tp', action='store_true', default=False, dest='twopass')
     comgroup.add_argument('--features', '-ft', type=str, nargs='+', default=['prm', 'kmers', 'gc'], dest='features')
-    comgroup.add_argument('--kmers', '-km', type=int, nargs='+', default=[2, 3], dest='kmers')
+    comgroup.add_argument('--kmers', '-km', type=int, nargs='+', default=[2], dest='kmers')
     comgroup.add_argument('--chain-file', '-cf', type=str, required=True, dest='chainfile')
     comgroup.add_argument('--seq-file', '-sf', type=str, required=True, dest='seqfile')
     comgroup.add_argument('--input', '-i', type=str, required=True, dest='inputfile')
@@ -321,6 +321,52 @@ def _compfeat_execute(args):
     """
     compfeat = implib.import_module('crplib.commands.comp_feat')
     retval = compfeat.run_compute_features(args)
+    return retval
+
+
+def _add_apply_command(subparsers):
+    """
+    :param subparsers:
+    :return:
+    """
+    parser_apply = subparsers.add_parser('apply',
+                                         help='Apply a trained model to a dataset',
+                                         description='... to be updated ...')
+    parser_apply.add_argument('--task', '-t', type=str, choices=['estsig'], dest='task',
+                              help='Specify task')
+    comgroup = parser_apply.add_argument_group('General parameters')
+    comgroup.add_argument('--model-file', '-mdf', type=str, required=True, dest='modelfile',
+                          help='Specify full path to model file produced with train command.')
+    comgroup.add_argument('--model-metadata', type=str, default='', dest='modelmetadata',
+                          help='Path to JSON file with model metadata. If left empty, use the same'
+                               ' path as for the model file and replace extension with ".json".'
+                               ' Default: <empty>')
+    comgroup.add_argument('--seq-file', '-seq', type=str, required=True, dest='seqfile',
+                          help='Full path to genomic sequence file in 2bit format.')
+    comgroup.add_argument('--chain-file', '-chf', type=str, required=True, dest='seqfile',
+                          help='Full path to liftOver chain file with reciprocal best chains'
+                               ' between target (from/reference) and query (to) assembly.')
+    comgroup.add_argument('--no-smoothing', '-nosm', action='store_true', default=False, dest='nosmooth',
+                          help='Do no smooth signal estimate at the end. Default: False')
+    comgroup.add_argument('--input', '-i', type=str, required=True, dest='inputfile',
+                          help='Full path to input file in HDF5 format.')
+    comgroup.add_argument('--input-group', '-ig', type=str, default='', dest='inputgroup',
+                          help='Group root path for input. Default: <empty>')
+    comgroup.add_argument('--output', '-o', type=str, required=True, dest='outputfile',
+                          help='Full path to output file in HDF5 format.')
+    comgroup.add_argument('--output-group', '-og', type=str, default='', dest='outputgroup',
+                          help='Group root path for output. Default: <empty>')
+    parser_apply.set_defaults(execute=_apply_execute)
+    return subparsers
+
+
+def _apply_execute(args):
+    """
+    :param args:
+    :return:
+    """
+    apply = implib.import_module('crplib.commands.apply')
+    retval = apply.run_apply_model(args)
     return retval
 
 

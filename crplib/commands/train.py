@@ -13,7 +13,7 @@ import pandas as pd
 
 from sklearn.grid_search import GridSearchCV
 
-from crplib.auxiliary.file_ops import get_valid_hdf5_groups
+from crplib.auxiliary.hdf_ops import get_valid_hdf5_groups
 
 
 def train_nocv(model, params, traindata, outputs):
@@ -54,10 +54,17 @@ def load_training_data(filepath, prefix):
     all_groups = get_valid_hdf5_groups(filepath, prefix)
     with pd.HDFStore(filepath, 'r') as hdf:
         full_dset = pd.concat([hdf[g] for g in all_groups], ignore_index=True)
+        mdf = hdf['metadata']
+        ft_classes = mdf.where(mdf.group == all_groups[0]).dropna()['features']
+        ft_classes = ft_classes.values[0].split(',')
+        ft_kmers = mdf.where(mdf.group == all_groups[0]).dropna()['kmers']
+        ft_kmers = list(map(int, ft_kmers.values[0].split(',')))
+        res = mdf.where(mdf.group == all_groups[0]).dropna()['resolution']
+        res = res.values[0]
     outputs = full_dset.loc[:, 'y_depvar']
     feat_order = sorted([ft for ft in full_dset.columns if ft.startswith('ft')])
     traindata = full_dset.loc[:, feat_order]
-    return feat_order, traindata, outputs
+    return ft_classes, ft_kmers, res, feat_order, traindata, outputs
 
 
 def load_model(modname, modpath):
@@ -102,7 +109,7 @@ def run_train_model(args):
     logger.debug('Loading model specification from {}'.format(args.modelspec))
     model_params = json.load(open(args.modelspec))
     model = load_model(model_params['model_name'], model_params['module_path'])
-    feat_order, traindata, outputs = load_training_data(args.traindata, args.traingroup)
+    ft_classes, ft_kmers, res, feat_order, traindata, outputs = load_training_data(args.traindata, args.traingroup)
     if args.notuning:
         params = model_params['default']
         model = train_nocv(model, params, traindata, outputs)
@@ -121,7 +128,10 @@ def run_train_model(args):
     metadata['model'] = model_params['model_name']
     metadata['traindata'] = os.path.basename(args.traindata)
     metadata['traingroup'] = args.traingroup
-    metadata['features'] = feat_order
+    metadata['features'] = ft_classes
+    metadata['kmers'] = ft_kmers
+    metadata['feature_order'] = feat_order
+    metadata['resolution'] = res
     metadata['modelfile'] = os.path.basename(args.modelout)
 
     with open(args.modelout, 'wb') as outfile:

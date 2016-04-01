@@ -11,7 +11,7 @@ _PCT_LEVELS = [0, 5, 25, 50, 75, 95, 100]
 
 _PCT_LABELS = ['pct' + str(p).zfill(3) for p in _PCT_LEVELS]
 
-MD_SIGNAL_COLDEFS = ['group', 'chrom', 'ctime', 'mtime', 'size_mb', 'length', 'srcfile'] + _PCT_LABELS
+MD_SIGNAL_COLDEFS = ['group', 'chrom', 'mtime', 'size_mb', 'length', 'srcfile'] + _PCT_LABELS
 
 
 def gen_obj_and_md(mdframe, rootpath, chrom, srcfiles, datavals):
@@ -30,13 +30,12 @@ def gen_obj_and_md(mdframe, rootpath, chrom, srcfiles, datavals):
     elif isinstance(srcfiles, str):
         tmpsrc = os.path.basename(srcfiles)
     else:
-        raise TypeError('Cannot handle source file references: {}'.format(srcfiles))
-    ctime = dt.datetime.now()
+        raise TypeError('Cannot handle source file information: {}'.format(srcfiles))
+    mtime = dt.datetime.now()
     dataobj = pd.Series(data=datavals, dtype='float64')
     size_mem = dataobj.nbytes / DIV_B_TO_MB
     datalen = datavals.size
-    mtime = dt.datetime.now()
-    entries = [grp, chrom, ctime, mtime, int(size_mem), datalen, tmpsrc]
+    entries = [grp, chrom, mtime, int(size_mem), datalen, tmpsrc]
     entries.extend(list(pct_scores))
     if grp in mdframe.group.values:
         tmp = mdframe.where(mdframe.group == 'grp').dropna().index

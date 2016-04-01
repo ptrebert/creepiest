@@ -10,7 +10,8 @@ import re as re
 
 from crplib.metadata.md_signal import gen_obj_and_md, MD_SIGNAL_COLDEFS
 from crplib.auxiliary.text_parsers import read_chromosome_sizes, get_chain_iterator
-from crplib.auxiliary.file_ops import text_file_mode, get_valid_hdf5_groups
+from crplib.auxiliary.file_ops import text_file_mode
+from crplib.auxiliary.hdf_ops import get_valid_hdf5_groups
 
 
 def allocate_chrom_arrays(chroms):

@@ -46,7 +46,7 @@ class TestModuleImports(unittest.TestCase):
         load_path = os.path.join(self._crplib_path_heuristic(), 'crplib', 'commands')
         all_modules = os.listdir(load_path)
         all_modules = [mod for mod in all_modules if mod != '__init__.py' or mod != '__pycache__']
-        imp_modules = [import_path + mod.strip('.py') for mod in all_modules]
+        imp_modules = [import_path + mod.rsplit('.')[0] for mod in all_modules]
         for module in imp_modules:
             _ = importlib.import_module(module)
         return

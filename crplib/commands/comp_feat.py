@@ -8,7 +8,7 @@ import os as os
 import pandas as pd
 import multiprocessing as mp
 
-from crplib.auxiliary.file_ops import get_valid_hdf5_groups
+from crplib.auxiliary.hdf_ops import get_valid_hdf5_groups
 from crplib.auxiliary.seq_parsers import add_seq_regions
 
 
