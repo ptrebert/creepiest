@@ -9,7 +9,7 @@ import numpy as np
 import pandas as pd
 
 from crplib.auxiliary.file_ops import text_file_mode
-from crplib.auxiliary.text_parsers import get_chain_iterator
+from crplib.auxiliary.text_parsers import get_chain_iterator, chromsize_from_chain
 
 
 def get_valid_hdf5_groups(filepath, prefix):
@@ -28,7 +28,7 @@ def get_valid_hdf5_groups(filepath, prefix):
     return groups
 
 
-def build_conservation_mask(chainfile, chrom, csize):
+def build_conservation_mask(chainfile, chrom, csize=None):
     """ Build a mask that indicates
     1: is not conserved (= is masked)
     0: is conserved (= is not masked)
@@ -37,7 +37,11 @@ def build_conservation_mask(chainfile, chrom, csize):
     :param csize:
     :return:
     """
-    mask = np.ones(csize, dtype=np.bool)
+    if csize is not None:
+        mask = np.ones(csize, dtype=np.bool)
+    else:
+        chromsize = chromsize_from_chain(chainfile, chrom)
+        mask = np.ones(chromsize, dtype=np.bool)
     opn, mode = text_file_mode(chainfile)
     with opn(chainfile, mode) as cf:
         chainit = get_chain_iterator(cf, select=chrom)
@@ -46,7 +50,7 @@ def build_conservation_mask(chainfile, chrom, csize):
     return mask
 
 
-def load_masked_sigtrack(hdfsig, chainfile, group, chrom, csize):
+def load_masked_sigtrack(hdfsig, chainfile, group, chrom, csize=None):
     """
     :return:
     """

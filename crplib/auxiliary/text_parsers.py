@@ -104,3 +104,23 @@ def get_chain_iterator(fobj, select='all'):
                     trun += size
                     qrun += size
     return
+
+
+def chromsize_from_chain(chainfile, chrom):
+    """
+    :param chainfile:
+    :param chrom:
+    :return:
+    """
+    read_head = _read_chain_header
+    opn, mode = text_file_mode(chainfile)
+    chrom_size = 0
+    with opn(chainfile, mode) as chf:
+        for line in chf:
+            if line.strip() and line.startswith('chain'):
+                parts = read_head(line)
+                if parts[0] == chrom:
+                    chrom_size = parts[1]
+                    break
+    assert chrom_size > 0, 'No entry in chain file {} for chromosome: {}'.format(chainfile, chrom)
+    return chrom_size

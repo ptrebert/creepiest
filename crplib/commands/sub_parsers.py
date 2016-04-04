@@ -21,10 +21,8 @@ def add_sub_parsers(main_parser):
     subparsers = _add_train_command(subparsers)
     subparsers = _add_mapsig_command(subparsers)
     subparsers = _add_apply_command(subparsers)
+    subparsers = _add_correlation_command(subparsers)
     #subparsers = _add_regmatch_command(subparsers)
-    #subparsers = _add_mkmap_command(subparsers)
-
-    #subparsers = _add_tfscan_command(subparsers)
     return main_parser
 
 
@@ -367,6 +365,44 @@ def _apply_execute(args):
     """
     apply = implib.import_module('crplib.commands.apply')
     retval = apply.run_apply_model(args)
+    return retval
+
+
+def _add_correlation_command(subparsers):
+    """
+    :param subparsers:
+    :return:
+    """
+    parser_corr = subparsers.add_parser('corr',
+                                        help='Compute pairwise correlation between signal tracks.',
+                                        description='... to be updated ...')
+    comgroup = parser_corr.add_argument_group('Compute correlation')
+    comgroup.add_argument('--task', '-t', type=str, choices=['cons', 'active', 'full', 'roi'], dest='task',
+                          help='Specify task...')
+    comgroup.add_argument('--corr-type', type=str, choices=['pearson', 'spearman'], dest='corrtype',
+                          help='Specify correlation to compute')
+    comgroup.add_argument('--chain-file', '-chf', type=str, default='', dest='chainfile',
+                          help='Full path to liftOver chain file with reciprocal best chains'
+                               ' between target (from/reference) and query (to) assembly. Only'
+                               ' required for task "cons".')
+    comgroup.add_argument('--input-a', '-ia', type=str, required=True, dest='inputfilea')
+    comgroup.add_argument('--input-group-a', '-iga', type=str, default='', dest='inputgroupa')
+    comgroup.add_argument('--input-b', '-ib', type=str, required=True, dest='inputfileb')
+    comgroup.add_argument('--input-group-b', '-igb', type=str, default='', dest='inputgroupb')
+
+    comgroup.add_argument('--output', '-o', type=str, required=True, dest='outputfile',
+                          help='Full path to output file in JSON format.')
+    parser_corr.set_defaults(execute=_correlation_execute)
+    return subparsers
+
+
+def _correlation_execute(args):
+    """
+    :param args:
+    :return:
+    """
+    corr = implib.import_module('crplib.command.correlation')
+    retval = corr.run_compute_correlation(args)
     return retval
 
 
