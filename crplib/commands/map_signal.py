@@ -4,6 +4,7 @@
 Map a signal track from one species/assembly to another
 """
 
+import sys as sys
 import numpy as np
 import pandas as pd
 import re as re
@@ -72,14 +73,16 @@ def map_signal_data(sigfile, grouproot, alnblocks, qchroms):
                 sig_to_map = infile[chrom_group[0]]
             tchrom = block[0]
             if block[7] == '-':
-                qchroms[block[4]][block[5]:block[6]+1] = sig_to_map[block[1]:block[2]+1][::-1]
+                qchroms[block[4]][block[5]-1:block[6]] = sig_to_map[block[1]-1:block[2]][::-1]
             else:
-                qchroms[block[4]][block[5]:block[6]+1] = sig_to_map[block[1]:block[2]+1]
+                qchroms[block[4]][block[5]-1:block[6]] = sig_to_map[block[1]-1:block[2]]
+
         else:
             if block[7] == '-':
-                qchroms[block[4]][block[5]:block[6]+1] = sig_to_map[block[1]:block[2]+1][::-1]
+
+                qchroms[block[4]][block[5]-1:block[6]] = sig_to_map[block[1]-1:block[2]][::-1]
             else:
-                qchroms[block[4]][block[5]:block[6]+1] = sig_to_map[block[1]:block[2]+1]
+                qchroms[block[4]][block[5]-1:block[6]] = sig_to_map[block[1]-1:block[2]]
     return qchroms
 
 
