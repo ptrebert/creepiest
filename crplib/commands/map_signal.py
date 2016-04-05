@@ -53,7 +53,7 @@ def get_alignment_blocks(chainfile, chroms, chromre):
     return sorted(blocks)
 
 
-def map_signal_data(sigfile, grouproot, alnblocks, qchroms):
+def map_signal_data(sigfile, grouproot, alnblocks, qchroms, logger):
     """
     :param sigfile:
     :param grouproot:
@@ -66,23 +66,23 @@ def map_signal_data(sigfile, grouproot, alnblocks, qchroms):
     tchrom = None
     # note here: if alnblocks is empty, returns all-zero query chroms
     for block in alnblocks:
-        if block[0] != tchrom:
-            chrom_group = [g for g in datagroups if g.endswith(block[0])]
-            assert len(chrom_group) == 1, 'No or ambiguous reference chromosome: {}'.format(block[0])
-            with pd.HDFStore(sigfile, 'r') as infile:
-                sig_to_map = infile[chrom_group[0]]
-            tchrom = block[0]
+        try:
+            if block[0] != tchrom:
+                chrom_group = [g for g in datagroups if g.endswith(block[0])]
+                assert len(chrom_group) == 1, 'No or ambiguous reference chromosome: {}'.format(block[0])
+                with pd.HDFStore(sigfile, 'r') as infile:
+                    sig_to_map = infile[chrom_group[0]]
+                tchrom = block[0]
             if block[7] == '-':
                 qchroms[block[4]][block[5]-1:block[6]] = sig_to_map[block[1]-1:block[2]][::-1]
             else:
                 qchroms[block[4]][block[5]-1:block[6]] = sig_to_map[block[1]-1:block[2]]
-
-        else:
+        except ValueError:
+            # this happens if there is indeed start coordinate 0, e.g. in case of bosTau7
             if block[7] == '-':
-
-                qchroms[block[4]][block[5]-1:block[6]] = sig_to_map[block[1]-1:block[2]][::-1]
+                qchroms[block[4]][max(block[5]-1, 0):block[6]] = sig_to_map[max(block[1]-1, 0):block[2]][::-1]
             else:
-                qchroms[block[4]][block[5]-1:block[6]] = sig_to_map[block[1]-1:block[2]]
+                qchroms[block[4]][max(block[5]-1, 0):block[6]] = sig_to_map[max(block[1]-1, 0):block[2]]
     return qchroms
 
 
@@ -112,7 +112,7 @@ def run_map_signal(args):
         logger.debug('Allocating memory for mapped signal')
         chroms = allocate_chrom_arrays(proc_chroms)
         logger.debug('Mapping signal data')
-        chroms = map_signal_data(args.inputfile, args.inputgroup, alnblocks, chroms)
+        chroms = map_signal_data(args.inputfile, args.inputgroup, alnblocks, chroms, logger)
         logger.debug('Mapping complete')
         with pd.HDFStore(args.outputfile, 'a', complib='blosc', complevel=9) as hdfout:
             if 'metadata' in hdfout:
