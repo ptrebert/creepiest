@@ -46,7 +46,7 @@ def build_conservation_mask(chainfile, chrom, csize=None):
     with opn(chainfile, mode) as cf:
         chainit = get_chain_iterator(cf, select=chrom)
         for aln in chainit:
-            mask[aln[1]-1:aln[2]] = 0
+            mask[aln[1]:aln[2]] = 0
     return mask
 
 
