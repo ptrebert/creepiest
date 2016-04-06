@@ -54,7 +54,7 @@ def make_signal_estimate(params):
     mapfeat = feat_mapsig
     est_sig = np.zeros(chromlen, dtype='float64')
     lolim = CHROMOSOME_BOUNDARY
-    hilim = chromlen // res * res
+    hilim = int(chromlen // res * res)
     comp_seqfeat = get_online_version(params['features'], params['kmers'])
     get_values = op.itemgetter(*tuple(params['feature_order']))
     chunks = []
@@ -91,7 +91,7 @@ def assemble_params_estsig(args):
     else:
         fpath_md = args.modelmetadata
     model_md = json.load(open(fpath_md, 'r'))
-    commons = {'modelfile': args.modelfile, 'resolution': model_md['resolution'],
+    commons = {'modelfile': args.modelfile, 'resolution': int(model_md['resolution']),
                'seqfile': args.seqfile, 'chainfile': args.chainfile, 'inputfile': args.inputfile,
                'inputgroup': args.inputgroup, 'features': model_md['features'],
                'kmers': model_md['kmers'], 'feature_order': model_md['feature_order'],
