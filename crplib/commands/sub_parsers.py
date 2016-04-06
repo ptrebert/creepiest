@@ -366,7 +366,7 @@ def _add_apply_command(subparsers):
                                ' Default: <empty>')
     comgroup.add_argument('--seq-file', '-seq', type=str, required=True, dest='seqfile',
                           help='Full path to genomic sequence file in 2bit format.')
-    comgroup.add_argument('--chain-file', '-chf', type=str, required=True, dest='seqfile',
+    comgroup.add_argument('--chain-file', '-chf', type=str, required=True, dest='chainfile',
                           help='Full path to liftOver chain file with reciprocal best chains'
                                ' between target (from/reference) and query (to) assembly.')
     comgroup.add_argument('--no-smoothing', '-nosm', action='store_true', default=False, dest='nosmooth',
