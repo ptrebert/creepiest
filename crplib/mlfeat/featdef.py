@@ -233,17 +233,19 @@ def feat_coreprom_motifs(region):
     # DOI:10.1093/nar/gkv1032
     # Marbach-Bar et al., 2016 NAR
     core_motifs.append(('dtieMx', 'G[CGT][CGT][AG][AGT][ACGTN][ACT]GG'))  # Downstream Transcription Initiation Element (DTIE)
-
+    tmpseq = region['seq'].upper()
     try:
         reglen = region[FEAT_LENGTH]
+        assert len(tmpseq) == reglen, 'Malformed genomic region (length): {}'.format(region)
     except KeyError:
-        reglen = region['end'] - region['start']
-    tmpseq = region['seq'].upper()
-    assert len(tmpseq) == reglen, 'Malformed genomic region (length): {}'.format(region)
+        try:
+            reglen = region['end'] - region['start']
+            assert len(tmpseq) == reglen, 'Malformed genomic region (length): {}'.format(region)
+        except KeyError:
+            reglen = len(tmpseq)
     for name, motifre in core_motifs:
         bpcov = sum(len(m) for m in re.findall(motifre, tmpseq))
         region[FEAT_COREPROM_PREFIX + name] = round((bpcov / reglen) * 100, 2)
-
     return region
 
 
@@ -272,9 +274,9 @@ def feat_mapsig(sample):
     :return:
     """
     conserved = np.ma.count(sample)
-    len = sample.size
+    reglen = sample.size
     ret = dict()
-    ret[FEAT_MAPSIG_PREFIX + 'pct_cons'] = round((conserved / len) * 100, 2)
+    ret[FEAT_MAPSIG_PREFIX + 'pct_cons'] = round((conserved / reglen) * 100, 2)
     if conserved == 0:
         cons_mean = 0
         cons_max = 0
