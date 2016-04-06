@@ -78,7 +78,7 @@ def build_main_parser(stdincfg):
                           help='Profile this run of the CREEPIEST tool. This only works if the C'
                                ' profiling libraries are available to limit the overhead. Creates a'
                                ' cProfile output file in the working directory. Default: FALSE')
-    generics.add_argument('--no-dump', '-nod', action='store_true', default=True, dest='nodump',
+    generics.add_argument('--no-dump', '-nod', action='store_true', default=False, dest='nodump',
                           help='If set to TRUE, do not dump a summary of the current configuration'
                                ' and run parameters. Default: FALSE')
     generics.add_argument('--dump-dir', '-dmp', type=str, default=os.getcwd(), dest='dumpdir',
@@ -188,7 +188,7 @@ def run():
         logger.debug('Logging system initialized')
         if remain_args:
             logger.warning('Unknown parameters at command line: {}'.format(remain_args))
-        if not args.nodump and args.subparser_name != 'tests':
+        if not args.nodump and args.subparser_name not in ['tests', 'info']:
             conf_dump = dump_config(args, remain_args)
         if conf_dump:
             logger.debug('Configuration dumped to: {}'.format(conf_dump))
