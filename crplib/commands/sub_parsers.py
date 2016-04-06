@@ -15,6 +15,7 @@ def add_sub_parsers(main_parser):
     """
     subparsers = main_parser.add_subparsers(dest='subparser_name', title='Subcommands')
     subparsers = _add_tests_command(subparsers)
+    subparsers = _add_info_command(subparsers)
     subparsers = _add_convbg_command(subparsers)
     subparsers = _add_convreg_command(subparsers)
     subparsers = _add_traindata_command(subparsers)
@@ -49,6 +50,30 @@ def _tests_execute(args):
     tests = implib.import_module('crplib.commands.tests')
     module_path = tests.__file__
     retval = tests.run_tests(args, module_path)
+    return retval
+
+
+def _add_info_command(subparsers):
+    """
+    :param subparsers:
+    :return:
+    """
+    parser_info = subparsers.add_parser('info',
+                                        help='Print info about HDF file',
+                                        description='... to be updated ...')
+    comgroup = parser_info.add_argument_group('Print info')
+    comgroup.add_argument('--input', '-i', type=str, required=True, dest='inputfile')
+    parser_info.set_defaults(execute=_info_execute)
+    return subparsers
+
+
+def _info_execute(args):
+    """
+    :param args:
+    :return:
+    """
+    info = implib.import_module('crplib.commands.info')
+    retval = info.run_print_info(args)
     return retval
 
 
@@ -178,9 +203,9 @@ def _add_traindata_command(subparsers):
     comgroup.add_argument('--seq-file', '-sf', type=str, required=True, dest='seqfile')
     comgroup.add_argument('--input', '-i', type=str, required=True, dest='inputfile')
     comgroup.add_argument('--input-group', '-ig', type=str, default='', dest='inputgroup')
-    comgroup.add_argument('--group-root', '-gr', type=str, default='', dest='grouproot',
-                          help='Specify a root path to store the individual chromosomes in the HDF5. Default: <empty>')
     comgroup.add_argument('--output', '-o', type=str, dest='outputfile')
+    comgroup.add_argument('--output-group', '-og', type=str, default='', dest='outputgroup',
+                          help='Specify a root path to store the individual chromosomes in the HDF5. Default: <empty>')
     parser_traindata.set_defaults(execute=_traindata_execute)
     return subparsers
 
