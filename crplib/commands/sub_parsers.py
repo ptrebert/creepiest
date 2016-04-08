@@ -16,8 +16,7 @@ def add_sub_parsers(main_parser):
     subparsers = main_parser.add_subparsers(dest='subparser_name', title='Subcommands')
     subparsers = _add_tests_command(subparsers)
     subparsers = _add_info_command(subparsers)
-    subparsers = _add_convbg_command(subparsers)
-    subparsers = _add_convreg_command(subparsers)
+    subparsers = _add_convert_command(subparsers)
     subparsers = _add_traindata_command(subparsers)
     subparsers = _add_train_command(subparsers)
     subparsers = _add_mapsig_command(subparsers)
@@ -77,95 +76,50 @@ def _info_execute(args):
     return retval
 
 
-def _add_convfna_command(subparsers):
+def _add_convert_command(subparsers):
     """
     :param subparsers:
     :return:
     """
-    parser_convfna = subparsers.add_parser('convfna',
-                                           help='Convert assembly in (FASTA nucleotide file) to HDF5 format',
-                                           description='...to be updated...')
-    comgroup = parser_convfna.add_argument_group('Convert FASTA parameters')
-    comgroup.add_argument('--assembly', '-a', type=str, required=True, dest='assembly',
-                          help='Specify name of assembly.')
-    comgroup.add_argument('--chrom-sizes', '-s', type=str, required=True, dest='chromsizes',
+    parser_convert = subparsers.add_parser('convert',
+                                           help='Convert bedGraph or BED files to HDF5 format.',
+                                           description='... to be updated ...')
+    comgroup = parser_convert.add_argument_group('General parameters')
+    comgroup.add_argument('--task', '-tk', type=str, required=True, choices=['signal', 'region'], dest='task',
+                          help='Specify task to execute, convert signal (bedGraph) or region (BED-like) files.')
+    comgroup.add_argument('--chrom-sizes', '-cs', type=str, required=True, dest='chromsizes',
                           help='Full path to UCSC-style 2 column file with chromosome sizes')
-    comgroup.add_argument('--keep-chroms', '-c', type=str, default='"(chr)?[0-9]+(\s|$)"', dest='keepchroms',
+    comgroup.add_argument('--keep-chroms', '-kc', type=str, default='"(chr)?[0-9]+(\s|$)"', dest='keepchroms',
                           help='Regular expression pattern (needs to be double quoted) matching'
                                ' chromosome names to keep. Default: "(chr)?[0-9]+(\s|$)" (i.e. autosomes)')
-    comgroup.add_argument('--no-replace', '-norp', action='store_true', default=False, dest='noreplace',
-                          help='Replace all non ACGTN letters in the sequence with N (case sensitive)')
-    comgroup.add_argument('--input', '-i', type=str, required=True, dest='inputfile',
-                          help='Full path to input file to be converted')
+    comgroup.add_argument('--input', '-i', type=str, nargs='+', required=True, dest='inputfile',
+                          help='Full path to one or more files to convert.')
     comgroup.add_argument('--output', '-o', type=str, required=True, dest='outputfile',
-                          help='Full path to output file')
-    parser_convfna.set_defaults(execute=_convert_execute)
-    return subparsers
-
-
-def _add_convbg_command(subparsers):
-    """
-    :param subparsers:
-    :return:
-    """
-    parser_convbg = subparsers.add_parser('convbg',
-                                          help='Convert bedGraph signal tracks to HDF5. If several signal'
-                                               ' tracks are specified as input, build a single merged track.',
-                                          description='...to be updated...')
-    comgroup = parser_convbg.add_argument_group('Convert bedGraph parameters')
-    comgroup.add_argument('--chrom-sizes', '-s', type=str, required=True, dest='chromsizes',
-                          help='Full path to UCSC-style 2 column file with chromosome sizes')
-    comgroup.add_argument('--keep-chroms', '-c', type=str, default='"(chr)?[0-9]+(\s|$)"', dest='keepchroms',
-                          help='Regular expression pattern (needs to be double quoted) matching'
-                               ' chromosome names to keep. Default: "(chr)?[0-9]+(\s|$)" (i.e. autosomes)')
+                          help='Full path to output file to be created')
+    comgroup.add_argument('--output-group', '-og', type=str, default='', dest='outputgroup',
+                          help='Group prefix to store individual chromosomes. Default: <empty>')
+    comgroup = parser_convert.add_argument_group('bedGraph parameters')
     comgroup.add_argument('--no-qnorm', '-nq', action='store_true', default=False, dest='noqnorm',
                           help='Do not perform quantile normalization before merging several input files.'
-                               ' This will substantially decrease the run time. When merging several replicate'
+                               ' This will decrease the run time. When merging several replicate'
                                ' experiments, performing quantile normalization is recommended. Default: FALSE')
-    comgroup.add_argument('--merge-stat', '-ms', type=str, default='mean', choices=['mean', 'median', 'max', 'min'],
-                          dest='mergestat',
+    comgroup.add_argument('--merge-stat', '-ms', type=str, default='mean', dest='mergestat',
+                          choices=['mean', 'median', 'max', 'min'],
                           help='Use this statistic to merge several input files: mean, median, min, max. Default: mean')
-    comgroup.add_argument('--group-root', '-gr', type=str, default='', dest='grouproot',
-                          help='Specify a root path to store the individual chromosomes in the HDF5. Default: <empty>')
     comgroup.add_argument('--clip', '-cl', type=float, default=99.95, dest='clip',
-                          help='Clip signal values above this percentile. Default: 99.95')
-    comgroup.add_argument('--input', '-i', type=str, required=True, dest='inputfile', nargs='+',
-                          help='Full path to input file(s) to be converted.')
-    comgroup.add_argument('--output', '-o', type=str, required=True, dest='outputfile',
-                          help='Full path to output file')
-    parser_convbg.set_defaults(execute=_convert_execute)
-    return subparsers
-
-
-def _add_convreg_command(subparsers):
-    """
-    :param subparsers:
-    :return:
-    """
-    parser_convreg = subparsers.add_parser('convreg',
-                                           help='Convert genomic regions (e.g. peaks) to HDF5. If serveral files'
-                                                ' are specified as input, build a single merged set.',
-                                           description='... to be updated ...')
-    comgroup = parser_convreg.add_argument_group('Convert region parameters')
-    comgroup.add_argument('--keep-chroms', '-c', type=str, default='"(chr)?[0-9]+(\s|$)"', dest='keepchroms',
-                          help='Regular expression pattern (needs to be double quoted) matching'
-                               ' chromosome names to keep. Default: "(chr)?[0-9]+(\s|$)" (i.e. autosomes)')
-    comgroup.add_argument('--name-idx', '-n', type=int, default=-1, dest='nameidx',
+                          help='Clip signal values above this percentile to reduce the effect of strong'
+                               ' outliers. Default: 99.95')
+    comgroup = parser_convert.add_argument_group('BED parameters')
+    comgroup.add_argument('--name-idx', '-nix', type=int, default=-1, dest='nameidx',
                           help='Specify column index (0-based) with region names. If set to -1,'
                                ' new names will be assigned based on genomic sort order. Default: -1')
-    comgroup.add_argument('--score-idx', '-s', type=int, default=-1, dest='scoreidx',
+    comgroup.add_argument('--score-idx', '-six', type=int, default=-1, dest='scoreidx',
                           help='Specify column index (0-based) with score to rank regions. If set to'
                                ' -1 no ranking can be performed. Default: -1')
-    comgroup.add_argument('--keep-top', '-k', type=float, default=95, dest='keeptop',
+    comgroup.add_argument('--keep-top', '-topk', type=float, default=95, dest='keeptop',
                           help='Specify top N percent of regions to keep after ranking. Requires --score-idx'
-                               ' to be set. Default: 95')
-    comgroup.add_argument('--group-root', '-gr', type=str, default='', dest='grouproot',
-                          help='Specify a root path to store the individual chromosomes in the HDF5. Default: <empty>')
-    comgroup.add_argument('--input', '-i', type=str, required=True, dest='inputfile', nargs='+',
-                          help='Full path to input file(s) to be converted.')
-    comgroup.add_argument('--output', '-o', type=str, required=True, dest='outputfile',
-                          help='Full path to output file.')
-    parser_convreg.set_defaults(execute=_convert_execute)
+                               ' to be set to a valid column index. Default: 95')
+    parser_convert.set_defaults(execute=_convert_execute)
     return subparsers
 
 
@@ -404,7 +358,7 @@ def _add_correlation_command(subparsers):
     comgroup = parser_corr.add_argument_group('Compute correlation')
     comgroup.add_argument('--task', '-t', type=str, choices=['cons', 'active', 'full', 'roi'], dest='task',
                           help='Specify task...')
-    comgroup.add_argument('--corr-type', type=str, choices=['pearson', 'spearman'], dest='corrtype',
+    comgroup.add_argument('--corr-type', type=str, choices=['pearson', 'spearman'], required=True, dest='corrtype',
                           help='Specify correlation to compute')
     comgroup.add_argument('--chain-file', '-chf', type=str, default='', dest='chainfile',
                           help='Full path to liftOver chain file with reciprocal best chains'
@@ -426,7 +380,7 @@ def _correlation_execute(args):
     :param args:
     :return:
     """
-    corr = implib.import_module('crplib.command.correlation')
+    corr = implib.import_module('crplib.commands.correlation')
     retval = corr.run_compute_correlation(args)
     return retval
 
