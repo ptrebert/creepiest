@@ -8,22 +8,6 @@ import os as os
 import importlib as imp
 
 
-def convert_fasta_genome(args, logger):
-    """
-    :param args:
-    :return:
-    """
-    assert os.path.isfile(args.inputfile), 'Invalid path to input file: {}'.format(args.input)
-    assert os.path.isfile(args.chromsizes), 'Invalid path to chromosome sizes file: {}'.format(args.chromsizes)
-    # remove double quotes from pattern
-    args.__dict__['keepchroms'] = args.keepchroms.strip('"')
-    logger.debug('Chromosome select pattern: {}'.format(args.keepchroms))
-    mod = imp.import_module('crplib.commands.convert_fasta')
-    rv = mod.run_fasta_conversion(args, logger)
-    assert os.path.isfile(args.outputfile), 'No output file created - conversion failed? {}'.format(args.outputfile)
-    return rv
-
-
 def convert_bedgraph_signal(args, logger):
     """
     :param args:
@@ -71,10 +55,9 @@ def run_conversion(args):
     logger = args.module_logger
     try:
         logger.debug('Running conversion type: {}'.format(args.subparser_name))
-        convtype = {'convfna': convert_fasta_genome,
-                    'convbg': convert_bedgraph_signal,
-                    'convreg': convert_genomic_region}
-        convcall = convtype[args.subparser_name]
+        convtype = {'signal': convert_bedgraph_signal,
+                    'region': convert_genomic_region}
+        convcall = convtype[args.task]
         rv = convcall(args, logger)
         logger.debug('Conversion complete')
         return rv
