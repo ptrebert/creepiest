@@ -53,7 +53,7 @@ def get_alignment_blocks(chainfile, chroms, chromre):
     return sorted(blocks)
 
 
-def map_signal_data(sigfile, grouproot, alnblocks, qchroms, logger):
+def map_signal_data(sigfile, grouproot, alnblocks, qchroms):
     """
     :param sigfile:
     :param grouproot:
@@ -105,7 +105,7 @@ def run_map_signal(args):
         logger.debug('Allocating memory for mapped signal')
         chroms = allocate_chrom_arrays(proc_chroms)
         logger.debug('Mapping signal data')
-        chroms = map_signal_data(args.inputfile, args.inputgroup, alnblocks, chroms, logger)
+        chroms = map_signal_data(args.inputfile, args.inputgroup, alnblocks, chroms)
         logger.debug('Mapping complete')
         with pd.HDFStore(args.outputfile, 'a', complib='blosc', complevel=9) as hdfout:
             if 'metadata' in hdfout:
