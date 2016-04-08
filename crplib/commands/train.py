@@ -55,11 +55,12 @@ def load_training_data(filepath, prefix):
     with pd.HDFStore(filepath, 'r') as hdf:
         full_dset = pd.concat([hdf[g] for g in all_groups], ignore_index=True)
         mdf = hdf['metadata']
-        ft_classes = mdf.where(mdf.group == all_groups[0]).dropna()['features']
+        load_group = all_groups[0]
+        ft_classes = mdf.where(mdf.group == load_group).dropna()['features']
         ft_classes = ft_classes.values[0].split(',')
-        ft_kmers = mdf.where(mdf.group == all_groups[0]).dropna()['kmers']
+        ft_kmers = mdf.where(mdf.group == load_group).dropna()['kmers']
         ft_kmers = list(map(int, ft_kmers.values[0].split(',')))
-        res = mdf.where(mdf.group == all_groups[0]).dropna()['resolution']
+        res = mdf.where(mdf.group == load_group).dropna()['resolution']
         res = res.values[0]
     outputs = full_dset.loc[:, 'y_depvar']
     feat_order = sorted([ft for ft in full_dset.columns if ft.startswith('ft')])
@@ -93,8 +94,8 @@ def simplify_cv_scores(cvfolds):
         std = np.std(values)
         min_score = np.min(values)
         max_score = np.max(values)
-        this_comb['scores'] = {'mean': np.round(mean, 2), 'std': np.round(std, 2),
-                               'max': np.round(max_score, 2), 'min': np.round(min_score, 2)}
+        this_comb['scores'] = {'mean': np.round(mean, 5), 'std': np.round(std, 5),
+                               'max': np.round(max_score, 5), 'min': np.round(min_score, 5)}
         this_comb['params'] = entry.parameters
         grid.append(this_comb)
     return grid

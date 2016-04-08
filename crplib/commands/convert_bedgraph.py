@@ -38,30 +38,17 @@ def assemble_worker_args(chroms, args):
     return arglist
 
 
-def define_chromosome_indices(csizes):
-    """
-    :param csizes:
-    :return:
-    """
-    curr_start = 0
-    indices = dict()
-    for name, size in csizes.items():
-        indices[name] = curr_start, curr_start + size
-        curr_start += size
-    return curr_start, indices
-
-
-def process_signal(kwargs):
+def process_signal(params):
     """
     :param kwargs:
     :return:
     """
     all_data = tuple()
     mypid = mp.current_process().pid
-    chrom = kwargs['chrom']
-    for fp in kwargs['inputfile']:
+    chrom = params['chrom']
+    for fp in params['inputfile']:
         opn, mode = text_file_mode(fp)
-        values = np.zeros(kwargs['size'], dtype='float64')
+        values = np.zeros(params['size'], dtype='float64')
         with opn(fp, mode=mode, encoding='ascii') as infile:
             # TODO use itertools.dropwhile
             start_found = False
@@ -74,14 +61,14 @@ def process_signal(kwargs):
                     break
                 else:
                     continue
-        if kwargs['clip'] < 100.:
-            new_max = stats.scoreatpercentile(values, kwargs['clip'])
+        if params['clip'] < 100.:
+            new_max = stats.scoreatpercentile(values, params['clip'])
             values = np.clip(values, 0., new_max)
         all_data += values,
-    if len(all_data) > 1 and not kwargs['noqnorm']:
-        retvals = merge_1d_datasets(*all_data, mergestat=kwargs['mergestat'], qnorm=True)
-    elif len(all_data) > 1 and kwargs['noqnorm']:  # being explicit...
-        retvals = merge_1d_datasets(*all_data, mergestat=kwargs['mergestat'], qnorm=False)
+    if len(all_data) > 1 and not params['noqnorm']:
+        retvals = merge_1d_datasets(*all_data, mergestat=params['mergestat'], qnorm=True)
+    elif len(all_data) > 1 and params['noqnorm']:  # being explicit...
+        retvals = merge_1d_datasets(*all_data, mergestat=params['mergestat'], qnorm=False)
     else:
         retvals = all_data[0]
     return mypid, chrom, retvals
@@ -96,12 +83,8 @@ def run_bedgraph_conversion(args, logger):
     csizes = read_chromosome_sizes(args.chromsizes, args.keepchroms)
     logger.debug('Processing {} chromosome(s)'.format(len(csizes)))
     arglist = assemble_worker_args(csizes, args)
-    wgsize, chromidx = define_chromosome_indices(csizes)
-    # allocate enough memory for whole genome signal
-    # to compute the genome-wide percentiles at the end
-    wgsignal = np.zeros(wgsize, dtype='float64')
     meminfo = round(psu.virtual_memory().available / DIV_B_TO_GB, 2)
-    logger.debug('Whole-genome array allocated; available memory: {}GB'.format(meminfo))
+    logger.debug('Start processing, available memory: {}GB'.format(meminfo))
     with pd.HDFStore(args.outputfile, 'a', complevel=9, complib='blosc') as hdfout:
         with mp.Pool(args.workers) as pool:
             if 'metadata' in hdfout:
@@ -112,14 +95,11 @@ def run_bedgraph_conversion(args, logger):
             logger.debug('Start processing chromosomes...')
             for pid, chrom, valobj in mapres.get():
                 logger.debug('Worker (PID {}) completed chromosome {}'.format(pid, chrom))
-                grp, valobj, metadata = gen_obj_and_md(metadata, args.grouproot, chrom, args.inputfile, valobj)
+                grp, valobj, metadata = gen_obj_and_md(metadata, args.outputgroup, chrom, args.inputfile, valobj)
                 hdfout.put(grp, valobj, format='fixed')
                 hdfout.flush()
-                start, end = chromidx[chrom]
-                wgsignal[start:end] = valobj
                 meminfo = round(psu.virtual_memory().available / DIV_B_TO_GB, 2)
                 logger.debug('Processed chromosome {} - available memory: {}'.format(chrom, meminfo))
-        _, _, metadata = gen_obj_and_md(metadata, args.grouproot, 'wg', args.inputfile, wgsignal)
         hdfout.put('metadata', metadata, format='table')
     logger.debug('HDF file closed: {}'.format(args.outputfile))
     meminfo = round(psu.virtual_memory().available / DIV_B_TO_GB, 2)

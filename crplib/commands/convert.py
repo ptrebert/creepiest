@@ -19,8 +19,6 @@ def convert_bedgraph_signal(args, logger):
     assert all([os.path.isfile(f) for f in args.inputfile]),\
         'Invalid path(s) to input file(s): {}'.format(args.inputfile)
     assert 0. <= args.clip <= 100., 'Clip value outside of range 0...100: {}'.format(args.clip)
-    args.__dict__['keepchroms'] = args.keepchroms.strip('"')
-    logger.debug('Chromosome select pattern: {}'.format(args.keepchroms))
     mod = imp.import_module('crplib.commands.convert_bedgraph')
     rv = mod.run_bedgraph_conversion(args, logger)
     assert os.path.isfile(args.outputfile), 'No output file created - conversion failed? {}'.format(args.outputfile)
@@ -37,8 +35,6 @@ def convert_genomic_region(args, logger):
         'Invalid path(s) to input file(s): {}'.format(args.inputfile)
     assert 1. <= args.keeptop <= 100., \
         'Keeping top N percent value outside of range 1...100: {}'.format(args.keeptop)
-    args.__dict__['keepchroms'] = args.keepchroms.strip('"')
-    logger.debug('Chromosome select pattern: {}'.format(args.keepchroms))
     mod = imp.import_module('crplib.commands.convert_region')
     rv = mod.run_region_conversion(args, logger)
     assert os.path.isfile(args.outputfile), 'No output file created - conversion failed? {}'.format(args.outputfile)
@@ -58,9 +54,11 @@ def run_conversion(args):
         convtype = {'signal': convert_bedgraph_signal,
                     'region': convert_genomic_region}
         convcall = convtype[args.task]
+        args.__dict__['keepchroms'] = args.keepchroms.strip('"')
+        logger.debug('Chromosome select pattern: {}'.format(args.keepchroms))
         rv = convcall(args, logger)
         logger.debug('Conversion complete')
         return rv
     except Exception as e:
-        logger.error('Error: {}'.format(str(e)))
+        logger.error('Error during conversion: {}'.format(str(e)))
         raise e

@@ -107,7 +107,7 @@ def collect_sigres_trainsamples(args, csizes, chromlim, logger):
             metadata = pd.DataFrame(columns=MD_TRAINDATA_COLDEFS)
             for pid, chrom, samples in mapres.get():
                 logger.debug('Process {} finished chromosome {}'.format(pid, chrom))
-                grp, dataobj, metadata = gen_obj_and_md(metadata, args, chrom, samples)
+                grp, dataobj, metadata = gen_obj_and_md(metadata, args.outputgroup, chrom, args, samples)
                 hdfout.put(grp, dataobj, format='fixed')
                 hdfout.flush()
             hdfout.put('metadata', metadata, format='table')

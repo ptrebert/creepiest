@@ -73,15 +73,15 @@ def merge_overlapping_regions(allregions):
     return merged
 
 
-def process_regions(kwargs):
+def process_regions(params):
     """
-    :param kwargs:
+    :param params:
     :return:
     """
     mypid = mp.current_process().pid
-    fpath = kwargs['inputfile']
-    chr_match = re.compile(kwargs['keepchroms'])
-    getvals = op.itemgetter(*kwargs['columns'])
+    fpath = params['inputfile']
+    chr_match = re.compile(params['keepchroms'])
+    getvals = op.itemgetter(*params['columns'])
     regions = []
     opn, mode = text_file_mode(fpath)
     with opn(fpath, mode=mode, encoding='ascii') as infile:
@@ -90,15 +90,15 @@ def process_regions(kwargs):
                 continue
             regions.append(getvals(line.split()))
     assert len(regions) > 0,\
-        'No regions selected for file {} and pattern {}'.format(fpath, kwargs['keepchroms'])
-    if kwargs['scoreidx'] != -1 and kwargs['keeptop'] < 100.:
+        'No regions selected for file {} and pattern {}'.format(fpath, params['keepchroms'])
+    if params['scoreidx'] != -1 and params['keeptop'] < 100.:
         # convention here: score is always last index by construction
         # and assume ranking where highest score is first one
         scores = np.array([float(reg[-1]) for reg in regions])
         # this is heuristic to check if the selected score column makes sense
         assert np.var(scores) > 0,\
-            'Scores have 0 variance for file {} and column {}'.format(fpath, kwargs['columns'][-1])
-        thres = stats.scoreatpercentile(scores, 100 - kwargs['keeptop'])
+            'Scores have 0 variance for file {} and column {}'.format(fpath, params['columns'][-1])
+        thres = stats.scoreatpercentile(scores, 100 - params['keeptop'])
         regions = [reg[:-1] for reg in regions if float(reg[-1]) > thres]
     if len(regions[0]) == 3:
         regions = [(reg[0], int(reg[1]), int(reg[2])) for reg in regions]
@@ -145,6 +145,8 @@ def run_region_conversion(args, logger):
                 # collect all chromosomes in dataset(s)
                 [chroms.add(reg[0]) for reg in regobj]
                 all_regions.extend(regobj)
+            # TODO
+            # below here: looks like it could be simplified...
             logger.debug('All files processed, sorting {} regions...'.format(len(all_regions)))
             assert len(all_regions) > 0, 'No regions selected by worker processes: {}'.format(args.inputfile)
             all_regions = sorted(all_regions)
@@ -157,12 +159,11 @@ def run_region_conversion(args, logger):
                 all_regions = add_names(all_regions)
             logger.debug('Identified {} chromosomes in dataset(s)'.format(len(chroms)))
             for chrom in sorted(chroms):
-                grp, valobj, metadata = gen_obj_and_md(metadata, args.grouproot, chrom, args.inputfile,
+                grp, valobj, metadata = gen_obj_and_md(metadata, args.outputgroup, chrom, args.inputfile,
                                                        [reg for reg in all_regions if reg[0] == chrom])
                 hdfout.put(grp, valobj, format='fixed')  # not sure here... usually replace entire object I guess
                 hdfout.flush()
                 logger.debug('Processed chromosome {}'.format(chrom))
-        _, _, metadata = gen_obj_and_md(metadata, args.grouproot, 'wg', args.inputfile, all_regions)
         hdfout.put('metadata', metadata, format='table')
     logger.debug('HDF file closed: {}'.format(args.outputfile))
     return 0
