@@ -11,7 +11,8 @@ import numpy as np
 import pandas as pd
 import json as json
 
-from crplib.auxiliary.hdf_ops import get_valid_hdf5_groups, load_masked_sigtrack
+from crplib.auxiliary.hdf_ops import get_valid_hdf5_groups, load_masked_sigtrack, build_conservation_mask
+from crplib.numalg.iterators import iter_consecutive_blocks
 
 
 def assemble_worker_params(args):
@@ -60,13 +61,21 @@ def compute_corr_cons(params):
     :return:
     """
     mypid = mp.current_process().pid
+    cons_mask, num_aln = build_conservation_mask(params['chainfile'], params['chrom'])
     dataset1 = load_masked_sigtrack(params['inputfilea'], params['chainfile'],
-                                    params['inputgroupa'], params['chrom'])
+                                    params['inputgroupa'], params['chrom'], mask=cons_mask)
     dataset2 = load_masked_sigtrack(params['inputfileb'], params['chainfile'],
-                                    params['inputgroupb'], params['chrom'])
-    corr_fun = get_corr_fun(params['corrtype'], masked=True)
-    corr, pv = corr_fun(dataset1, dataset2)
-    return mypid, params['chrom'], corr, pv.data
+                                    params['inputgroupb'], params['chrom'], mask=cons_mask)
+
+    data1_avg = np.zeros(num_aln, dtype=np.float64)
+    data2_avg = np.zeros(num_aln, dtype=np.float64)
+    unmask_pos = np.arange(len(dataset1), dtype=np.int32)[~dataset1.mask]
+    for idx, (start, end) in enumerate(iter_consecutive_blocks(unmask_pos)):
+        data1_avg[idx] = np.average(dataset1[start:end])
+        data2_avg[idx] = np.average(dataset2[start:end])
+    corr_fun = get_corr_fun(params['corrtype'], masked=False)
+    corr, pv = corr_fun(data1_avg, data2_avg)
+    return mypid, params['chrom'], corr, pv
 
 
 def compute_corr_active(params):
@@ -134,7 +143,7 @@ def run_compute_correlation(args):
             output['correlations'].append((chrom, corr, pv))
     logger.debug('Finished computation')
     with open(args.outputfile, 'w') as outfile:
-        json.dump(output, outfile)
+        json.dump(output, outfile, indent=1, sort_keys=True)
     logger.debug('Output written to file {}'.format(args.outputfile))
     return 0
 

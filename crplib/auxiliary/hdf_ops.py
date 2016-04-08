@@ -43,19 +43,31 @@ def build_conservation_mask(chainfile, chrom, csize=None):
         chromsize = chromsize_from_chain(chainfile, chrom)
         mask = np.ones(chromsize, dtype=np.bool)
     opn, mode = text_file_mode(chainfile)
+    num_aln = 0
     with opn(chainfile, mode) as cf:
         chainit = get_chain_iterator(cf, select=chrom)
         for aln in chainit:
             mask[aln[1]:aln[2]] = 0
-    return mask
+            num_aln += 1
+    return mask, num_aln
 
 
-def load_masked_sigtrack(hdfsig, chainfile, group, chrom, csize=None):
+def load_masked_sigtrack(hdfsig, chainfile, group, chrom, csize=None, mask=None):
     """
+    :param hdfsig:
+    :param chainfile:
+    :param group:
+    :param chrom:
+    :param csize:
+    :param mask:
     :return:
     """
-    mask = build_conservation_mask(chainfile, chrom, csize)
+    if mask is None:
+        mask, num_aln = build_conservation_mask(chainfile, chrom, csize)
     with pd.HDFStore(hdfsig, 'r') as hdf:
-        load_group = os.path.join(group, chrom)
+        if group.endswith(chrom):
+            load_group = group
+        else:
+            load_group = os.path.join(group, chrom)
         signal = np.ma.array(hdf[load_group].values, mask=mask)
     return signal
