@@ -87,8 +87,6 @@ def _add_convert_command(subparsers):
     comgroup = parser_convert.add_argument_group('General parameters')
     comgroup.add_argument('--task', '-tk', type=str, required=True, choices=['signal', 'region'], dest='task',
                           help='Specify task to execute, convert signal (bedGraph) or region (BED-like) files.')
-    comgroup.add_argument('--chrom-sizes', '-cs', type=str, required=True, dest='chromsizes',
-                          help='Full path to UCSC-style 2 column file with chromosome sizes')
     comgroup.add_argument('--keep-chroms', '-kc', type=str, default='"(chr)?[0-9]+(\s|$)"', dest='keepchroms',
                           help='Regular expression pattern (needs to be double quoted) matching'
                                ' chromosome names to keep. Default: "(chr)?[0-9]+(\s|$)" (i.e. autosomes)')
@@ -99,6 +97,8 @@ def _add_convert_command(subparsers):
     comgroup.add_argument('--output-group', '-og', type=str, default='', dest='outputgroup',
                           help='Group prefix to store individual chromosomes. Default: <empty>')
     comgroup = parser_convert.add_argument_group('bedGraph parameters')
+    comgroup.add_argument('--chrom-sizes', '-cs', type=str, default='', dest='chromsizes',
+                          help='Full path to UCSC-style 2 column file with chromosome sizes')
     comgroup.add_argument('--no-qnorm', '-nq', action='store_true', default=False, dest='noqnorm',
                           help='Do not perform quantile normalization before merging several input files.'
                                ' This will decrease the run time. When merging several replicate'
