@@ -15,6 +15,8 @@ from crplib.auxiliary.file_ops import text_file_mode
 from crplib.auxiliary.text_parsers import get_chain_iterator, read_chromosome_sizes
 from crplib.metadata.md_helpers import normalize_group_path
 
+from crplib.auxiliary.constants import TRGIDX_MASK, TRGIDX_SPLITS, TRGIDX_SELECT
+
 
 def assemble_worker_args(args, csizes):
     """
@@ -33,6 +35,40 @@ def assemble_worker_args(args, csizes):
     return arglist
 
 
+def build_index_structures(chainit, csize):
+    """
+    :param chainit:
+    :param csize:
+    :return:
+    """
+    consmask = np.ones(csize, dtype=np.bool)
+    splits = []
+    last_end = 0
+    for block in chainit:
+        consmask[block[1]:block[2]] = 0
+        # chainSort sorts according to number, not genomic coordinate
+        # but chains are disjunct, so should not be a problem not to check
+        if block[1] == 0:
+            last_end = block[2]
+        else:
+            if last_end == block[1]:
+                # we have a continuous block
+                last_end = block[2]
+            else:
+                if last_end == 0:
+                    splits.append(block[1])
+                else:
+                    splits.extend([last_end, block[1]])
+                last_end = block[2]
+    splits.append(last_end)
+    # this creates a boolean select pattern to select
+    # all conserved regions after splitting a signal track
+    # using the split indices based on the alignment blocks
+    select = np.array([k for k, g in itt.groupby(~consmask)], dtype=np.bool)
+    splits = np.array(sorted(splits), dtype=np.int32)
+    return consmask, splits, select
+
+
 def process_chains(params):
     """
     :param params:
@@ -43,27 +79,11 @@ def process_chains(params):
     chrom = params['chrom']
     csize = params['size']
     qchroms = re.compile(params['qcheck'])
-    consmask = np.ones(csize, dtype=np.bool)
-    splits = []
     opn, mode = text_file_mode(fpath)
     with opn(fpath, mode=mode, encoding='ascii') as infile:
         chainit = get_chain_iterator(infile, tselect=chrom, qcheck=qchroms)
-        for block in chainit:
-            consmask[block[1]:block[2]] = 0
-            if block[1] == 0:
-                # chainSort sorts according to number, not genomic coordinate
-                # but chains are disjunct, so should not be a problem not to check
-                #assert not splits, \
-                #    'Split indices not empty for 0 start in chain file {} - chrom {} and block {}'.format(fpath, chrom, block)
-                splits.append(block[2])
-            else:
-                splits.extend([block[1], block[2]])
-    # this creates a boolean select pattern to select
-    # all conserved regions after splitting a signal track
-    # using the split indices based on the alignment blocks
-    select = np.array([k for k, g in itt.groupby(~consmask)], dtype=np.bool)
-    splits = np.array(sorted(splits), dtype=np.int32)
-    return mypid, chrom, consmask, splits, select
+        mask, splits, select = build_index_structures(chainit, csize)
+    return mypid, chrom, mask, splits, select
 
 
 def run_chain_conversion(args, logger):
@@ -75,9 +95,9 @@ def run_chain_conversion(args, logger):
     csizes = read_chromosome_sizes(args.chromsizes, args.keepchroms)
     arglist = assemble_worker_args(args, csizes)
     logger.debug('Start processing chain file {}'.format(args.inputfile[0]))
-    og_mask = os.path.join(args.outputgroup, 'cons', 'mask')
-    og_splits = os.path.join(args.outputgroup, 'cons', 'splits')
-    og_select = os.path.join(args.outputgroup, 'cons', 'select')
+    og_mask = os.path.join(args.outputgroup, TRGIDX_MASK)
+    og_splits = os.path.join(args.outputgroup, TRGIDX_SPLITS)
+    og_select = os.path.join(args.outputgroup, TRGIDX_SELECT)
     with pd.HDFStore(args.outputfile, 'a', complevel=9, complib='blosc') as hdfout:
         with mp.Pool(args.workers) as pool:
             logger.debug('Iterating results')

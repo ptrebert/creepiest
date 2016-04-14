@@ -7,9 +7,12 @@ Convenience module for some operations on HDF files
 import os as os
 import numpy as np
 import pandas as pd
+import collections as col
 
 from crplib.auxiliary.file_ops import text_file_mode
 from crplib.auxiliary.text_parsers import get_chain_iterator, chromsize_from_chain
+
+from crplib.auxiliary.constants import TRGIDX_MASK, TRGIDX_SPLITS, TRGIDX_SELECT
 
 
 def get_valid_hdf5_groups(filepath, prefix):
@@ -26,6 +29,28 @@ def get_valid_hdf5_groups(filepath, prefix):
     with pd.HDFStore(filepath, 'r') as hdf:
         groups = [grp for grp in hdf.keys() if grp.startswith(prefix)]
     return groups
+
+
+def get_trgindex_groups(fpath, grproot):
+    """
+    :param fpath:
+    :param grproot:
+    :return:
+    """
+    groups = get_valid_hdf5_groups(fpath, grproot)
+    assert groups, 'No data found in target index {} with group {}'.format(fpath, grproot)
+    infos = col.defaultdict(dict)
+    for g in groups:
+        chrom = os.path.split(g)[1]
+        if TRGIDX_MASK in g:
+            infos[chrom]['mask'] = g
+        elif TRGIDX_SPLITS in g:
+            infos[chrom]['splits'] = g
+        elif TRGIDX_SELECT in g:
+            infos[chrom]['select'] = g
+        else:
+            raise ValueError('Unexpected group in target index {}: {}'.format(fpath, g))
+    return infos
 
 
 def build_conservation_mask(chainfile, chrom, csize=None):
@@ -45,7 +70,7 @@ def build_conservation_mask(chainfile, chrom, csize=None):
     opn, mode = text_file_mode(chainfile)
     num_aln = 0
     with opn(chainfile, mode) as cf:
-        chainit = get_chain_iterator(cf, select=chrom)
+        chainit = get_chain_iterator(cf, tselect=chrom)
         for aln in chainit:
             mask[aln[1]:aln[2]] = 0
             num_aln += 1

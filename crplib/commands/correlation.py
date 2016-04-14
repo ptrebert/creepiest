@@ -11,7 +11,7 @@ import numpy as np
 import pandas as pd
 import json as json
 
-from crplib.auxiliary.hdf_ops import get_valid_hdf5_groups, load_masked_sigtrack, build_conservation_mask
+from crplib.auxiliary.hdf_ops import get_valid_hdf5_groups, get_trgindex_groups, load_masked_sigtrack, build_conservation_mask
 from crplib.numalg.iterators import iter_consecutive_blocks
 
 
@@ -25,24 +25,26 @@ def assemble_worker_params(args):
 
     chroms_a = set([os.path.split(g)[1] for g in groups_a])
     chroms_b = set([os.path.split(g)[1] for g in groups_b])
-
     chrom_union = chroms_a.intersection(chroms_b)
-
     assert chrom_union, 'No shared chromosomes between input files/groups'
     commons = {'inputfilea': args.inputfilea, 'inputfileb': args.inputfileb,
                'inputgroupa': args.inputgroupa, 'inputgroupb': args.inputgroupb,
-               'chainfile': args.chainfile, 'corrtype': args.corrtype}
+               'targetindex': args.targetindex, 'measure': args.measure}
+    index_groups = get_trgindex_groups(args.targetindex, args.indexgroup)
     arglist = []
     for chrom in chrom_union:
         tmp = dict(commons)
         tmp['chrom'] = chrom
+        tmp['loadgroupa'] = os.path.join(args.inputgroupa, chrom)
+        tmp['loadgroupb'] = os.path.join(args.inputgroupb, chrom)
+        tmp.update(index_groups[chrom])
         arglist.append(tmp)
     return arglist
 
 
-def get_corr_fun(corrtype, masked):
+def get_corr_fun(measure, masked):
     """
-    :param corrtype:
+    :param measure:
     :param masked:
     :return:
     """
@@ -52,7 +54,12 @@ def get_corr_fun(corrtype, masked):
         module = imp.import_module('scipy.stats')
     funcs = {'pearson': module.pearsonr,
              'spearman': module.spearmanr}
-    return funcs[corrtype]
+    try:
+        corrfun = funcs[measure]
+    except KeyError:
+        module = imp.import_module('sklearn.metrics')
+        corrfun = module.r2_score
+    return corrfun
 
 
 def compute_corr_cons(params):
@@ -61,21 +68,28 @@ def compute_corr_cons(params):
     :return:
     """
     mypid = mp.current_process().pid
-    cons_mask, num_aln = build_conservation_mask(params['chainfile'], params['chrom'])
-    dataset1 = load_masked_sigtrack(params['inputfilea'], params['chainfile'],
-                                    params['inputgroupa'], params['chrom'], mask=cons_mask)
-    dataset2 = load_masked_sigtrack(params['inputfileb'], params['chainfile'],
-                                    params['inputgroupb'], params['chrom'], mask=cons_mask)
-
-    data1_avg = np.zeros(num_aln, dtype=np.float64)
-    data2_avg = np.zeros(num_aln, dtype=np.float64)
-    unmask_pos = np.arange(len(dataset1), dtype=np.int32)[~dataset1.mask]
-    for idx, (start, end) in enumerate(iter_consecutive_blocks(unmask_pos)):
-        data1_avg[idx] = np.average(dataset1[start:end])
-        data2_avg[idx] = np.average(dataset2[start:end])
-    corr_fun = get_corr_fun(params['corrtype'], masked=False)
-    corr, pv = corr_fun(data1_avg, data2_avg)
-    return mypid, params['chrom'], corr, pv
+    # loading index data
+    fun_avg = np.vectorize(np.average, otypes=[np.float64])
+    with pd.HDFStore(params['targetindex'], 'r') as idx:
+        splits = idx[params['splits']].values
+        select = idx[params['select']].values
+    with pd.HDFStore(params['inputfilea'], 'r') as hdf1:
+        dataset1 = hdf1[params['loadgroupa']].values
+        data1_avg = fun_avg(np.compress(select, np.split(dataset1, splits)))
+    with pd.HDFStore(params['inputfileb'], 'r') as hdf2:
+        dataset2 = hdf2[params['loadgroupb']].values
+        data2_avg = fun_avg(np.compress(select, np.split(dataset2, splits)))
+    results = dict()
+    for ms in params['measure']:
+        corr_fun = get_corr_fun(ms, masked=False)
+        res = corr_fun(data1_avg, data2_avg)
+        try:
+            corr, pv = res
+        except (ValueError, TypeError):
+            corr, pv = res, -1
+        infos = {'stat': corr, 'pv': pv}
+        results[ms] = infos
+    return mypid, params['chrom'], results
 
 
 def compute_corr_active(params):
@@ -96,9 +110,17 @@ def compute_corr_active(params):
     comb_mask = np.ma.getmask(dataset1) & np.ma.getmask(dataset2)
     dataset1 = np.ma.array(dataset1.data, mask=comb_mask)
     dataset2 = np.ma.array(dataset2.data, mask=comb_mask)
-    corr_fun = get_corr_fun(params['corrtype'], masked=True)
-    corr, pv = corr_fun(dataset1, dataset2)
-    return mypid, params['chrom'], corr, pv.data
+    results = dict()
+    for ms in params['measure']:
+        corr_fun = get_corr_fun(params[ms], masked=True)
+        res = corr_fun(dataset1, dataset2)
+        try:
+            corr, pv = res
+        except (ValueError, TypeError):
+            corr, pv = res, -1
+        infos = {'stat': corr, 'pv': pv.data}
+        results[ms] = infos
+    return mypid, params['chrom'], results
 
 
 def compute_corr_full(params):
@@ -113,9 +135,17 @@ def compute_corr_full(params):
     with pd.HDFStore(params['inputfileb'], 'r') as hdf:
         load_group = os.path.join(params['inputgroupb'], params['chrom'])
         dataset2 = hdf[load_group].values
-    corr_fun = get_corr_fun(params['corrtype'], masked=False)
-    corr, pv = corr_fun(dataset1, dataset2)
-    return mypid, params['chrom'], corr, pv
+    results = dict()
+    for ms in params['measure']:
+        corr_fun = get_corr_fun(params[ms], masked=False)
+        res = corr_fun(dataset1, dataset2)
+        try:
+            corr, pv = res
+        except (ValueError, TypeError):
+            corr, pv = res, -1
+        infos = {'stat': corr, 'pv': pv}
+        results[ms] = infos
+    return mypid, params['chrom'], results
 
 
 def run_compute_correlation(args):
@@ -125,22 +155,24 @@ def run_compute_correlation(args):
     """
     logger = args.module_logger
     if args.task == 'cons':
-        assert os.path.isfile(args.chainfile), 'No chain file specified for task "cons"'
+        assert os.path.isfile(args.targetindex), 'No target index specified for task "cons"'
     run_funcs = {'cons': compute_corr_cons, 'full': compute_corr_full, 'active': compute_corr_active}
     exec_fun = run_funcs[args.task]
+    logger.debug('Statistics to compute: {}'.format(args.measure))
     arglist = assemble_worker_params(args)
     output = {'file_A': os.path.basename(args.inputfilea),
               'file_B': os.path.basename(args.inputfileb),
-              'chainfile': 'None' if not args.chainfile else os.path.basename(args.chainfile),
+              'targetindex': 'None' if not args.targetindex else os.path.basename(args.targetindex),
+              'indexgroup': 'None' if not args.indexgroup else args.indexgroup,
               'group_A': args.inputgroupa, 'group_B': args.inputgroupb,
-              'task': args.task, 'corrtype': args.corrtype,
+              'task': args.task, 'measure': args.measure,
               'correlations': []}
     logger.debug('Initializing worker pool')
     with mp.Pool(args.workers) as pool:
         mapres = pool.map_async(exec_fun, arglist, chunksize=1)
-        for pid, chrom, corr, pv in mapres.get():
+        for pid, chrom, results in mapres.get():
             logger.debug('Process {} finished correlation for chromosome {}'.format(pid, chrom))
-            output['correlations'].append((chrom, corr, pv))
+            output['correlations'].append((chrom, results))
     logger.debug('Finished computation')
     with open(args.outputfile, 'w') as outfile:
         json.dump(output, outfile, indent=1, sort_keys=True)

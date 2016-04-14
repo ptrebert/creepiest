@@ -363,10 +363,12 @@ def _add_correlation_command(subparsers):
                           help='Specify task...')
     comgroup.add_argument('--measure', '-ms', type=str, choices=['pearson', 'spearman', 'r2'], nargs='+',
                           required=True, dest='measure', help='Specify statistic(s) to compute')
-    comgroup.add_argument('--chain-file', '-chf', type=str, default='', dest='chainfile',
-                          help='Full path to liftOver chain file with reciprocal best chains'
-                               ' between target (from/reference) and query (to) assembly. Only'
-                               ' required for task "cons".')
+    comgroup.add_argument('--target-index', '-idx', type=str, default='', dest='targetindex',
+                          help='Full path to target index created with "convert" command.'
+                               ' Only required for task "cons". Default: <empty>')
+    comgroup.add_argument('--index-group', '-idxg', type=str, default='', dest='indexgroup',
+                          help='Group root path for target index. Subpaths to conservation mask'
+                               ' and split indices will be appended automatically. Default: <empty>')
     comgroup.add_argument('--input-a', '-ia', type=str, required=True, dest='inputfilea')
     comgroup.add_argument('--input-group-a', '-iga', type=str, default='', dest='inputgroupa')
     comgroup.add_argument('--input-b', '-ib', type=str, required=True, dest='inputfileb')
