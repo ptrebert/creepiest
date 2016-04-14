@@ -50,10 +50,17 @@ def _read_block_end(line):
 
 def get_chain_iterator(fobj, tselect='all', qcheck=None):
     """ Returns an iterator over chain files as used by
-    UCSC liftOver tool
-    :param fobj:
-    :param select:
-    :param qcheck:
+    UCSC liftOver tool. The design assumes a simple parallelization, i.e.
+    many processes can read the same chain file, each one filtering
+    out 1 target chain and many query chains. This always assumes that there
+    are some blocks in the chain file, otherwise raises AssertionError.
+
+    :param fobj: object supporting line iteration/read
+     :type: file-like object opened in text mode
+    :param tselect: exact name match for allowed target chromosome
+     :type: str
+    :param qcheck: compiled regex object to check for allowed query chromosomes
+     :type: None or re.regex object
     :return:
     """
     tchrom = None
