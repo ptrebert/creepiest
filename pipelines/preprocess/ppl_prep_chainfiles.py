@@ -93,6 +93,15 @@ def build_pipeline(args, config, sci_obj):
                             output=os.path.join(outdir, '{QUERY[0]}_to_{TARGET[0]}.rbest.chain.gz'),
                             extras=[cmd, jobcall]).mkdir(outdir)
 
+    cmd = config.get('Pipeline', 'trgidx')
+    stepdir = os.path.join(outdir, 'indices')
+    trgidx = pipe.transform(task_func=sci_obj.get_jobf('in_out'),
+                            name='trgidx',
+                            input=output_from(reswap),
+                            filter=formatter(chain_re),
+                            output=os.path.join(stepdir, '{TARGET[0]}_to_{QUERY[0]}.rbest.trgidx.h5'),
+                            extras=[cmd, jobcall]).mkdir(stepdir)
+
 
 
     return pipe

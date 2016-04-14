@@ -48,10 +48,12 @@ def _read_block_end(line):
     return int(size)
 
 
-def get_chain_iterator(fobj, select='all'):
+def get_chain_iterator(fobj, tselect='all', qcheck=None):
     """ Returns an iterator over chain files as used by
     UCSC liftOver tool
     :param fobj:
+    :param select:
+    :param qcheck:
     :return:
     """
     tchrom = None
@@ -66,6 +68,7 @@ def get_chain_iterator(fobj, select='all'):
     read_aln = _read_aln_dataline
     read_end = _read_block_end
     skip = False
+    bc = 0
     for line in fobj:
         if line.strip():
             if line.startswith('chain'):
@@ -74,13 +77,18 @@ def get_chain_iterator(fobj, select='all'):
                 parts = read_head(line)
                 assert parts[2] == '+', 'Reverse target chain is unexpected: {}'.format(line)
                 tchrom = parts[0]
-                if not (tchrom == select or select == 'all'):
+                if not (tchrom == tselect or tselect == 'all'):
                     skip = True
                     continue
+                qchrom = parts[5]
+                if qcheck is not None:
+                    mobj = qcheck.match(qchrom)
+                    if mobj is None:
+                        skip = True
+                        continue
                 skip = False
                 trun = parts[3]
                 exp_tend = parts[4]
-                qchrom = parts[5]
                 qstrand = parts[7]
                 if qstrand == '+':
                     qrun = parts[8]
@@ -96,13 +104,16 @@ def get_chain_iterator(fobj, select='all'):
                 try:
                     size, dt, dq = read_aln(line)
                     yield tchrom, trun, trun + size, tstrand, qchrom, qrun, qrun + size, qstrand
+                    bc += 1
                     trun += size + dt
                     qrun += size + dq
                 except ValueError:
                     size = read_end(line)
                     yield tchrom, trun, trun + size, tstrand, qchrom, qrun, qrun + size, qstrand
+                    bc += 1
                     trun += size
                     qrun += size
+    assert bc > 0, 'No aln. blocks read from chain file for target select {}'.format(tselect)
     return
 
 

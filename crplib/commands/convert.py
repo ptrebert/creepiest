@@ -41,6 +41,19 @@ def convert_genomic_region(args, logger):
     return rv
 
 
+def convert_chain_file(args, logger):
+    """
+    :param args:
+    :param logger:
+    :return:
+    """
+    assert os.path.isfile(args.inputfile[0]), 'Invalid path to input file: {}'.format(args.inputfile)
+    mod = imp.import_module('crplib.commands.convert_chain')
+    rv = mod.run_chain_conversion(args, logger)
+    assert os.path.isfile(args.outputfile), 'No output file created - conversion failed? {}'.format(args.outputfile)
+    return rv
+
+
 def run_conversion(args):
     """
     :param args: command line parameters
@@ -52,10 +65,13 @@ def run_conversion(args):
     try:
         logger.debug('Running conversion type: {}'.format(args.subparser_name))
         convtype = {'signal': convert_bedgraph_signal,
-                    'region': convert_genomic_region}
+                    'region': convert_genomic_region,
+                    'chain': convert_chain_file}
         convcall = convtype[args.task]
         args.__dict__['keepchroms'] = args.keepchroms.strip('"')
-        logger.debug('Chromosome select pattern: {}'.format(args.keepchroms))
+        args.__dict__['qcheck'] = args.keepchroms.strip('"')
+        logger.debug('Chromosome select pattern for target: {}'.format(args.keepchroms))
+        logger.debug('Chromosome select pattern for query: {}'.format(args.qcheck))
         rv = convcall(args, logger)
         logger.debug('Conversion complete')
         return rv

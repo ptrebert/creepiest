@@ -85,11 +85,14 @@ def _add_convert_command(subparsers):
                                            help='Convert bedGraph or BED files to HDF5 format.',
                                            description='... to be updated ...')
     comgroup = parser_convert.add_argument_group('General parameters')
-    comgroup.add_argument('--task', '-tk', type=str, required=True, choices=['signal', 'region'], dest='task',
-                          help='Specify task to execute, convert signal (bedGraph) or region (BED-like) files.')
+    comgroup.add_argument('--task', '-tk', type=str, required=True, choices=['signal', 'region', 'chain'], dest='task',
+                          help='Specify task to execute, convert signal (bedGraph), region (BED-like) or chain files.')
     comgroup.add_argument('--keep-chroms', '-kc', type=str, default='"(chr)?[0-9]+(\s|$)"', dest='keepchroms',
                           help='Regular expression pattern (needs to be double quoted) matching'
-                               ' chromosome names to keep. Default: "(chr)?[0-9]+(\s|$)" (i.e. autosomes)')
+                               ' chromosome names to keep in the target. Default: "(chr)?[0-9]+(\s|$)" (i.e. autosomes)')
+    comgroup.add_argument('--query-check', '-qc', type=str, default='"(chr)?[0-9]+(\s|$)"', dest='qcheck',
+                          help='Regular expression pattern to check for valid chromosome names in the query'
+                               ' assembly. Default: "(chr)?[0-9]+(\s|$)" (i.e. autosomes)')
     comgroup.add_argument('--input', '-i', type=str, nargs='+', required=True, dest='inputfile',
                           help='Full path to one or more files to convert.')
     comgroup.add_argument('--output', '-o', type=str, required=True, dest='outputfile',
@@ -353,13 +356,13 @@ def _add_correlation_command(subparsers):
     :return:
     """
     parser_corr = subparsers.add_parser('corr',
-                                        help='Compute pairwise correlation between signal tracks.',
+                                        help='Compute pairwise similarity statistics between signal tracks.',
                                         description='... to be updated ...')
     comgroup = parser_corr.add_argument_group('Compute correlation')
     comgroup.add_argument('--task', '-t', type=str, choices=['cons', 'active', 'full', 'roi'], dest='task',
                           help='Specify task...')
-    comgroup.add_argument('--corr-type', type=str, choices=['pearson', 'spearman'], required=True, dest='corrtype',
-                          help='Specify correlation to compute')
+    comgroup.add_argument('--measure', '-ms', type=str, choices=['pearson', 'spearman', 'r2'], nargs='+',
+                          required=True, dest='measure', help='Specify statistic(s) to compute')
     comgroup.add_argument('--chain-file', '-chf', type=str, default='', dest='chainfile',
                           help='Full path to liftOver chain file with reciprocal best chains'
                                ' between target (from/reference) and query (to) assembly. Only'
