@@ -63,6 +63,34 @@ def build_pipeline(args, config, sci_obj):
                             input=output_from(conv2bit),
                             filter=suffix('.fa'),
                             output='.tsv.gz',
-                            extras=[cmd, jobcall]).mkdir(os.path.join(genome_temp, 'tfscan'))
+                            extras=[cmd, jobcall]).mkdir(genome_temp)
+
+    # step 4: make regular BED files out of FIMO output
+    cmd = config.get('Pipeline', 'reorder')
+    reorder = pipe.transform(task_func=sci_obj.get_jobf('in_out'),
+                             name='reorder',
+                             input=output_from(tfscan),
+                             filter=suffix('.tsv.gz'),
+                             output='.bed.gz',
+                             extras=[cmd, jobcall])
+
+    # step 4.1: create 250bp tiling of all genomes
+    cmd = config.get('Pipeline', 'windows')
+    windows = pipe.transform(task_func=sci_obj.get_jobf('in_out'),
+                             name='windows',
+                             input=output_from(init),
+                             filter=formatter(regexp),
+                             output=os.path.join(genome_temp, '{ASSEMBLY[0]}_250bp_win.bed.gz'),
+                             extras=[cmd, jobcall]).follows(reorder)
+
+    # step 4.2: intersect tiling
+    cmd = config.get('Pipeline', 'overlap')
+    regexp = '(?P<ASSEMBLY>\w+)_(?P<CHROM>chr[0-9]+)\.bed\.gz'
+    overlap = pipe.transform(task_func=sci_obj.get_jobf('in_out'),
+                             name='overlap',
+                             input=output_from(reorder),
+                             filter=formatter(regexp),
+                             output=os.path.join(genome_temp, '{ASSEMBLY[0]}_{CHROM[0]}.ovl.gz'),
+                             extras=[cmd, jobcall]).follows(windows)
 
     return pipe

@@ -22,7 +22,7 @@ def add_sub_parsers(main_parser):
     subparsers = _add_mapsig_command(subparsers)
     subparsers = _add_apply_command(subparsers)
     subparsers = _add_correlation_command(subparsers)
-    #subparsers = _add_regmatch_command(subparsers)
+    subparsers = _add_match_command(subparsers)
     return main_parser
 
 
@@ -390,62 +390,50 @@ def _correlation_execute(args):
     return retval
 
 
-def _add_regmatch_command(subparsers):
+def _add_match_command(subparsers):
     """
     :param subparsers:
     :return:
     """
-    parser_regmatch = subparsers.add_parser('regmatch',
-                                            help='Search for matching genomic regions based on sequence features',
-                                            description='This command works on a set of genomic regions. It computes'
-                                                        ' the basic sequence features requested by the user and then'
-                                                        ' searches in the genomic complement (the whole genome minus'
-                                                        ' the input regions) for similar regions. A common usecase is'
-                                                        ' the search for a set of background regions closely matching'
-                                                        ' the set of input (foreground) regions.')
-    mutex_group = parser_regmatch.add_mutually_exclusive_group(required=True)
-    mutex_group.add_argument('--crpk-source', '-crpkf', dest='crpksource', nargs='+',
-                             help='List full paths to individual CRPK files or give a list of paths to folders'
-                                  ' containing CRPK files.')
-    mutex_group.add_argument('--bed-source', '-bed', dest='bedsource', nargs='+',
-                             help='List full path to individual BED files or give a list of paths to folders'
-                                  ' containing the input BED files.')
-    parser_regmatch.add_argument('--genome', '-gen', dest='genome', type=str, required=True,
-                                 help='The genomic sequence as one FASTA file (can be gzipped)')
-    parser_regmatch.add_argument('--chrom-sizes', '-chrs', dest='chromsizes', type=str, required=True,
-                                 help='Path to file containing chromosome sizes (as provided by UCSC) compatible'
-                                      ' to the FASTA sequence file (e.g. concerning chromosome names)')
-    parser_regmatch.add_argument('--filter-ambig', '-fltn', dest='filtern', type=float, default=5.0,
-                                 help='Filter out sequences with too many ambiguous positions (letter N).'
-                                      ' Default is 5 percent.')
-    parser_regmatch.add_argument('--features', '-feat', dest='features', nargs='+', required=True,
-                                 help='List the features that should be used to select a match for an input region.')
-    parser_regmatch.add_argument('--dist-chr', '-dchr', dest='distchrom', action='store_true', default=False,
-                                 help='Set if the chromosomal distribution of the input regions should be matched, i.e.'
-                                 ' a match is only searched for on the same chromosome. This can increase the runtime'
-                                 ' quite considerably.')
-    parser_regmatch.add_argument('--relaxation', '-rel', dest='relax', type=float, default=2.,
-                                 help='Initial relaxation as percentage points (default: 2.0), i.e. a value of 50'
-                                 ' percent will be matched by any value between 48 and 52 whereas an absolute'
-                                 ' value of 50 will be matched by any value roughly between 49 and 51.')
-    parser_regmatch.add_argument('--increment', '-incr', dest='increment', type=float, default=1.0,
-                                 help='Increase the relaxation by this value in each iteration. Default is 1.0')
-    parser_regmatch.add_argument('--limit-relax', '-lim', dest='limitrelax', type=float, default=5.0,
-                                 help='Limit the relaxation to that value. In the next iteration, it will be set'
-                                 ' to its initial value again.')
-    parser_regmatch.add_argument('--run-limit', '-rl', dest='runlimit', type=float, default=0.,
-                                 help='Limit the runtime to this number of hours. Default runtime is unlimited.')
-    parser_regmatch.add_argument('--no-clobber', '-noclb', dest='noclobber', action='store_true', default=False,
-                                 help='If set, make a backup copy of the input file instead of replacing it.')
-    parser_regmatch.set_defaults(execute=_regmatch_execute)
+    parser_match = subparsers.add_parser('match',
+                                         help='Search for matching genomic regions based on sequence features',
+                                         description='This command works on a set of genomic regions. It computes'
+                                                     ' the basic sequence features requested by the user and then'
+                                                     ' searches in the genomic complement (the whole genome minus'
+                                                     ' the input regions) for similar regions. A common usecase is'
+                                                     ' the search for a set of background regions closely matching'
+                                                     ' the set of input (foreground) regions.')
+    comgroup = parser_match.add_argument_group('Parameters for background search')
+    comgroup.add_argument('--seq-file', '-seq', type=str, required=True, dest='seqfile',
+                          help='Full path to genomic sequence file in 2bit format.')
+    comgroup.add_argument('--features', '-ft', type=str, nargs='+', default=['len', 'gc', 'rep'], dest='features')
+    comgroup.add_argument('--kmers', '-km', type=int, nargs='+', default=[], dest='kmers')
+    comgroup.add_argument('--timeout', '-to', type=int, default=10, dest='timeout',
+                          help='Timeout in minutes for each chromosome to stop searching'
+                               ' even if not all foreground regions were matched: Default: 10 min.')
+    comgroup.add_argument('--relax-init', '-ri', type=float, default=1.0, dest='relaxinit',
+                          help='Initial value for relaxed matching in percentage points. Default: 1.0')
+    comgroup.add_argument('--relax-step', '-rs', type=float, default=0.5, dest='relaxstep',
+                          help='Increment relaxation after each iteration by this value: Default: 0.5')
+    comgroup.add_argument('--relax-limit', '-rl', type=float, default=3.0, dest='relaxlimit',
+                          help='Maximum allowed relaxation, reset to initial value for next iteration. Default: 3.0')
+    comgroup.add_argument('--input', '-i', type=str, required=True, dest='inputfile',
+                          help='Full path to input file in HDF5 format.')
+    comgroup.add_argument('--input-group', '-ig', type=str, default='', dest='inputgroup',
+                          help='Group root path for input. Default: <empty>')
+    comgroup.add_argument('--output', '-o', type=str, required=True, dest='outputfile',
+                          help='Full path to output file in HDF5 format.')
+    comgroup.add_argument('--output-group', '-og', type=str, default='', dest='outputgroup',
+                          help='Group root path for output. Default: <empty>')
+    parser_match.set_defaults(execute=_match_execute)
     return subparsers
 
 
-def _regmatch_execute(args):
+def _match_execute(args):
     """
     :param args:
     :return:
     """
-    regmatch = implib.import_module('lib.commands.regmatch')
-    retval = regmatch.run_region_matching(args)
+    regmatch = implib.import_module('crplib.commands.match')
+    retval = regmatch.run_background_match(args)
     return retval

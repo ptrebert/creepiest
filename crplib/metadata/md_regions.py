@@ -27,9 +27,13 @@ def gen_obj_and_md(mdframe, group, chrom, srcfiles, datavals):
         tmpsrc = os.path.basename(srcfiles)
     else:
         raise TypeError('Cannot handle source file references: {}'.format(srcfiles))
-    numreg = len(datavals)
-    datavals = [(reg[1], reg[2], reg[3]) for reg in datavals]
-    dataobj = pd.DataFrame(data=datavals, columns=['start', 'end', 'name'])
+    if isinstance(datavals, list):
+        numreg = len(datavals)
+        datavals = [(reg[1], reg[2], reg[3]) for reg in datavals]
+        dataobj = pd.DataFrame(data=datavals, columns=['start', 'end', 'name'])
+    else:
+        dataobj = datavals  # assume it is already a DataFrame
+        numreg = dataobj.shape[0]
     mtime = dt.datetime.now()
     covbp = (dataobj.end - dataobj.start).sum()
     size_mem = (dataobj.values.nbytes + dataobj.index.nbytes) / DIV_B_TO_MB

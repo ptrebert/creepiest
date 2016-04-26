@@ -159,7 +159,7 @@ def build_pipeline(args, config, sci_obj):
                           name='convbg',
                           input=output_from(convbw),
                           filter=formatter(regexp),
-                          output=os.path.join(outdir, '{DSID[0]}_{ASSEMBLY[0]}_{CELL[0]}_{DTYPE[0]}_{LAB[0]}.sig.h5'),
+                          output=os.path.join(outdir, '{DSID[0]}_{ASSEMBLY[0]}_{CELL[0]}_{DTYPE[0]}_{LAB[0]}.srcsig.h5'),
                           extras=[os.path.join(refdir, '{ASSEMBLY[0]}.chrom.sizes'), cmd, jobcall]).mkdir(outdir)
 
     sci_obj.set_config_env(dict(config.items('JobConfig')), dict(config.items('EnvConfig')))
@@ -176,7 +176,14 @@ def build_pipeline(args, config, sci_obj):
                            name='convbed',
                            input=output_from(convbb),
                            filter=formatter(regexp),
-                           output=os.path.join(outdir, '{DSID[0]}_{ASSEMBLY[0]}_{CELL[0]}_{DTYPE[0]}_{LAB[0]}.peak.h5'),
+                           output=os.path.join(outdir, '{DSID[0]}_{ASSEMBLY[0]}_{CELL[0]}_{DTYPE[0]}_{LAB[0]}.srcpk.h5'),
                            extras=[cmd, jobcall]).mkdir(outdir)
+
+    cmd = config.get('Pipeline', 'runall')
+    runall = pipe.merge(task_func=sci_obj.get_jobf('ins_out'),
+                        name='runall',
+                        input=output_from(convbg, convbed),
+                        output=os.path.join(tempdir, 'runall_prep_encode.chk'),
+                        extras=[cmd, jobcall]).jobs_limit(1)
 
     return pipe

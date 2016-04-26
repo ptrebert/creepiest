@@ -14,7 +14,10 @@ import itertools as itt
 import functools as funct
 import collections as col
 
+from crplib.auxiliary.constants import FEAT_FP_PREC
+
 FEAT_LENGTH = 'ftlen_abs_length'
+FEAT_RELLENGTH = 'ftlen_pct_length'
 FEAT_OECPG = 'ftgc_rat_oeCpG'
 FEAT_GC = 'ftgc_pct_GC'
 FEAT_CPG = 'ftgc_pct_CpG'
@@ -40,9 +43,9 @@ FEAT_MAPSIG_PREFIX = 'ftmap_'
 def _get_feat_fun_map():
     feat_fun_map = {'len': feat_region_length,
                     'prm': feat_coreprom_motifs,
-                    'gc': feat_gccpg_content,
-                    'cpg': feat_gccpg_content,
-                    'oecpg': feat_gccpg_content,
+                    'gc': feat_gc_content,
+                    'cpg': feat_cpg_content,
+                    'oecpg': feat_oecpg_content,
                     'rep': feat_repetitive_content,
                     'kmers': feat_kmer_frequency,
                     'tfm': None}
@@ -65,7 +68,7 @@ def _make_kmer_dict(k, alphabet='ACGTN'):
     return kmers
 
 
-def get_online_version(features, kmers=None):
+def get_online_version(features, kmers=None, yardstick=0):
     """ Return a closure encompassing all feature
     functions - intended to use is with
     multiprocessing.Pool.map() or similar
@@ -80,6 +83,9 @@ def get_online_version(features, kmers=None):
                 kd = _make_kmer_dict(k)
                 part = funct.partial(feat_single_kmer, *(k, kd))
                 exec_functions.add(part)
+        elif ft == 'len':
+            part = funct.partial(feat_region_length, *(yardstick, ))
+            exec_functions.add(part)
         else:
             exec_functions.add(funmap[ft])
 
@@ -90,14 +96,18 @@ def get_online_version(features, kmers=None):
     return compute_features
 
 
-def feat_region_length(region):
-    """ overengineering, anyone?
+def feat_region_length(yardstick, region):
+    """
+    :param yardstick:
     :param region:
     :return:
     """
     reglen = region['end'] - region['start']
     assert reglen > 0, 'Malformed genomic region (length): {}'.format(region)
-    region[FEAT_LENGTH] = reglen
+    if yardstick > 0:
+        region[FEAT_RELLENGTH] = reglen / yardstick * 100
+    else:
+        region[FEAT_LENGTH] = reglen
     return region
 
 
@@ -113,7 +123,7 @@ def feat_repetitive_content(region):
         tmpseq = region['seq']
         seqlen = float(len(tmpseq))
         repmasked = tmpseq.count('a') + tmpseq.count('c') + tmpseq.count('g') + tmpseq.count('t')
-        region[FEAT_REPCONT] = round((repmasked / seqlen) * 100., 2)
+        region[FEAT_REPCONT] = round((repmasked / seqlen) * 100., FEAT_FP_PREC)
         return region
 
 
@@ -139,7 +149,7 @@ def feat_single_kmer(k, kmers, region):
         for w in words:
             wordfreqs[FEAT_KMERFREQ_PREFIX + w] += 1
     for key, val in wordfreqs.items():
-        val = round((val / total_klen) * 100., 2)
+        val = round((val / total_klen) * 100., FEAT_FP_PREC)
         mykmers[key] = val
     region.update(mykmers)
     return region
@@ -173,21 +183,52 @@ def feat_kmer_frequency(kmers, region):
             for w in words:
                 wordfreqs[FEAT_KMERFREQ_PREFIX + w] += 1
         for key, val in wordfreqs.items():
-            val = round((val / total_klen) * 100., 2)
+            val = round((val / total_klen) * 100., FEAT_FP_PREC)
             kmerdict[key] = val
         region.update(kmerdict)
     return region
 
 
-def feat_gccpg_content(region):
+def feat_gc_content(region):
+    """
+    :param region:
+    :return:
+    """
+    try:
+        _ = region[FEAT_GC]
+        return region
+    except KeyError:
+        seq = region['seq'].lower()
+        seqlen = float(len(seq))  # for division
+        total_G = seq.count('g')
+        total_C = seq.count('c')
+        region[FEAT_GC] = round(((total_G + total_C) / seqlen) * 100., FEAT_FP_PREC)
+        return region
+
+
+def feat_cpg_content(region):
+    """
+    :param region:
+    :return:
+    """
+    try:
+        _ = region[FEAT_CPG]
+        return region
+    except KeyError:
+        seq = region['seq'].lower()
+        seqlen = float(len(seq))  # for division
+        total_CpG = seq.count('cg')
+        region[FEAT_CPG] = round((total_CpG / (seqlen / 2.)) * 100., FEAT_FP_PREC)
+        return region
+
+
+def feat_oecpg_content(region):
     """
     :param region:
     :return:
     """
     try:
         _ = region[FEAT_OECPG]
-        _ = region[FEAT_GC]
-        _ = region[FEAT_CPG]
         return region
     except KeyError:
         seq = region['seq'].lower()
@@ -195,10 +236,8 @@ def feat_gccpg_content(region):
         total_G = seq.count('g')
         total_C = seq.count('c')
         total_CpG = seq.count('cg')
-        region[FEAT_GC] = round(((total_G + total_C) / seqlen) * 100., 2)
-        region[FEAT_CPG] = round((total_CpG / (seqlen / 2.)) * 100., 2)
         # this definition of the obs-exp ratio is taken from UCSC
-        region[FEAT_OECPG] = round((total_CpG / (max(1, total_G) * max(1, total_C))) * seqlen, 2)
+        region[FEAT_OECPG] = round((total_CpG / (max(1, total_G) * max(1, total_C))) * seqlen, FEAT_FP_PREC)
         return region
 
 
@@ -245,7 +284,7 @@ def feat_coreprom_motifs(region):
             reglen = len(tmpseq)
     for name, motifre in core_motifs:
         bpcov = sum(len(m) for m in re.findall(motifre, tmpseq))
-        region[FEAT_COREPROM_PREFIX + name] = round((bpcov / reglen) * 100, 2)
+        region[FEAT_COREPROM_PREFIX + name] = round((bpcov / reglen) * 100, FEAT_FP_PREC)
     return region
 
 
@@ -276,7 +315,7 @@ def feat_mapsig(sample):
     conserved = np.ma.count(sample)
     reglen = sample.size
     ret = dict()
-    ret[FEAT_MAPSIG_PREFIX + 'pct_cons'] = round((conserved / reglen) * 100, 2)
+    ret[FEAT_MAPSIG_PREFIX + 'pct_cons'] = round((conserved / reglen) * 100, FEAT_FP_PREC)
     if conserved == 0:
         cons_mean = 0
         cons_max = 0

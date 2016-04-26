@@ -12,6 +12,8 @@ from crplib.auxiliary.hdf_ops import get_valid_hdf5_groups
 from crplib.auxiliary.seq_parsers import add_seq_regions
 
 
+# t1.loc[(t1.index <= 203) & ((t1.index + 100 >= 203) | (t1.index + 100 >= 75)),]
+
 def print_feature_description():
     """
     :return:
