@@ -85,7 +85,7 @@ def _add_convert_command(subparsers):
                                            help='Convert bedGraph or BED files to HDF5 format.',
                                            description='... to be updated ...')
     comgroup = parser_convert.add_argument_group('General parameters')
-    comgroup.add_argument('--task', '-tk', type=str, required=True, choices=['signal', 'region', 'chain'], dest='task',
+    comgroup.add_argument('--task', '-tk', type=str, required=True, choices=['signal', 'region', 'chain', 'tfmotif'], dest='task',
                           help='Specify task to execute, convert signal (bedGraph), region (BED-like) or chain files.')
     comgroup.add_argument('--keep-chroms', '-kc', type=str, default='"(chr)?[0-9]+(\s|$)"', dest='keepchroms',
                           help='Regular expression pattern (needs to be double quoted) matching'
@@ -122,6 +122,10 @@ def _add_convert_command(subparsers):
     comgroup.add_argument('--keep-top', '-topk', type=float, default=95, dest='keeptop',
                           help='Specify top N percent of regions to keep after ranking. Requires --score-idx'
                                ' to be set to a valid column index. Default: 95')
+    comgroup = parser_convert.add_argument_group('TF motif parameter')
+    comgroup.add_argument('--motif-db', '-mdb', type=str, default='', dest='motifdb')
+    comgroup.add_argument('--db-format', '-dbf', type=str, choices=['meme', 'map', 'list'], dest='dbformat')
+
     parser_convert.set_defaults(execute=_convert_execute)
     return subparsers
 
@@ -144,25 +148,35 @@ def _add_traindata_command(subparsers):
     parser_traindata = subparsers.add_parser('traindata',
                                              help='Generate training data',
                                              description='...to be updated...')
-    comgroup = parser_traindata.add_argument_group('Generate training data')
-    comgroup.add_argument('--task', '-tk', type=str, choices=['regsig'], dest='task')
-    comgroup.add_argument('--chrom-sizes', '-s', type=str, required=True, dest='chromsizes',
-                          help='Full path to UCSC-style 2 column file with chromosome sizes')
+    parser_traindata.add_argument('--task', '-tk', type=str, choices=['regsig', 'clsreg'], dest='task')
+    comgroup = parser_traindata.add_argument_group('General parameters')
+    comgroup.add_argument('--input', '-i', type=str, required=True, dest='inputfile')
+    comgroup.add_argument('--output', '-o', type=str, dest='outputfile')
+    comgroup.add_argument('--target-index', '-idx', type=str, default='', dest='targetindex',
+                          help='Full path to target index created with "convert" command.'
+                               ' Only required for task "cons". Default: <empty>')
     comgroup.add_argument('--keep-chroms', '-c', type=str, default='"(chr)?[0-9]+(\s|$)"', dest='keepchroms',
                           help='Regular expression pattern (needs to be double quoted) matching'
                                ' chromosome names to keep. Default: "(chr)?[0-9]+(\s|$)" (i.e. autosomes)')
+    comgroup.add_argument('--features', '-ft', type=str, nargs='+', default=[], dest='features')
+    comgroup.add_argument('--kmers', '-km', type=int, nargs='+', default=[], dest='kmers')
+    comgroup.add_argument('--seq-file', '-sf', type=str, default='', dest='seqfile')
+
+    comgroup = parser_traindata.add_argument_group('Parameter for signal regression (regsig)')
     comgroup.add_argument('--num-samples', '-smp', type=int, default=20000, dest='numsamples',
                           help='Number of training samples to collect')
     comgroup.add_argument('--resolution', '-res', type=int, default=25, dest='resolution')
-    comgroup.add_argument('--features', '-ft', type=str, nargs='+', default=['prm', 'kmers', 'gc'], dest='features')
-    comgroup.add_argument('--kmers', '-km', type=int, nargs='+', default=[2], dest='kmers')
-    comgroup.add_argument('--chain-file', '-cf', type=str, required=True, dest='chainfile')
-    comgroup.add_argument('--seq-file', '-sf', type=str, required=True, dest='seqfile')
-    comgroup.add_argument('--input', '-i', type=str, required=True, dest='inputfile')
     comgroup.add_argument('--input-group', '-ig', type=str, default='', dest='inputgroup')
-    comgroup.add_argument('--output', '-o', type=str, dest='outputfile')
     comgroup.add_argument('--output-group', '-og', type=str, default='', dest='outputgroup',
                           help='Specify a root path to store the individual chromosomes in the HDF5. Default: <empty>')
+
+    comgroup = parser_traindata.add_argument_group('Parameter for region classification (clsreg)')
+    comgroup.add_argument('--pos-ingroup', '-pig', type=str, default='', dest='posingroup')
+    comgroup.add_argument('--neg-ingroup', '-nig', type=str, default='', dest='negingroup')
+    comgroup.add_argument('--add-seq', '-ads', action='store_true', default=False, dest='addseq')
+    comgroup.add_argument('--pos-outgroup', '-pog', type=str, default='', dest='posoutgroup')
+    comgroup.add_argument('--neg-outgroup', '-nog', type=str, default='', dest='negoutgroup')
+
     parser_traindata.set_defaults(execute=_traindata_execute)
     return subparsers
 
@@ -266,8 +280,9 @@ def _add_compfeat_command(subparsers):
                                             help='Compute various features for genomic regions',
                                             description='... to be updated ...')
     comgroup = parser_compfeat.add_argument_group('Compute genomic features')
+
     comgroup.add_argument('--desc-feat', '-df', action='store_true', default=False, dest='descfeat',
-                          help='Print a short description of the computable features to stdout.')
+                          help='Print a short description of the computable features to stdout and exit.')
     comgroup.add_argument('--features', '-ft', type=str, nargs='+', dest='features',
                           help='State list of features to be computed')
     comgroup.add_argument('--kmers', '-km', type=int, nargs='+', default=[2, 3, 4], dest='kmers',

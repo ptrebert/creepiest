@@ -54,6 +54,19 @@ def convert_chain_file(args, logger):
     return rv
 
 
+def convert_motifdb_file(args, logger):
+    """
+    :param args:
+    :param logger:
+    :return:
+    """
+    assert os.path.isfile(args.inputfile[0])
+    mod = imp.import_module('crplib.commands.convert_motifdb')
+    rv = mod.run_motifdb_conversion(args, logger)
+    assert os.path.isfile(args.outputfile), 'No output file created - conversion failed? {}'.format(args.outputfile)
+    return rv
+
+
 def run_conversion(args):
     """
     :param args: command line parameters
@@ -63,10 +76,11 @@ def run_conversion(args):
     """
     logger = args.module_logger
     try:
-        logger.debug('Running conversion type: {}'.format(args.subparser_name))
+        logger.debug('Running conversion type: {}'.format(args.task))
         convtype = {'signal': convert_bedgraph_signal,
                     'region': convert_genomic_region,
-                    'chain': convert_chain_file}
+                    'chain': convert_chain_file,
+                    'tfmotif': convert_motifdb_file}
         convcall = convtype[args.task]
         args.__dict__['keepchroms'] = args.keepchroms.strip('"')
         args.__dict__['qcheck'] = args.keepchroms.strip('"')

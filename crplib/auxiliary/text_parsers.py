@@ -6,6 +6,7 @@ with more or less no well-defined format
 """
 
 import re as re
+import collections as col
 
 from crplib.auxiliary.file_ops import text_file_mode
 
@@ -142,3 +143,55 @@ def chromsize_from_chain(chainfile, chrom):
                     break
     assert chrom_size > 0, 'No entry in chain file {} for chromosome: {}'.format(chainfile, chrom)
     return chrom_size
+
+
+def get_meme_iterator(fobj):
+    """
+    :param fobj:
+    :return:
+    """
+
+    header = fobj.readline()
+    assert header.startswith('MEME'), 'Supposed MEME motif DB does not start with field "MEME"'
+    for line in fobj:
+        if line.startswith('MOTIF'):
+            _, tfid, tfname = line.strip().split()
+            yield tfid, tfname
+    return
+
+
+def _read_ovl_line(line):
+    """ chr4	0	250	chr4	1	12	MA0041.1	11
+    :param line:
+    :return:
+    """
+    cols = line.strip().split()
+    return cols[0], int(cols[1]), cols[6], int(cols[7])
+
+
+def get_binned_motifs_iterator(fobj):
+    """
+    :param fobj:
+    :return:
+    """
+    rdl = _read_ovl_line
+    init = rdl(fobj.readline())
+    curr_chrom = init[0]
+    curr_index = init[1]
+    fobj.seek(0)
+    collect = col.Counter()
+    for line in fobj:
+        if not line:
+            continue
+        chrom, index, tfid, ovl = rdl(line)
+        if index != curr_index:
+            yield curr_chrom, curr_index, collect
+            if curr_chrom == chrom:
+                assert curr_index < index, \
+                    'Binned motif file seems to be unsorted: step from {} to {}'.format(curr_index, index)
+            curr_chrom = chrom
+            curr_index = index
+            collect = col.Counter()
+        collect[tfid] += ovl
+    yield curr_chrom, curr_index, collect
+    return
