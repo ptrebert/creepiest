@@ -174,6 +174,13 @@ def run_background_match(args):
     :return:
     """
     logger = args.module_logger
+    if 5 < len(args.features) + len(args.kmers) <= 10:
+        logger.warning('Large number of features specified; the more features are to be used to find'
+                       ' similar regions, the more inefficient the nearest neighbor search is'
+                       ' (i.e. the high dimensional space is sparsely populated).')
+    if len(args.features) + len(args.kmers) > 10:
+        logger.error('Too many features specified - aborting search...')
+        raise AssertionError('Too many features for nearest neighbor search.')
     arglist = assemble_worker_params(args)
     logger.debug('Compiled argument list of size {} to process'.format(len(arglist)))
     with pd.HDFStore(args.outputfile, 'a', complib='blosc', complevel=9) as hdfout:
