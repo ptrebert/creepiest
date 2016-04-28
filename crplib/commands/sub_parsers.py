@@ -271,54 +271,6 @@ def _mapsig_execute(args):
     return retval
 
 
-def _add_compfeat_command(subparsers):
-    """
-    :param subparsers:
-    :return:
-    """
-    parser_compfeat = subparsers.add_parser('compfeat',
-                                            help='Compute various features for genomic regions',
-                                            description='... to be updated ...')
-    comgroup = parser_compfeat.add_argument_group('Compute genomic features')
-
-    comgroup.add_argument('--desc-feat', '-df', action='store_true', default=False, dest='descfeat',
-                          help='Print a short description of the computable features to stdout and exit.')
-    comgroup.add_argument('--features', '-ft', type=str, nargs='+', dest='features',
-                          help='State list of features to be computed')
-    comgroup.add_argument('--kmers', '-km', type=int, nargs='+', default=[2, 3, 4], dest='kmers',
-                          help='Values of k for k-mer frequency. Default: 2, 3, 4')
-    comgroup.add_argument('--group-root', '-gr', type=str, dest='grouproot', required=True,
-                          help='Specify the group of regions in the HDF5 for the feature computation.'
-                               ' All subgroups will be considered automatically.')
-    comgroup.add_argument('--add-seq', '-ads', type=str, default='', dest='addseq',
-                          help='If a valid path to a 2bit file is specified, the genomic sequence will'
-                               ' be added to the regions with the key "seq". This is required for'
-                               ' sequence-derived features. Default: <empty>')
-    comgroup.add_argument('--tfmotifdb', '-tfdb', type=str, default='', dest='tfmotifdb',
-                          help='Path to a folder with TF motif matches in separate files'
-                               ' per chromosome (naming: ASSEMBLY_CHROM.ext). Default: <empty>')
-    comgroup.add_argument('--signal', '-sg', type=str, default='', dest='signal',
-                          help='Path to a signal track in HDF5 format to compute signal'
-                               ' features for the genomic regions. Default: <empty>')
-    comgroup.add_argument('--pwaln', '-pwa', type=str, default='', dest='pwaln',
-                          help='Path to file containing information about pairwise alignable regions'
-                               ' between reference and query assembly. These regions are reciprocal best.')
-    comgroup.add_argument('--input', '-i', type=str, dest='inputfile',
-                          help='Full path to input file.')
-    parser_compfeat.set_defaults(execute=_compfeat_execute)
-    return subparsers
-
-
-def _compfeat_execute(args):
-    """
-    :param args:
-    :return:
-    """
-    compfeat = implib.import_module('crplib.commands.comp_feat')
-    retval = compfeat.run_compute_features(args)
-    return retval
-
-
 def _add_apply_command(subparsers):
     """
     :param subparsers:
