@@ -190,9 +190,9 @@ def run_background_match(args):
         else:
             metadata = pd.DataFrame(columns=MD_REGION_COLDEFS)
         with mp.Pool(args.workers) as pool:
-            mapres = pool.map_async(find_background_regions, arglist, chunksize=1)
+            resit = pool.imap_unordered(find_background_regions, arglist, chunksize=1)
             logger.debug('Waiting for results...')
-            for chrom, fgreg, fggrp, bgreg, bggrp in mapres.get():
+            for chrom, fgreg, fggrp, bgreg, bggrp in resit:
                 logger.debug('Found {} matches (of max {}) for {}'.format(len(bgreg), len(fgreg), chrom))
                 df_fg = regions_to_dataframe(fgreg)
                 grp, df_fg, metadata = gen_obj_and_md(metadata, fggrp, chrom, os.path.basename(args.inputfile), df_fg)
