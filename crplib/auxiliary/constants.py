@@ -4,10 +4,12 @@ DIV_B_TO_GB = 1024 * 1024 * 1024
 
 DIV_B_TO_MB = 1024 * 1024
 
-# ignore this many bases at the beginning and end of
+# ignore this many bases at the beginning of
 # each chromosome; this value is also used in, e.g., ChromImpute
 CHROMOSOME_BOUNDARY = 10000
 
 TRGIDX_MASK = 'cons/mask'
 TRGIDX_SPLITS = 'cons/splits'
 TRGIDX_SELECT = 'cons/select'
+
+FEAT_FP_PREC = 5
