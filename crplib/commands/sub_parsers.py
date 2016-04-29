@@ -118,10 +118,12 @@ def _add_convert_command(subparsers):
                                ' new names will be assigned based on genomic sort order. Default: -1')
     comgroup.add_argument('--score-idx', '-six', type=int, default=-1, dest='scoreidx',
                           help='Specify column index (0-based) with score to rank regions. If set to'
-                               ' -1 no ranking can be performed. Default: -1')
+                               ' -1 no ranking can be performed. Assumes ranking from high to low. Default: -1')
     comgroup.add_argument('--keep-top', '-topk', type=float, default=95, dest='keeptop',
                           help='Specify top N percent of regions to keep after ranking. Requires --score-idx'
                                ' to be set to a valid column index. Default: 95')
+    comgroup.add_argument('--filter-size', '-fs', type=int, default=200, dest='filtersize',
+                          help='Remove regions smaller than this value. Default: 200')
     comgroup = parser_convert.add_argument_group('TF motif parameter')
     comgroup.add_argument('--motif-db', '-mdb', type=str, default='', dest='motifdb')
     comgroup.add_argument('--db-format', '-dbf', type=str, choices=['meme', 'map', 'list'], dest='dbformat')

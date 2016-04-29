@@ -34,6 +34,7 @@ def assemble_worker_args(args):
         commons['keeptop'] = args.keeptop
         commons['scoreidx'] = args.scoreidx
         commons['columns'] = cols
+        commons['filtersize'] = args.filtersize
         arglist.append(commons)
     return arglist
 
@@ -50,7 +51,7 @@ def merge_overlapping_regions(allregions):
             step = allregions.popleft()
         except IndexError:  # deque empty
             break
-        if this[0] == step[0]:
+        if this[0] == step[0]:  # check chroms are identical
             # if this_end < next_start
             if this[2] < step[1]:
                 merged.append(this)
@@ -82,13 +83,17 @@ def process_regions(params):
     fpath = params['inputfile']
     chr_match = re.compile(params['keepchroms'])
     getvals = op.itemgetter(*params['columns'])
+    filter_size = params['filtersize']
     regions = []
     opn, mode = text_file_mode(fpath)
     with opn(fpath, mode=mode, encoding='ascii') as infile:
         for line in infile:
             if not line or chr_match.match(line) is None:
                 continue
-            regions.append(getvals(line.split()))
+            reg = getvals(line.split())
+            if int(reg[2]) - int(reg[1]) < filter_size:
+                continue
+            regions.append(reg)
     assert len(regions) > 0,\
         'No regions selected for file {} and pattern {}'.format(fpath, params['keepchroms'])
     if params['scoreidx'] != -1 and params['keeptop'] < 100.:

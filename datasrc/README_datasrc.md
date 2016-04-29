@@ -29,3 +29,10 @@ Date: 2016-02-11
     * 36
 * Replication type
     * isogenic
+    
+
+Note 2016-04-29
+
+* Some histone peak files contain spurious peaks (peak size as low as 1bp)
+    * Example: ENCFF001MXB [entry: 1 -- chr8 - 11007712 - 11007713]
+    * Filter out these peaks, i.e. require peaks to be at least "nucleosome-sized"
