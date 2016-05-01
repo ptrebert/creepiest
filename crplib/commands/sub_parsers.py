@@ -122,8 +122,8 @@ def _add_convert_command(subparsers):
     comgroup.add_argument('--keep-top', '-topk', type=float, default=95, dest='keeptop',
                           help='Specify top N percent of regions to keep after ranking. Requires --score-idx'
                                ' to be set to a valid column index. Default: 95')
-    comgroup.add_argument('--filter-size', '-fs', type=int, default=200, dest='filtersize',
-                          help='Remove regions smaller than this value. Default: 200')
+    comgroup.add_argument('--filter-size', '-fs', type=int, default=150, dest='filtersize',
+                          help='Remove regions smaller than this value. Default: 150')
     comgroup = parser_convert.add_argument_group('TF motif parameter')
     comgroup.add_argument('--motif-db', '-mdb', type=str, default='', dest='motifdb')
     comgroup.add_argument('--db-format', '-dbf', type=str, choices=['meme', 'map', 'list'], dest='dbformat')
