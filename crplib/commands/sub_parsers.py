@@ -163,6 +163,7 @@ def _add_traindata_command(subparsers):
     comgroup.add_argument('--features', '-ft', type=str, nargs='+', default=[], dest='features')
     comgroup.add_argument('--kmers', '-km', type=int, nargs='+', default=[], dest='kmers')
     comgroup.add_argument('--seq-file', '-sf', type=str, default='', dest='seqfile')
+    comgroup.add_argument('--tf-motifs', '-tfm', type=str, default='', dest='tfmotifs')
 
     comgroup = parser_traindata.add_argument_group('Parameter for signal regression (regsig)')
     comgroup.add_argument('--num-samples', '-smp', type=int, default=20000, dest='numsamples',
@@ -178,6 +179,9 @@ def _add_traindata_command(subparsers):
     comgroup.add_argument('--add-seq', '-ads', action='store_true', default=False, dest='addseq')
     comgroup.add_argument('--pos-outgroup', '-pog', type=str, default='', dest='posoutgroup')
     comgroup.add_argument('--neg-outgroup', '-nog', type=str, default='', dest='negoutgroup')
+    comgroup.add_argument('--signal-file', '-sigf', type=str, default='', dest='signalfile')
+    comgroup.add_argument('--signal-group', '-sigg', type=str, default='', dest='signalgroup')
+    comgroup.add_argument('--signal-label', '-sigl', type=str, default='', dest='signallabel')
 
     parser_traindata.set_defaults(execute=_traindata_execute)
     return subparsers

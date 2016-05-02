@@ -18,16 +18,19 @@ from crplib.auxiliary.constants import FEAT_FP_PREC
 
 FEAT_LENGTH = 'ftlen_abs_length'
 FEAT_RELLENGTH = 'ftlen_pct_length'
-FEAT_OECPG = 'ftgc_rat_oeCpG'
+FEAT_OECPG = 'ftoecpg_rat_oeCpG'
 FEAT_GC = 'ftgc_pct_GC'
-FEAT_CPG = 'ftgc_pct_CpG'
+FEAT_CPG = 'ftcpg_pct_CpG'
 FEAT_REPCONT = 'ftrep_pct_repcon'
 
 # the k avoids singular occurrence of string NA
 # can cause problems when feat name is stripped
 # to just the kmer: ftkm_pct_NA --> NA
-FEAT_KMERFREQ_PREFIX = 'ftkm_pct_k'
+FEAT_KMERFREQ_PREFIX = 'ftkmf_pct_k'
+
 FEAT_COREPROM_PREFIX = 'ftprm_pct_'
+
+FEAT_TFMOTIF_PREFIX = 'fttfm_pct_'
 
 # all features for signal regression
 FEAT_DIST_MEAN = 'ftdst_abs_mean_'
@@ -37,7 +40,7 @@ FEAT_DIST_MAX = 'ftdst_abs_max_'
 FEAT_DIST_SKEW = 'ftdst_abs_skew_'
 FEAT_DIST_KURT = 'ftdst_abs_kurt_'
 
-FEAT_MAPSIG_PREFIX = 'ftmap_'
+FEAT_MAPSIG_PREFIX = 'ftmsig_'
 
 
 def _get_feat_fun_map():
@@ -47,8 +50,9 @@ def _get_feat_fun_map():
                     'cpg': feat_cpg_content,
                     'oecpg': feat_oecpg_content,
                     'rep': feat_repetitive_content,
-                    'kmers': feat_kmer_frequency,
-                    'tfm': None}
+                    'kmf': feat_kmer_frequency,
+                    'tfm': feat_tf_motifs,
+                    'msig': feat_mapsig}
     return feat_fun_map
 
 
@@ -68,17 +72,27 @@ def _make_kmer_dict(k, alphabet='ACGTN'):
     return kmers
 
 
+def check_online_available(reqfeat):
+    """
+    :param reqfeat:
+    :return:
+    """
+    avfeat = filter(lambda f: f in ['len', 'prm', 'gc', 'cpg', 'oecpg', 'rep', 'kmf'], reqfeat)
+    return list(avfeat)
+
+
 def get_online_version(features, kmers=None, yardstick=0):
     """ Return a closure encompassing all feature
     functions - intended to use is with
     multiprocessing.Pool.map() or similar
     """
-    if 'kmers' in features:
+    if 'kmf' in features:
         assert kmers is not None, 'No values for k-mer frequency specified'
     funmap = _get_feat_fun_map()
     exec_functions = set()
-    for ft in features:
-        if ft == 'kmers':
+    avfeat = check_online_available(features)
+    for ft in avfeat:
+        if ft == 'kmf':
             for k in kmers:
                 kd = _make_kmer_dict(k)
                 part = funct.partial(feat_single_kmer, *(k, kd))
@@ -116,15 +130,12 @@ def feat_repetitive_content(region):
     :param region:
     :return:
     """
-    try:
-        _ = region[FEAT_REPCONT]
-        return region
-    except KeyError:
-        tmpseq = region['seq']
-        seqlen = float(len(tmpseq))
-        repmasked = tmpseq.count('a') + tmpseq.count('c') + tmpseq.count('g') + tmpseq.count('t')
-        region[FEAT_REPCONT] = round((repmasked / seqlen) * 100., FEAT_FP_PREC)
-        return region
+    tmpseq = region['seq']
+    seqlen = len(tmpseq)
+    assert seqlen > 0, 'Malformed region: {}'.format(region)
+    repmasked = tmpseq.count('a') + tmpseq.count('c') + tmpseq.count('g') + tmpseq.count('t')
+    region[FEAT_REPCONT] = (repmasked / seqlen) * 100.
+    return region
 
 
 def feat_single_kmer(k, kmers, region):
@@ -149,7 +160,7 @@ def feat_single_kmer(k, kmers, region):
         for w in words:
             wordfreqs[FEAT_KMERFREQ_PREFIX + w] += 1
     for key, val in wordfreqs.items():
-        val = round((val / total_klen) * 100., FEAT_FP_PREC)
+        val = (val / total_klen) * 100.
         mykmers[key] = val
     region.update(mykmers)
     return region
@@ -183,7 +194,7 @@ def feat_kmer_frequency(kmers, region):
             for w in words:
                 wordfreqs[FEAT_KMERFREQ_PREFIX + w] += 1
         for key, val in wordfreqs.items():
-            val = round((val / total_klen) * 100., FEAT_FP_PREC)
+            val = (val / total_klen) * 100.
             kmerdict[key] = val
         region.update(kmerdict)
     return region
@@ -194,16 +205,13 @@ def feat_gc_content(region):
     :param region:
     :return:
     """
-    try:
-        _ = region[FEAT_GC]
-        return region
-    except KeyError:
-        seq = region['seq'].lower()
-        seqlen = float(len(seq))  # for division
-        total_G = seq.count('g')
-        total_C = seq.count('c')
-        region[FEAT_GC] = round(((total_G + total_C) / seqlen) * 100., FEAT_FP_PREC)
-        return region
+    seq = region['seq'].lower()
+    seqlen = len(seq)
+    assert seqlen > 0, 'Malformed region: {}'.format(region)
+    total_G = seq.count('g')
+    total_C = seq.count('c')
+    region[FEAT_GC] = ((total_G + total_C) / seqlen) * 100.
+    return region
 
 
 def feat_cpg_content(region):
@@ -211,15 +219,12 @@ def feat_cpg_content(region):
     :param region:
     :return:
     """
-    try:
-        _ = region[FEAT_CPG]
-        return region
-    except KeyError:
-        seq = region['seq'].lower()
-        seqlen = float(len(seq))  # for division
-        total_CpG = seq.count('cg')
-        region[FEAT_CPG] = round((total_CpG / (seqlen / 2.)) * 100., FEAT_FP_PREC)
-        return region
+    seq = region['seq'].lower()
+    seqlen = len(seq)
+    assert seqlen > 0, 'Malformed region: {}'.format(region)
+    total_CpG = seq.count('cg')
+    region[FEAT_CPG] = (total_CpG / (seqlen / 2.)) * 100.
+    return region
 
 
 def feat_oecpg_content(region):
@@ -227,18 +232,15 @@ def feat_oecpg_content(region):
     :param region:
     :return:
     """
-    try:
-        _ = region[FEAT_OECPG]
-        return region
-    except KeyError:
-        seq = region['seq'].lower()
-        seqlen = float(len(seq))  # for division
-        total_G = seq.count('g')
-        total_C = seq.count('c')
-        total_CpG = seq.count('cg')
-        # this definition of the obs-exp ratio is taken from UCSC
-        region[FEAT_OECPG] = round((total_CpG / (max(1, total_G) * max(1, total_C))) * seqlen, FEAT_FP_PREC)
-        return region
+    seq = region['seq'].lower()
+    seqlen = len(seq)  # for division
+    assert seqlen > 0, 'Malformed region: {}'.format(region)
+    total_G = seq.count('g')
+    total_C = seq.count('c')
+    total_CpG = seq.count('cg')
+    # this definition of the obs-exp ratio is taken from UCSC
+    region[FEAT_OECPG] = (total_CpG / (max(1, total_G) * max(1, total_C))) * seqlen
+    return region
 
 
 def feat_coreprom_motifs(region):
@@ -284,7 +286,7 @@ def feat_coreprom_motifs(region):
             reglen = len(tmpseq)
     for name, motifre in core_motifs:
         bpcov = sum(len(m) for m in re.findall(motifre, tmpseq))
-        region[FEAT_COREPROM_PREFIX + name] = round((bpcov / reglen) * 100, FEAT_FP_PREC)
+        region[FEAT_COREPROM_PREFIX + name] = (bpcov / reglen) * 100
     return region
 
 
@@ -306,7 +308,7 @@ def feat_dist(sample, suffix):
     return ret
 
 
-def feat_mapsig(sample):
+def feat_mapsig(sample, infix=''):
     """
     :param sample:
      :type: numpy.MaskedArray
@@ -315,7 +317,7 @@ def feat_mapsig(sample):
     conserved = np.ma.count(sample)
     reglen = sample.size
     ret = dict()
-    ret[FEAT_MAPSIG_PREFIX + 'pct_cons'] = round((conserved / reglen) * 100, FEAT_FP_PREC)
+    ret[FEAT_MAPSIG_PREFIX + infix + 'pct_cons'] = (conserved / reglen) * 100
     if conserved == 0:
         cons_mean = 0
         cons_max = 0
@@ -324,7 +326,63 @@ def feat_mapsig(sample):
         cons_mean = np.ma.mean(sample)
         cons_max = np.ma.max(sample)
         cons_min = np.ma.min(sample)
-    ret[FEAT_MAPSIG_PREFIX + 'abs_mean'] = cons_mean
-    ret[FEAT_MAPSIG_PREFIX + 'abs_max'] = cons_max
-    ret[FEAT_MAPSIG_PREFIX + 'abs_min'] = cons_min
+    ret[FEAT_MAPSIG_PREFIX + infix + 'abs_mean'] = cons_mean
+    ret[FEAT_MAPSIG_PREFIX + infix + 'abs_max'] = cons_max
+    ret[FEAT_MAPSIG_PREFIX + infix + 'abs_min'] = cons_min
     return ret
+
+
+def _weighted_motifs(row, start, end, binsize):
+    """
+    :param row:
+    :param start:
+    :param end:
+    :param binsize:
+    :return:
+    """
+    ridx = row.name
+    if start >= ridx and end <= ridx + binsize:
+        w = (end - start) / binsize
+        return row * w
+    elif start < ridx and end > ridx + binsize:
+        w = (ridx + binsize - ridx) / binsize
+        return row * w
+    elif start < ridx and end <= ridx + binsize:
+        # left overlap
+        w = (end - ridx) / binsize
+        return row * w
+    elif start >= ridx and end > ridx + binsize:
+        # right overlap
+        w = (ridx + binsize - start) / binsize
+        return row * w
+    else:
+        # first time this throws, need a UnitTest...
+        raise AssertionError('Unable to compute motif weights for values: {}, {} - {} {}'.format(row, start, end, binsize))
+
+
+def feat_tf_motifs(regions, motifcounts):
+    """
+    :param regions:
+     :type: list of dict
+    :param motifnames:
+    :param motifcounts: Pandas DataFrame
+    :return:
+    """
+    motifnames = list(motifcounts.columns)
+    base_counts = col.Counter(motifnames)  # all zero counts
+    mc = motifcounts
+    binsize = mc.index[1] - mc.index[0]
+    assert binsize > 0, 'Unable to determine bin size for indices: {} and {}'.format(mc.index[1], mc.index[0])
+    wm = _weighted_motifs
+    for reg in regions:
+        s, e = reg['start'], reg['end']
+        ovl = mc.loc[(mc.index < e) & (mc.index + binsize > s), ]
+        if ovl.empty:
+            reg.update(base_counts)
+            continue
+        ovl = ovl.apply(wm, axis=1, args=(s, e, binsize))
+        ovl = ovl.sum(axis=0) / (e - s) * 100
+        reg.update(ovl.to_dict())
+
+    return regions
+
