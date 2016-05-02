@@ -380,6 +380,9 @@ def _add_match_command(subparsers):
     comgroup.add_argument('--timeout', '-to', type=int, default=10, dest='timeout',
                           help='Timeout in minutes for each chromosome to stop searching'
                                ' even if not all foreground regions were matched: Default: 10 min.')
+    comgroup.add_argument('--allow-nomatch', '-anm', action='store_true', default=False, dest='allownomatch',
+                          help='Allow that no match is found. The corresponding set of input regions will be'
+                               ' discarded. Default: False')
     comgroup.add_argument('--relax-init', '-ri', type=float, default=1.0, dest='relaxinit',
                           help='Initial value for relaxed matching in percentage points. Default: 1.0')
     comgroup.add_argument('--relax-step', '-rs', type=float, default=0.5, dest='relaxstep',

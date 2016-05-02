@@ -60,6 +60,8 @@ def start_relaxed_search(nntree, chromseq, mask, compfeat, featselect, limits, p
         for pos in rand_pos:
             halflen = rng.randint(minlen, maxlen)
             s, e = pos - halflen, pos + halflen
+            if s < 0:  # might happen if looking for matches for large peaks
+                continue
             if mask[s:e].any():
                 continue
             candseq = chromseq[s:e]
@@ -101,6 +103,7 @@ def find_background_regions(params):
     mult_lo = 1 - params['relax_limit'] / 100.
     with pd.HDFStore(params['inputfile'], 'r') as hdfin:
         fg = hdfin[params['group_fg']]
+        assert not fg.empty, 'Loaded empty group {} from file {}'.format(params['group_fg'], params['inputfile'])
         maxlen = (fg.end - fg.start).max()
         yardstick = int(maxlen * mult_hi)
         minlen = (fg.end - fg.start).min() * mult_lo
@@ -125,6 +128,8 @@ def find_background_regions(params):
     mask[0:CHROMOSOME_BOUNDARY] = 1
     limits = minlen, maxlen, len(fg)
     matched = start_relaxed_search(kdtree, chromseq, mask, compfeat, getvals, limits, params)
+    if not matched and not params['allownomatch']:
+        raise AssertionError('No matches found for file {} / group {} (query size: {})'.format(params['inputfile'], params['group_fg'], len(fg)))
     return params['chrom'], fg, params['group_fg'], matched, params['group_bg']
 
 
@@ -142,6 +147,7 @@ def assemble_worker_params(args):
     commons['relax_init'] = args.relaxinit
     commons['relax_step'] = args.relaxstep
     commons['relax_limit'] = args.relaxlimit
+    commons['allownomatch'] = args.allownomatch
     ingroups = get_valid_hdf5_groups(args.inputfile, args.inputgroup)
     arglist = []
     for ig in ingroups:
@@ -183,7 +189,7 @@ def run_background_match(args):
         raise AssertionError('Too many features for nearest neighbor search.')
     arglist = assemble_worker_params(args)
     logger.debug('Compiled argument list of size {} to process'.format(len(arglist)))
-    with pd.HDFStore(args.outputfile, 'a', complib='blosc', complevel=9) as hdfout:
+    with pd.HDFStore(args.outputfile, 'w', complib='blosc', complevel=9) as hdfout:
         logger.debug('Initializing worker pool of size {}'.format(args.workers))
         if 'metadata' in hdfout:
             metadata = hdfout['metadata']
@@ -194,6 +200,9 @@ def run_background_match(args):
             logger.debug('Waiting for results...')
             for chrom, fgreg, fggrp, bgreg, bggrp in resit:
                 logger.debug('Found {} matches (of max {}) for {}'.format(len(bgreg), len(fgreg), chrom))
+                if not bgreg:
+                    logger.debug('No matches for group {}, discarding input set'.format(fgreg))
+                    continue
                 df_fg = regions_to_dataframe(fgreg)
                 grp, df_fg, metadata = gen_obj_and_md(metadata, fggrp, chrom, os.path.basename(args.inputfile), df_fg)
                 hdfout.put(grp, df_fg, format='fixed')
