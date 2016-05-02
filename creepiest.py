@@ -209,6 +209,11 @@ def run():
         else:
             # this is just a fallback in case the logger init already fails
             sys.stderr.write('\nError: {}\nTraceback: {}\n'.format(e, trbbuf.getvalue()))
+        if os.path.isfile(conf_dump):
+            try:
+                os.remove(conf_dump)
+            except (OSError, IOError, FileNotFoundError):
+                pass
         retcode = e.args[0]
     finally:
         dtobj = dt.datetime.now()
