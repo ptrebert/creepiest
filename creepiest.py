@@ -16,6 +16,7 @@ import select as select
 import datetime as dt
 import random as rand
 import cProfile as cprf
+from argparse import ArgumentError
 
 from crplib.__init__ import __version__
 from crplib.__init__ import __description__ as prog_desc
@@ -127,14 +128,14 @@ def dump_config(args, ignored_args):
         dump[cfgk][key] = str(params[key])
     dump[cfgk]['ignored_args'] = ' '.join(ignored_args)
 
-    fname = get_full_filestamp() + '_crp.ini'
+    fname = get_full_filestamp() + '_' + args.subparser_name + '_crp.ini'
     fpath = os.path.join(args.dumpdir, fname)
     try:
-        with open(os.path.join(args.dumpdir, fname), 'w') as outf:
+        with open(fpath, 'w') as outf:
             dump.write(outf)
     except FileNotFoundError:
-        os.makedirs(os.path.dirname(fname), exist_ok=True)
-        with open(os.path.join(args.dumpdir, fname), 'w') as outf:
+        os.makedirs(args.dumpdir, exist_ok=True)
+        with open(fpath, 'w') as outf:
             dump.write(outf)
     return fpath
 
@@ -187,7 +188,8 @@ def run():
         logger = init_logging_system(args, logbuf)
         logger.debug('Logging system initialized')
         if remain_args:
-            logger.warning('Unknown parameters at command line: {}'.format(remain_args))
+            #  logger.warning('Unknown parameters at command line: {}'.format(remain_args))
+            raise ArgumentError(remain_args, 'Unknown parameters detected')
         if not args.nodump and args.subparser_name not in ['tests', 'info']:
             conf_dump = dump_config(args, remain_args)
         if conf_dump:
