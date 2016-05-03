@@ -26,3 +26,18 @@ def text_file_mode(fpath):
         f, m = open, 'r'
     return f, m
 
+
+def create_filepath(fpath, logger=None):
+    """
+    :param fpath:
+    :return:
+    """
+    dirs, filename = os.path.split(fpath)
+    if not os.path.isdir(dirs):
+        try:
+            os.makedirs(dirs, exist_ok=True)
+        except (IOError, OSError) as excp:
+            if logger is not None:
+                logger.error('Could not create path to file: {}'.format(fpath))
+            raise excp
+    return fpath
