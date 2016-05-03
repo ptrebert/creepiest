@@ -15,7 +15,8 @@ import pickle as pck
 from scipy.interpolate import LSQUnivariateSpline as kspline
 
 from crplib.auxiliary.seq_parsers import get_twobit_seq
-from crplib.auxiliary.hdf_ops import load_masked_sigtrack, get_valid_hdf5_groups
+from crplib.auxiliary.hdf_ops import load_masked_sigtrack, get_valid_hdf5_groups, get_trgindex_groups
+from crplib.auxiliary.file_ops import create_filepath
 from crplib.mlfeat.featdef import feat_mapsig, get_online_version
 from crplib.auxiliary.constants import CHROMOSOME_BOUNDARY
 from crplib.metadata.md_signal import MD_SIGNAL_COLDEFS, gen_obj_and_md
@@ -44,15 +45,19 @@ def make_signal_estimate(params):
     :param params:
     :return:
     """
+    chrom = params['chrom']
     mypid = mp.current_process().pid
     model = pck.load(open(params['modelfile'], 'rb'))
     seq = get_twobit_seq(params['seqfile'], params['chrom'])
     chromlen = len(seq)
     res = params['resolution']
-    map_sig = load_masked_sigtrack(params['inputfile'], params['chainfile'],
-                                   params['inputgroup'], params['chrom'], chromlen)
+    index_groups = get_trgindex_groups(params['targetindex'], '')
+    with pd.HDFStore(params['targetindex'], 'r') as idx:
+        mask = idx[index_groups[chrom]['mask']]
+    map_sig = load_masked_sigtrack(params['inputfile'], '',
+                                   params['inputgroup'], chrom, chromlen, mask=mask)
     mapfeat = feat_mapsig
-    est_sig = np.zeros(chromlen, dtype='float64')
+    est_sig = np.zeros(chromlen, dtype=np.float64)
     lolim = CHROMOSOME_BOUNDARY
     hilim = int(chromlen // res * res)
     comp_seqfeat = get_online_version(params['features'], params['kmers'])
@@ -92,7 +97,7 @@ def assemble_params_estsig(args):
         fpath_md = args.modelmetadata
     model_md = json.load(open(fpath_md, 'r'))
     commons = {'modelfile': args.modelfile, 'resolution': int(model_md['resolution']),
-               'seqfile': args.seqfile, 'chainfile': args.chainfile, 'inputfile': args.inputfile,
+               'seqfile': args.seqfile, 'targetindex': args.targetindex, 'inputfile': args.inputfile,
                'inputgroup': args.inputgroup, 'features': model_md['features'],
                'kmers': model_md['kmers'], 'feature_order': model_md['feature_order'],
                'nosmooth': args.nosmooth}
@@ -120,9 +125,9 @@ def run_estimate_signal(logger, args):
             metadata = pd.DataFrame(columns=MD_SIGNAL_COLDEFS)
         with mp.Pool(args.workers) as pool:
             logger.debug('Start processing...')
-            mapres = pool.map_async(make_signal_estimate, arglist, chunksize=1)
-            for pid, chrom, valobj in mapres.get():
-                logger.debug('Worker {} processed chromosome {}'.format(pid, chrom))
+            mapres = pool.imap_unordered(make_signal_estimate, arglist, chunksize=1)
+            for chrom, valobj in mapres:
+                logger.debug('Processed chromosome {}'.format(chrom))
                 group, valobj, metadata = gen_obj_and_md(metadata, args.outputgroup, chrom, args.inputfile, valobj)
                 hdfout.put(group, valobj, format='fixed')
                 hdfout.flush()
@@ -141,6 +146,7 @@ def run_apply_model(args):
     """
     logger = args.module_logger
     rv = 0
+    _ = create_filepath(args.outputfile, logger)
     if args.task == 'estsig':
         logger.debug('Running task: estimate signal')
         rv = run_estimate_signal(logger, args)

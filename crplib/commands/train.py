@@ -12,8 +12,10 @@ import pickle as pck
 import pandas as pd
 
 from sklearn.grid_search import GridSearchCV
+from sklearn import metrics as sklmet
 
 from crplib.auxiliary.hdf_ops import get_valid_hdf5_groups
+from crplib.auxiliary.file_ops import create_filepath
 
 
 def train_nocv(model, params, traindata, outputs):
@@ -39,7 +41,10 @@ def train_gridcv(model, params, traindata, outputs, folds, njobs):
     :param njobs:
     :return:
     """
-    tune_model = GridSearchCV(model, params, scoring='r2', pre_dispatch=njobs,
+    scorer = sklmet.make_scorer(sklmet.__dict__[params['scoring']])
+    param_grid = dict(params)
+    del param_grid['scoring']
+    tune_model = GridSearchCV(model, param_grid, scoring=scorer, pre_dispatch=njobs,
                               cv=folds, n_jobs=njobs, refit=True)
     tune_model = tune_model.fit(traindata, outputs)
     return tune_model
@@ -62,7 +67,7 @@ def load_training_data(filepath, prefix):
         ft_kmers = list(map(int, ft_kmers.values[0].split(',')))
         res = mdf.where(mdf.group == load_group).dropna()['resolution']
         res = res.values[0]
-    outputs = full_dset.loc[:, 'y_depvar']
+    outputs = pd.Series(full_dset.loc[:, 'y_depvar'])
     feat_order = sorted([ft for ft in full_dset.columns if ft.startswith('ft')])
     traindata = full_dset.loc[:, feat_order]
     return ft_classes, ft_kmers, res, feat_order, traindata, outputs
@@ -94,8 +99,8 @@ def simplify_cv_scores(cvfolds):
         std = np.std(values)
         min_score = np.min(values)
         max_score = np.max(values)
-        this_comb['scores'] = {'mean': np.round(mean, 5), 'std': np.round(std, 5),
-                               'max': np.round(max_score, 5), 'min': np.round(min_score, 5)}
+        this_comb['scores'] = {'mean': mean, 'std': std,
+                               'max': max_score, 'min': min_score}
         this_comb['params'] = entry.parameters
         grid.append(this_comb)
     return grid
@@ -107,10 +112,13 @@ def run_train_model(args):
     :return:
     """
     logger = args.module_logger
+    _ = create_filepath(args.modelout, logger)
     logger.debug('Loading model specification from {}'.format(args.modelspec))
     model_params = json.load(open(args.modelspec))
     model = load_model(model_params['model_name'], model_params['module_path'])
+    logger.debug('Loading training data')
     ft_classes, ft_kmers, res, feat_order, traindata, outputs = load_training_data(args.traindata, args.traingroup)
+    logger.debug('Training model')
     if args.notuning:
         params = model_params['default']
         model = train_nocv(model, params, traindata, outputs)
@@ -122,13 +130,14 @@ def run_train_model(args):
         metadata = {'final_params': tune_info.best_params_}
         metadata['grid_scores'] = simplify_cv_scores(tune_info.grid_scores_)
         metadata['best_score'] = tune_info.best_score_
-        metadata['scoring'] = 'r2_score'
-
+        metadata['scoring'] = params['scoring']
+    logger.debug('Saving model and metadata')
     metadata['model_spec'] = os.path.basename(args.modelspec)
     metadata['init_params'] = params
     metadata['model'] = model_params['model_name']
     metadata['traindata'] = os.path.basename(args.traindata)
     metadata['traingroup'] = args.traingroup
+    metadata['traindata_size'] = list(traindata.shape)
     metadata['features'] = ft_classes
     metadata['kmers'] = ft_kmers
     metadata['feature_order'] = feat_order
@@ -142,6 +151,7 @@ def run_train_model(args):
         mdout = args.modelout.rsplit('.', 1)[0] + '.json'
     else:
         mdout = args.metadataout
+    _ = create_filepath(mdout, logger)
     with open(mdout, 'w') as outfile:
         _ = json.dump(metadata, outfile, indent=0)
 

@@ -30,7 +30,7 @@ def assemble_worker_params(args):
     commons = {'inputfilea': args.inputfilea, 'inputfileb': args.inputfileb,
                'inputgroupa': args.inputgroupa, 'inputgroupb': args.inputgroupb,
                'targetindex': args.targetindex, 'measure': args.measure}
-    index_groups = get_trgindex_groups(args.targetindex, args.indexgroup)
+    index_groups = get_trgindex_groups(args.targetindex, '')
     arglist = []
     for chrom in chrom_union:
         tmp = dict(commons)
@@ -169,9 +169,9 @@ def run_compute_correlation(args):
               'correlations': []}
     logger.debug('Initializing worker pool')
     with mp.Pool(args.workers) as pool:
-        mapres = pool.map_async(exec_fun, arglist, chunksize=1)
-        for pid, chrom, results in mapres.get():
-            logger.debug('Process {} finished correlation for chromosome {}'.format(pid, chrom))
+        resit = pool.imap_unordered(exec_fun, arglist, chunksize=1)
+        for chrom, results in resit:
+            logger.debug('Computed correlation for chromosome {}'.format(chrom))
             output['correlations'].append((chrom, results))
     logger.debug('Finished computation')
     with open(args.outputfile, 'w') as outfile:

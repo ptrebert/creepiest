@@ -296,9 +296,9 @@ def _add_apply_command(subparsers):
                                ' Default: <empty>')
     comgroup.add_argument('--seq-file', '-seq', type=str, required=True, dest='seqfile',
                           help='Full path to genomic sequence file in 2bit format.')
-    comgroup.add_argument('--chain-file', '-chf', type=str, required=True, dest='chainfile',
-                          help='Full path to liftOver chain file with reciprocal best chains'
-                               ' between target (from/reference) and query (to) assembly.')
+    comgroup.add_argument('--target-index', '-idx', type=str, default='', dest='targetindex',
+                          help='Full path to target index created with "convert" command.'
+                               ' Only required for task "cons". Default: <empty>')
     comgroup.add_argument('--no-smoothing', '-nosm', action='store_true', default=False, dest='nosmooth',
                           help='Do no smooth signal estimate at the end. Default: False')
     comgroup.add_argument('--input', '-i', type=str, required=True, dest='inputfile',
@@ -339,9 +339,6 @@ def _add_correlation_command(subparsers):
     comgroup.add_argument('--target-index', '-idx', type=str, default='', dest='targetindex',
                           help='Full path to target index created with "convert" command.'
                                ' Only required for task "cons". Default: <empty>')
-    comgroup.add_argument('--index-group', '-idxg', type=str, default='', dest='indexgroup',
-                          help='Group root path for target index. Subpaths to conservation mask'
-                               ' and split indices will be appended automatically. Default: <empty>')
     comgroup.add_argument('--input-a', '-ia', type=str, required=True, dest='inputfilea')
     comgroup.add_argument('--input-group-a', '-iga', type=str, default='', dest='inputgroupa')
     comgroup.add_argument('--input-b', '-ib', type=str, required=True, dest='inputfileb')

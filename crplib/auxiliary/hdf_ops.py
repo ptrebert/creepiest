@@ -31,6 +31,18 @@ def get_valid_hdf5_groups(filepath, prefix):
     return groups
 
 
+def get_valid_chrom_group(filepath, chrom):
+    """
+    :param filepath:
+    :param chrom:
+    :return:
+    """
+    all_groups = get_valid_hdf5_groups(filepath, '')
+    single_group = list(filter(lambda g: g.endswith(chrom), all_groups))
+    assert len(single_group) == 1, 'Could not identify matching group in file {} for {}'.format(filepath, chrom)
+    return single_group[0]
+
+
 def get_trgindex_groups(fpath, grproot):
     """
     :param fpath:

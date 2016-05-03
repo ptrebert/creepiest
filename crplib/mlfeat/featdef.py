@@ -314,6 +314,8 @@ def feat_mapsig(sample, infix=''):
      :type: numpy.MaskedArray
     :return:
     """
+    if infix and not infix.endswith('_'):
+        infix += '_'
     conserved = np.ma.count(sample)
     reglen = sample.size
     ret = dict()

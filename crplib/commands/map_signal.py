@@ -4,14 +4,13 @@
 Map a signal track from one species/assembly to another
 """
 
-import sys as sys
 import numpy as np
 import pandas as pd
 import re as re
 
 from crplib.metadata.md_signal import gen_obj_and_md, MD_SIGNAL_COLDEFS
 from crplib.auxiliary.text_parsers import read_chromosome_sizes, get_chain_iterator
-from crplib.auxiliary.file_ops import text_file_mode
+from crplib.auxiliary.file_ops import text_file_mode, create_filepath
 from crplib.auxiliary.hdf_ops import get_valid_hdf5_groups
 
 
@@ -26,7 +25,7 @@ def allocate_chrom_arrays(chroms):
     return ret
 
 
-def get_alignment_blocks(chainfile, chroms, chromre):
+def get_alignment_blocks(chainfile, chroms, chromre, logger):
     """
     :param chainfile:
      :type: str
@@ -36,20 +35,26 @@ def get_alignment_blocks(chainfile, chroms, chromre):
      :type: str
     :return:
     """
-    # TODO
-    # potentially: add to chain iterator filter for query chromosomes,
-    # supports only target (reference) chromosome filtering atm
     opn, mode = text_file_mode(chainfile)
-    accept = set([cname for cname, size in chroms])
+    accept_query = [cname + '$' for cname, size in chroms]
+    query_re = re.compile('(' + '|'.join(accept_query) + ')')
+    logger.debug('Filtering for query chroms: {}'.format(query_re.pattern))
     blocks = []
-    check_chrom = re.compile(chromre)
+    check_target = re.compile(chromre)
+    read_targets = set()
+    read_queries = set()
     with opn(chainfile, mode) as cf:
-        for alnblock in get_chain_iterator(cf):
-            # TODO
-            # maybe iter should yield a Namedtuple or so...
-            if alnblock[4] in accept and check_chrom.match(alnblock[0]) is not None:
+        # TODO eventually
+        # right now, chain iterator can only filter for one or all targets
+        # not for several... could be changed
+        for alnblock in get_chain_iterator(cf, qcheck=query_re):
+            if check_target.match(alnblock[0]) is not None:
+                read_targets.add(alnblock[0])
+                read_queries.add(alnblock[4])
                 blocks.append(alnblock)
     # returns sorted by target/reference chromosome - start - end...
+    logger.debug('Read target chromosomes: {}'.format(read_targets))
+    logger.debug('Read query chromosomes: {}'.format(read_queries))
     return sorted(blocks)
 
 
@@ -90,6 +95,7 @@ def run_map_signal(args):
     csizes = read_chromosome_sizes(args.querychroms, args.keepchroms)
     csizes = list(csizes.items())
     step = args.allocate
+    _ = create_filepath(args.outputfile, logger)
     logger.debug('Processing {} chromosomes at a time'.format(step))
     for idx in range(0, len(csizes), step):
         try:
@@ -97,7 +103,7 @@ def run_map_signal(args):
         except IndexError:
             proc_chroms = csizes[idx:]
         logger.debug('Processing chromosomes: {}'.format(proc_chroms))
-        alnblocks = get_alignment_blocks(args.chainfile, proc_chroms, args.keepchroms)
+        alnblocks = get_alignment_blocks(args.chainfile, proc_chroms, args.keepchroms, logger)
         if not alnblocks:
             logger.warning('No alignment blocks for query chromosomes: {}'.format(proc_chroms))
         else:
@@ -114,7 +120,7 @@ def run_map_signal(args):
                 metadata = pd.DataFrame(columns=MD_SIGNAL_COLDEFS)
             for chrom, valobj in chroms.items():
                 logger.debug('Saving mapped signal for chromosome {}'.format(chrom))
-                grp, valobj, metadata = gen_obj_and_md(metadata, args.outputgroup, chrom, args.outputfile, valobj)
+                grp, valobj, metadata = gen_obj_and_md(metadata, args.outputgroup, chrom, args.inputfile, valobj)
                 hdfout.put(grp, valobj, format='fixed')
                 hdfout.flush()
             hdfout.put('metadata', metadata, format='table')
