@@ -410,3 +410,32 @@ def _match_execute(args):
     regmatch = implib.import_module('crplib.commands.match')
     retval = regmatch.run_background_match(args)
     return retval
+
+
+def _add_dump_command(subparsers):
+    """
+    :param subparsers:
+    :return:
+    """
+    parser_dump = subparsers.add_parser('dump',
+                                        help='Dump content of an HDF file to BED-like text.',
+                                        description='... to be updated ...')
+    comgroup = parser_dump.add_argument_group('General parameters')
+    comgroup.add_argument('--input', '-i', type=str, dest='inputfile')
+    comgroup.add_argument('--input-group', '-ig', type=str, dest='inputgroup')
+    comgroup.add_argument('--output', '-o', type=str, dest='outputfile')
+    comgroup = parser_dump.add_argument_group('Parameters for signal tracks')
+    comgroup.add_argument('--resolution', '-res', type=int, default=25, dest='resolution')
+    comgroup.add_argument('--summ-stat', '-sst', type=str, choices=['mean', 'max', 'min'])
+    parser_dump.set_defaults(execute=_dump_execute)
+    return subparsers
+
+
+def _dump_execute(args):
+    """
+    :param args:
+    :return:
+    """
+    dump = implib.import_module('crplib.commands.dump')
+    retval = dump.run_dump_to_file(args)
+    return retval

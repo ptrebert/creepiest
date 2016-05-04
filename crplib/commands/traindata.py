@@ -29,9 +29,6 @@ def sample_signal_traindata(params):
     :return:
     """
     chrom = params['chrom']
-    lolim = params['lolim']
-    hilim = params['hilim']
-
     res = params['resolution']
     # TODO
     # ad-hoc values... currently, no strategy
@@ -49,6 +46,8 @@ def sample_signal_traindata(params):
     samples = []
     # make function available in local namespace
     mapfeat = feat_mapsig
+    lolim = params['lolim']
+    hilim = len(chromseq) - lolim  # which is chromosome boundary constant
     for n in range(params['numsamples']):
         pos = rand.randint(lolim, hilim)
         for move in range(pos - step_bw, pos + step_fw, stepsize):
@@ -132,7 +131,7 @@ def rebuild_dataframe(samples):
     return df
 
 
-def assemble_regsig_args(chroms, chromlim, args):
+def assemble_regsig_args(chromlim, args):
     """
     :param chroms:
     :param chromlim:
@@ -147,16 +146,17 @@ def assemble_regsig_args(chroms, chromlim, args):
     commons['group'] = args.inputgroup
     commons['resolution'] = args.resolution
     commons['features'] = args.features
-    commons['kmers'] = tuple(args.kmers)
+    commons['kmers'] = args.kmers
 
-    num_chrom = len(chroms)
+    index_groups = get_trgindex_groups(args.targetindex, '')
+
+    num_chrom = len(index_groups.keys())
     smp_per_chrom = args.numsamples // num_chrom
     rest = args.numsamples
     dist_rest = smp_per_chrom * num_chrom < args.numsamples
-    for name, size in chroms.items():
+    for name in index_groups.keys():
         tmp = dict(commons)
         tmp['chrom'] = name
-        tmp['size'] = size
         if dist_rest:
             # last chromosome loses a few sample points...
             tmp['numsamples'] = min(rest, smp_per_chrom + 1)
@@ -164,12 +164,11 @@ def assemble_regsig_args(chroms, chromlim, args):
         else:
             tmp['numsamples'] = smp_per_chrom
         tmp['lolim'] = chromlim
-        tmp['hilim'] = size - chromlim
         arglist.append(tmp)
     return arglist
 
 
-def collect_regsig_trainsamples(args, csizes, chromlim, logger):
+def collect_regsig_trainsamples(args, chromlim, logger):
     """
     :param args:
     :param csizes:
@@ -177,7 +176,8 @@ def collect_regsig_trainsamples(args, csizes, chromlim, logger):
     :param logger:
     :return:
     """
-    arglist = assemble_regsig_args(csizes, chromlim, args)
+    arglist = assemble_regsig_args(chromlim, args)
+    logger.debug('Collecting training data')
     with pd.HDFStore(args.outputfile, 'w', complevel=9, complib='blosc') as hdfout:
         with mp.Pool(args.workers) as pool:
             resit = pool.imap_unordered(sample_signal_traindata, arglist)
@@ -265,10 +265,9 @@ def run_collect_traindata(args):
     logger.debug('Chromosome select pattern: {}'.format(args.keepchroms))
     if args.task == 'regsig':
         logger.debug('Collecting training data for task {}'.format(args.task))
-        csizes = read_chromosome_sizes(args.chromsizes, args.keepchroms)
         # "magic number" following common limits, e.g., in ChromImpute
         chromlim = CHROMOSOME_BOUNDARY
-        _ = collect_regsig_trainsamples(args, csizes, chromlim, logger)
+        _ = collect_regsig_trainsamples(args, chromlim, logger)
     elif args.task == 'clsreg':
         logger.debug('Collecting training data for task {}'.format(args.task))
         assert args.posingroup and args.negingroup, 'Need to specify HDF groups for positive and negative class'
