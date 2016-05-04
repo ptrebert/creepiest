@@ -188,8 +188,7 @@ def run():
         logger = init_logging_system(args, logbuf)
         logger.debug('Logging system initialized')
         if remain_args:
-            #  logger.warning('Unknown parameters at command line: {}'.format(remain_args))
-            raise ArgumentError(remain_args, 'Unknown parameters detected')
+            raise ValueError('Unknown parameters detected: {}'.format(remain_args))
         if not args.nodump and args.subparser_name not in ['tests', 'info']:
             conf_dump = dump_config(args, remain_args)
         if conf_dump:
