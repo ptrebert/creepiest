@@ -113,7 +113,7 @@ def run_map_signal(args):
         logger.debug('Mapping signal data')
         chroms = map_signal_data(args.inputfile, args.inputgroup, alnblocks, chroms)
         logger.debug('Mapping complete')
-        with pd.HDFStore(args.outputfile, 'a', complib='blosc', complevel=9) as hdfout:
+        with pd.HDFStore(args.outputfile, 'w', complib='blosc', complevel=9) as hdfout:
             if 'metadata' in hdfout:
                 metadata = hdfout['metadata']
             else:

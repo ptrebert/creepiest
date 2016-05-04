@@ -118,7 +118,7 @@ def run_estimate_signal(logger, args):
     """
     logger.debug('Assembling worker parameters')
     arglist = assemble_params_estsig(args)
-    with pd.HDFStore(args.outputfile, 'a', complevel=9, complib='blosc') as hdfout:
+    with pd.HDFStore(args.outputfile, 'w', complevel=9, complib='blosc') as hdfout:
         if 'metadata' in hdfout:
             metadata = hdfout['metadata']
         else:
