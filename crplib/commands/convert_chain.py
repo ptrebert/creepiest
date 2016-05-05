@@ -65,7 +65,7 @@ def build_index_structures(chainit, csize):
     # all conserved regions after splitting a signal track
     # using the split indices based on the alignment blocks
     select = np.array([k for k, g in itt.groupby(~consmask)], dtype=np.bool)
-    splits = np.array(sorted(splits), dtype=np.int32)
+    splits = np.array(sorted(splits), dtype=np.int64)
     return consmask, splits, select
 
 
@@ -74,7 +74,6 @@ def process_chains(params):
     :param params:
     :return:
     """
-    mypid = mp.current_process().pid
     fpath = params['inputfile']
     chrom = params['chrom']
     csize = params['size']
@@ -83,7 +82,7 @@ def process_chains(params):
     with opn(fpath, mode=mode, encoding='ascii') as infile:
         chainit = get_chain_iterator(infile, tselect=chrom, qcheck=qchroms)
         mask, splits, select = build_index_structures(chainit, csize)
-    return mypid, chrom, mask, splits, select
+    return chrom, mask, splits, select
 
 
 def run_chain_conversion(args, logger):
@@ -98,20 +97,23 @@ def run_chain_conversion(args, logger):
     og_mask = os.path.join(args.outputgroup, TRGIDX_MASK)
     og_splits = os.path.join(args.outputgroup, TRGIDX_SPLITS)
     og_select = os.path.join(args.outputgroup, TRGIDX_SELECT)
-    with pd.HDFStore(args.outputfile, 'a', complevel=9, complib='blosc') as hdfout:
+    with pd.HDFStore(args.outputfile, 'w', complevel=9, complib='blosc', encoding='utf-8') as hdfout:
         with mp.Pool(args.workers) as pool:
             logger.debug('Iterating results')
-            mapres = pool.map_async(process_chains, arglist, chunksize=1)
-            for pid, chrom, mask, splits, select in mapres.get():
-                logger.debug('Worker (PID {}) completed chromosome {}'.format(pid, chrom))
+            resit = pool.imap_unordered(process_chains, arglist, chunksize=1)
+            for chrom, mask, splits, select in resit:
+                logger.debug('Processed chromosome {}'.format(chrom))
                 # collect all chromosomes in dataset(s)
                 grp_mask = normalize_group_path(og_mask, suffix=chrom)
                 hdfout.put(grp_mask, pd.Series(mask, dtype=np.bool), format='fixed')
                 grp_splits = normalize_group_path(og_splits, suffix=chrom)
-                hdfout.put(grp_splits, pd.Series(splits, dtype=np.int32), format='fixed')
+                hdfout.put(grp_splits, pd.Series(splits, dtype=np.int64), format='fixed')
                 grp_select = normalize_group_path(og_select, suffix=chrom)
                 hdfout.put(grp_select, pd.Series(select, dtype=np.bool), format='fixed')
                 hdfout.flush()
                 logger.debug('Saved chromosome {}'.format(chrom))
+        hdfout.flush()
+        # three groups per chromosome should be created
+        assert len(hdfout.keys()) == len(arglist) * 3, 'Incomplete HDF file created: {}'.format(hdfout.keys())
     logger.debug('HDF file closed: {}'.format(args.outputfile))
     return 0

@@ -66,16 +66,16 @@ def build_pipeline(args, config, sci_obj):
                           name='swap',
                           input=output_from(init),
                           filter=formatter(chain_re),
-                          output=os.path.join(tempdir, '{QUERY[0]}_to_{TARGET[0]}.tbest.chain.gz'),
-                          extras=[cmd, jobcall]).mkdir(tempdir)
+                          output=os.path.join(tempdir, 'swap', '{QUERY[0]}_to_{TARGET[0]}.tbest.chain.gz'),
+                          extras=[cmd, jobcall]).mkdir(os.path.join(tempdir, 'swap'))
 
     cmd = config.get('Pipeline', 'prenet')
     prenet = pipe.transform(task_func=sci_obj.get_jobf('in_out'),
                             name='prenet',
                             input=output_from(swap),
                             filter=formatter(chain_re),
-                            output=os.path.join(tempdir, '{TARGET[0]}_to_{QUERY[0]}.rbest.net.gz'),
-                            extras=[cmd, jobcall]).mkdir(tempdir)
+                            output=os.path.join(tempdir, 'prenet', '{TARGET[0]}_to_{QUERY[0]}.rbest.net.gz'),
+                            extras=[cmd, jobcall]).mkdir(os.path.join(tempdir, 'prenet'))
 
     cmd = config.get('Pipeline', 'netchain')
     netchain = pipe.transform(task_func=sci_obj.get_jobf('in_out'),
@@ -97,11 +97,9 @@ def build_pipeline(args, config, sci_obj):
     stepdir = os.path.join(outdir, 'indices')
     trgidx = pipe.transform(task_func=sci_obj.get_jobf('in_out'),
                             name='trgidx',
-                            input=output_from(reswap),
+                            input=output_from(reswap, netchain),
                             filter=formatter(chain_re),
                             output=os.path.join(stepdir, '{TARGET[0]}_to_{QUERY[0]}.rbest.trgidx.h5'),
                             extras=[cmd, jobcall]).mkdir(stepdir)
-
-
 
     return pipe
