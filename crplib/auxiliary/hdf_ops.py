@@ -81,7 +81,7 @@ def build_conservation_mask(chainfile, chrom, csize=None):
         mask = np.ones(chromsize, dtype=np.bool)
     opn, mode = text_file_mode(chainfile)
     num_aln = 0
-    with opn(chainfile, mode) as cf:
+    with opn(chainfile, mode=mode, encoding='ascii') as cf:
         chainit = get_chain_iterator(cf, tselect=chrom)
         for aln in chainit:
             mask[aln[1]:aln[2]] = 0

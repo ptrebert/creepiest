@@ -134,7 +134,7 @@ def chromsize_from_chain(chainfile, chrom):
     read_head = _read_chain_header
     opn, mode = text_file_mode(chainfile)
     chrom_size = 0
-    with opn(chainfile, mode) as chf:
+    with opn(chainfile, mode=mode, encoding='ascii') as chf:
         for line in chf:
             if line.strip() and line.startswith('chain'):
                 parts = read_head(line)

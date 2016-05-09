@@ -31,8 +31,7 @@ def sample_signal_traindata(params):
     chrom = params['chrom']
     res = params['resolution']
     # TODO
-    # ad-hoc values... currently, no strategy
-    # justifying the selection...
+    # ad-hoc values...
     stepsize = res * 2
     step_bw = res * 4
     step_fw = res * 6
@@ -178,7 +177,7 @@ def collect_regsig_trainsamples(args, chromlim, logger):
     """
     arglist = assemble_regsig_args(chromlim, args)
     logger.debug('Collecting training data')
-    with pd.HDFStore(args.outputfile, 'w', complevel=9, complib='blosc') as hdfout:
+    with pd.HDFStore(args.outputfile, 'w', complevel=9, complib='blosc', encoding='utf-8') as hdfout:
         with mp.Pool(args.workers) as pool:
             resit = pool.imap_unordered(sample_signal_traindata, arglist)
             metadata = pd.DataFrame(columns=MD_TRAINDATA_COLDEFS)
@@ -237,7 +236,7 @@ def collect_clsreg_trainsamples(args, logger):
     """
     arglist = assemble_clsreg_args(args, logger)
     logger.debug('Argument list of size {} to process'.format(len(arglist)))
-    with pd.HDFStore(args.outputfile, 'w', complib='blosc', complevel=9) as hdfout:
+    with pd.HDFStore(args.outputfile, 'w', complib='blosc', complevel=9, encoding='utf-8') as hdfout:
         metadata = pd.DataFrame(columns=MD_TRAINDATA_COLDEFS)
         with mp.Pool(args.workers) as pool:
             resit = pool.imap_unordered(get_region_traindata, arglist, chunksize=1)

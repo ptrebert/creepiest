@@ -33,6 +33,8 @@ def create_filepath(fpath, logger=None):
     :return:
     """
     dirs, filename = os.path.split(fpath)
+    if not dirs:  # empty could mean simply CWD
+        return fpath
     if not os.path.isdir(dirs):
         try:
             os.makedirs(dirs, exist_ok=True)

@@ -11,9 +11,8 @@ import numpy as np
 import pandas as pd
 import json as json
 
-from crplib.auxiliary.hdf_ops import get_valid_hdf5_groups, get_trgindex_groups, load_masked_sigtrack, build_conservation_mask
-from crplib.numalg.iterators import iter_consecutive_blocks
-
+from crplib.auxiliary.hdf_ops import get_valid_hdf5_groups, get_trgindex_groups
+from crplib.auxiliary.file_ops import create_filepath
 
 def assemble_worker_params(args):
     """
@@ -67,7 +66,7 @@ def compute_corr_cons(params):
     :param params:
     :return:
     """
-    mypid = mp.current_process().pid
+    chrom = params['chrom']
     # loading index data
     fun_avg = np.vectorize(np.average, otypes=[np.float64])
     with pd.HDFStore(params['targetindex'], 'r') as idx:
@@ -89,7 +88,7 @@ def compute_corr_cons(params):
             corr, pv = res, -1
         infos = {'stat': corr, 'pv': pv}
         results[ms] = infos
-    return mypid, params['chrom'], results
+    return chrom, results
 
 
 def compute_corr_active(params):
@@ -98,7 +97,6 @@ def compute_corr_active(params):
     :param params:
     :return:
     """
-    mypid = mp.current_process().pid
     with pd.HDFStore(params['inputfilea'], 'r') as hdf:
         load_group = os.path.join(params['inputgroupa'], params['chrom'])
         data = hdf[load_group].values
@@ -120,7 +118,7 @@ def compute_corr_active(params):
             corr, pv = res, -1
         infos = {'stat': corr, 'pv': pv.data}
         results[ms] = infos
-    return mypid, params['chrom'], results
+    return params['chrom'], results
 
 
 def compute_corr_full(params):
@@ -128,7 +126,6 @@ def compute_corr_full(params):
     :param params:
     :return:
     """
-    mypid = mp.current_process().pid
     with pd.HDFStore(params['inputfilea'], 'r') as hdf:
         load_group = os.path.join(params['inputgroupa'], params['chrom'])
         dataset1 = hdf[load_group].values
@@ -145,7 +142,7 @@ def compute_corr_full(params):
             corr, pv = res, -1
         infos = {'stat': corr, 'pv': pv}
         results[ms] = infos
-    return mypid, params['chrom'], results
+    return params['chrom'], results
 
 
 def run_compute_correlation(args):
@@ -163,7 +160,6 @@ def run_compute_correlation(args):
     output = {'file_A': os.path.basename(args.inputfilea),
               'file_B': os.path.basename(args.inputfileb),
               'targetindex': 'None' if not args.targetindex else os.path.basename(args.targetindex),
-              'indexgroup': 'None' if not args.indexgroup else args.indexgroup,
               'group_A': args.inputgroupa, 'group_B': args.inputgroupb,
               'task': args.task, 'measure': args.measure,
               'correlations': []}
@@ -174,7 +170,8 @@ def run_compute_correlation(args):
             logger.debug('Computed correlation for chromosome {}'.format(chrom))
             output['correlations'].append((chrom, results))
     logger.debug('Finished computation')
-    with open(args.outputfile, 'w') as outfile:
+    fpath = create_filepath(args.outputfile, logger)
+    with open(fpath, 'w') as outfile:
         json.dump(output, outfile, indent=1, sort_keys=True)
     logger.debug('Output written to file {}'.format(args.outputfile))
     return 0

@@ -31,11 +31,17 @@ def smooth_signal_estimate(signal, res):
     # for default resolution of 25, spans roughly one nucleosome
     window = res * 10
     for pos in range(CHROMOSOME_BOUNDARY, len(signal), window):
-        smoother = kspline(range(pos, pos+window),  # x-axis
-                           signal[pos:pos+window],  # y-axis
-                           t=[j+res for j in range(pos, pos + window - res, res)],  # knots
-                           k=3)  # degree of polynomial, cubic is default
-        signal[pos:pos+window] = smoother(range(pos, pos+window))
+        try:
+            smoother = kspline(range(pos, pos+window),  # x-axis
+                               signal[pos:pos+window],  # y-axis
+                               t=[j+res for j in range(pos, pos + window - res, res)],  # knots
+                               k=3)  # degree of polynomial, cubic is default
+            signal[pos:pos+window] = smoother(range(pos, pos+window))
+        except Exception as err:
+            if pos + window > len(signal):
+                break
+            else:
+                raise err
     signal = np.clip(signal, 0, signal.max())
     return signal
 
@@ -46,7 +52,6 @@ def make_signal_estimate(params):
     :return:
     """
     chrom = params['chrom']
-    mypid = mp.current_process().pid
     model = pck.load(open(params['modelfile'], 'rb'))
     seq = get_twobit_seq(params['seqfile'], params['chrom'])
     chromlen = len(seq)
@@ -80,9 +85,12 @@ def make_signal_estimate(params):
         y_hat = model.predict(np.array(chunks))
         for idx, val in zip(positions, y_hat):
             est_sig[idx:idx+res] = val
+    print('Smoothing {}'.format(chrom))
     if not params['nosmooth']:
         est_sig = smooth_signal_estimate(est_sig, res)
-    return mypid, params['chrom'], est_sig
+    print(chrom)
+    print(type(est_sig))
+    return chrom, est_sig
 
 
 def assemble_params_estsig(args):
@@ -118,15 +126,13 @@ def run_estimate_signal(logger, args):
     """
     logger.debug('Assembling worker parameters')
     arglist = assemble_params_estsig(args)
-    with pd.HDFStore(args.outputfile, 'w', complevel=9, complib='blosc') as hdfout:
-        if 'metadata' in hdfout:
-            metadata = hdfout['metadata']
-        else:
-            metadata = pd.DataFrame(columns=MD_SIGNAL_COLDEFS)
+    logger.debug('Created parameter list of size {}'.format(len(arglist)))
+    with pd.HDFStore(args.outputfile, 'w', complevel=9, complib='blosc', encoding='utf-8') as hdfout:
+        metadata = pd.DataFrame(columns=MD_SIGNAL_COLDEFS)
         with mp.Pool(args.workers) as pool:
             logger.debug('Start processing...')
-            mapres = pool.imap_unordered(make_signal_estimate, arglist, chunksize=1)
-            for chrom, valobj in mapres:
+            resit = pool.imap_unordered(make_signal_estimate, arglist, chunksize=1)
+            for chrom, valobj in resit:
                 logger.debug('Processed chromosome {}'.format(chrom))
                 group, valobj, metadata = gen_obj_and_md(metadata, args.outputgroup, chrom, args.inputfile, valobj)
                 hdfout.put(group, valobj, format='fixed')

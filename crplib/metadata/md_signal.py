@@ -36,7 +36,7 @@ def gen_obj_and_md(mdframe, group, chrom, srcfiles, datavals):
     dataobj = pd.Series(datavals, dtype='float64')
     size_mem = dataobj.nbytes / DIV_B_TO_MB
     datalen = dataobj.size
-    entries = [group, chrom, mtime, int(size_mem), datalen, tmpsrc]
+    entries = [group, chrom, mtime, int(size_mem), int(datalen), tmpsrc]
     entries.extend(list(pct_scores))
     upd_idx = update_metadata_index(mdframe, group)
     if upd_idx is not None:

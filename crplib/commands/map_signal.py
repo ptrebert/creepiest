@@ -43,7 +43,7 @@ def get_alignment_blocks(chainfile, chroms, chromre, logger):
     check_target = re.compile(chromre)
     read_targets = set()
     read_queries = set()
-    with opn(chainfile, mode) as cf:
+    with opn(chainfile, mode=mode, encoding='ascii') as cf:
         # TODO eventually
         # right now, chain iterator can only filter for one or all targets
         # not for several... could be changed
@@ -97,32 +97,30 @@ def run_map_signal(args):
     step = args.allocate
     _ = create_filepath(args.outputfile, logger)
     logger.debug('Processing {} chromosomes at a time'.format(step))
-    for idx in range(0, len(csizes), step):
-        try:
-            proc_chroms = csizes[idx:idx+step]
-        except IndexError:
-            proc_chroms = csizes[idx:]
-        logger.debug('Processing chromosomes: {}'.format(proc_chroms))
-        alnblocks = get_alignment_blocks(args.chainfile, proc_chroms, args.keepchroms, logger)
-        if not alnblocks:
-            logger.warning('No alignment blocks for query chromosomes: {}'.format(proc_chroms))
-        else:
-            logger.debug('Read {} alignment blocks from chain file'.format(len(alnblocks)))
-        logger.debug('Allocating memory for mapped signal')
-        chroms = allocate_chrom_arrays(proc_chroms)
-        logger.debug('Mapping signal data')
-        chroms = map_signal_data(args.inputfile, args.inputgroup, alnblocks, chroms)
-        logger.debug('Mapping complete')
-        with pd.HDFStore(args.outputfile, 'w', complib='blosc', complevel=9) as hdfout:
-            if 'metadata' in hdfout:
-                metadata = hdfout['metadata']
+    with pd.HDFStore(args.outputfile, 'w', complib='blosc', complevel=9, encoding='utf-8') as hdfout:
+        metadata = pd.DataFrame(columns=MD_SIGNAL_COLDEFS)
+        for idx in range(0, len(csizes), step):
+            try:
+                proc_chroms = csizes[idx:idx+step]
+            except IndexError:
+                proc_chroms = csizes[idx:]
+            logger.debug('Processing chromosomes: {}'.format(proc_chroms))
+            alnblocks = get_alignment_blocks(args.chainfile, proc_chroms, args.keepchroms, logger)
+            if not alnblocks:
+                logger.warning('No alignment blocks for query chromosomes: {}'.format(proc_chroms))
             else:
-                metadata = pd.DataFrame(columns=MD_SIGNAL_COLDEFS)
+                logger.debug('Read {} alignment blocks from chain file'.format(len(alnblocks)))
+            logger.debug('Allocating memory for mapped signal')
+            chroms = allocate_chrom_arrays(proc_chroms)
+            logger.debug('Mapping signal data')
+            chroms = map_signal_data(args.inputfile, args.inputgroup, alnblocks, chroms)
+            logger.debug('Mapping complete')
             for chrom, valobj in chroms.items():
                 logger.debug('Saving mapped signal for chromosome {}'.format(chrom))
                 grp, valobj, metadata = gen_obj_and_md(metadata, args.outputgroup, chrom, args.inputfile, valobj)
                 hdfout.put(grp, valobj, format='fixed')
                 hdfout.flush()
-            hdfout.put('metadata', metadata, format='table')
-            hdfout.flush()
+        assert len(hdfout.keys()) >= len(csizes), 'Signal mapping incomplete: {}'.format(hdfout.keys())
+        hdfout.put('metadata', metadata, format='table')
+        hdfout.flush()
     return 0

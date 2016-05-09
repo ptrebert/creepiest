@@ -27,7 +27,7 @@ def build_motifmap(fpath, dbfmt):
     """
     opn, mode = text_file_mode(fpath)
     if dbfmt == 'list':
-        with opn(fpath, mode) as infile:
+        with opn(fpath, mode=mode, encoding='ascii') as infile:
             motifs = infile.read().strip().split()
             motifmap = dict((m, m) for m in motifs)
     elif dbfmt == 'map':
@@ -76,7 +76,7 @@ def process_merged_file(params):
     motifmap = params['motifmap']
     getcounts = op.itemgetter(*tuple(sorted(motifmap.keys())))
     opn, mode = text_file_mode(params['inputfile'])
-    with opn(params['inputfile'], mode) as infile:
+    with opn(params['inputfile'], mode=mode, encoding='ascii') as infile:
         tfmit = get_binned_motifs_iterator(infile)
         chrom_counts = []
         chrom_indices = []
@@ -108,7 +108,7 @@ def process_split_files(params):
     motifmap = params['motifmap']
     getcounts = op.itemgetter(*tuple(sorted(motifmap.keys())))
     opn, mode = text_file_mode(params['inputfile'])
-    with opn(params['inputfile'], mode) as infile:
+    with opn(params['inputfile'], mode=mode, encoding='ascii') as infile:
         tfmit = get_binned_motifs_iterator(infile)
         chrom_counts = []
         chrom_indices = []
@@ -154,7 +154,7 @@ def run_motifdb_conversion(args, logger):
     logger.debug('Start processing...')
     tempfiles = []
     try:
-        with pd.HDFStore(args.outputfile, 'w', complib='blosc', complevel=9) as hdfout:
+        with pd.HDFStore(args.outputfile, 'w', complib='blosc', complevel=9, encoding='utf-8') as hdfout:
             chroms_seen = set()
             with mp.Pool(args.workers) as pool:
                 if len(arglist) == 1:

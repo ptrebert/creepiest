@@ -7,6 +7,7 @@
 "oob_score": false
 },
 "cvtune": {
+"scoring": "r2_score",
 "min_samples_split": [
 2,
 6,
