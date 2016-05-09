@@ -93,4 +93,19 @@ def build_pipeline(args, config, sci_obj):
                              output=os.path.join(genome_temp, '{ASSEMBLY[0]}_{CHROM[0]}.ovl.gz'),
                              extras=[cmd, jobcall]).follows(windows)
 
+    sci_obj.set_config_env(dict(config.items('ParallelJobConfig')), dict(config.items('EnvConfig')))
+    if args.gridmode:
+        jobcall = sci_obj.ruffus_gridjob()
+    else:
+        jobcall = sci_obj.ruffus_localjob()
+
+    cmd = config.get('Pipeline', 'convert')
+    regexp = '(?P<ASSEMBLY>\w+)_(?P<CHROM>chr[0-9]+)\.ovl\.gz'
+    convert = pipe.collate(task_func=sci_obj.get_jobf('ins_out'),
+                           name='convert',
+                           input=output_from(overlap),
+                           filter=formatter(regexp),
+                           output=os.path.join(genome_temp, '{ASSEMBLY[0]}_JASPAR_VertCore_2016.h5'),
+                           extras=[cmd, jobcall])
+
     return pipe

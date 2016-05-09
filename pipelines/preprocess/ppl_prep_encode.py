@@ -52,6 +52,8 @@ def link_encode_files(mdfile, jsfile, indir, trgdir):
                     pass
                 elif not mark.strip() and r['Assay'] == 'DNase-seq':
                     mark = 'DNaseI'
+                    continue  # 2016-04-29: ignore DNase for now; problem with selecting appropriate
+                    # peak sizes; for histone data, filter < 200bp
                 else:
                     continue  # ignore others for now
                 expid = r['Experiment accession']
@@ -178,6 +180,24 @@ def build_pipeline(args, config, sci_obj):
                            filter=formatter(regexp),
                            output=os.path.join(outdir, '{DSID[0]}_{ASSEMBLY[0]}_{CELL[0]}_{DTYPE[0]}_{LAB[0]}.srcpk.h5'),
                            extras=[cmd, jobcall]).mkdir(outdir)
+
+    sci_obj.set_config_env(dict(config.items('ParallelJobConfig')), dict(config.items('EnvConfig')))
+    if args.gridmode:
+        jobcall = sci_obj.ruffus_gridjob()
+    else:
+        jobcall = sci_obj.ruffus_localjob()
+
+    # ENCDS059CRP_mm9_MEL_H3K27ac_L08.srcpk.h5
+    regexp = '(?P<DSID>ENCDS[0-9]+CRP)_(?P<ASSEMBLY>[a-zA-Z0-9]+)_' \
+             '(?P<CELL>[0-9A-Za-z]+)_(?P<DTYPE>H3K[0-9A-Za-z]+)_(?P<LAB>L[0-9]+)\.srcpk\.h5'
+    cmd = config.get('Pipeline', 'matchbed').replace('\n', ' ')
+    matchbed = pipe.transform(task_func=sci_obj.get_jobf('in_out'),
+                              name='matchbed',
+                              input=output_from(convbed),
+                              filter=formatter(regexp),
+                              output=os.path.join(outdir, '{DSID[0]}_{ASSEMBLY[0]}_{CELL[0]}_{DTYPE[0]}_{LAB[0]}.fgbg_pk.h5'),
+                              extras=[cmd, jobcall])
+
 
     cmd = config.get('Pipeline', 'runall')
     runall = pipe.merge(task_func=sci_obj.get_jobf('ins_out'),
