@@ -60,7 +60,7 @@ def start_relaxed_search(nntree, chromseq, mask, compfeat, featselect, limits, p
         for pos in rand_pos:
             halflen = rng.randint(minlen, maxlen)
             s, e = pos - halflen, pos + halflen
-            if s < 0:  # might happen if looking for matches for large peaks
+            if s < 0 or e > len(chromseq):  # might happen if looking for matches for large peaks
                 continue
             if mask[s:e].any():
                 continue
