@@ -43,6 +43,23 @@ FEAT_DIST_KURT = 'ftdst_abs_kurt_'
 FEAT_MAPSIG_PREFIX = 'ftmsig_'
 
 
+def _format_malformed_region(reg):
+    """ Remove unnecessary information from
+    region upon error
+    :param reg:
+    :return:
+    """
+    infos = []
+    for k, v in reg.items():
+        if k == FEAT_LENGTH or k == FEAT_RELLENGTH:
+            infos.append((k, v))
+            continue
+        if k.startswith('ft'):
+            continue
+        infos.append((k, v))
+    return sorted(infos)
+
+
 def _get_feat_fun_map():
     feat_fun_map = {'len': feat_region_length,
                     'prm': feat_coreprom_motifs,
@@ -117,7 +134,7 @@ def feat_region_length(yardstick, region):
     :return:
     """
     reglen = region['end'] - region['start']
-    assert reglen > 0, 'Malformed genomic region (length): {}'.format(region)
+    assert reglen > 0, 'Malformed genomic region (len): {}'.format(_format_malformed_region(region))
     if yardstick > 0:
         region[FEAT_RELLENGTH] = reglen / yardstick * 100
     else:
@@ -132,7 +149,7 @@ def feat_repetitive_content(region):
     """
     tmpseq = region['seq']
     seqlen = len(tmpseq)
-    assert seqlen > 0, 'Malformed region: {}'.format(region)
+    assert seqlen > 0, 'Malformed genomic region (len): {}'.format(_format_malformed_region(region))
     repmasked = tmpseq.count('a') + tmpseq.count('c') + tmpseq.count('g') + tmpseq.count('t')
     region[FEAT_REPCONT] = (repmasked / seqlen) * 100.
     return region
@@ -207,7 +224,7 @@ def feat_gc_content(region):
     """
     seq = region['seq'].lower()
     seqlen = len(seq)
-    assert seqlen > 0, 'Malformed region: {}'.format(region)
+    assert seqlen > 0, 'Malformed genomic region (len): {}'.format(_format_malformed_region(region))
     total_G = seq.count('g')
     total_C = seq.count('c')
     region[FEAT_GC] = ((total_G + total_C) / seqlen) * 100.
@@ -221,7 +238,7 @@ def feat_cpg_content(region):
     """
     seq = region['seq'].lower()
     seqlen = len(seq)
-    assert seqlen > 0, 'Malformed region: {}'.format(region)
+    assert seqlen > 0, 'Malformed genomic region (len): {}'.format(_format_malformed_region(region))
     total_CpG = seq.count('cg')
     region[FEAT_CPG] = (total_CpG / (seqlen / 2.)) * 100.
     return region
@@ -234,7 +251,7 @@ def feat_oecpg_content(region):
     """
     seq = region['seq'].lower()
     seqlen = len(seq)  # for division
-    assert seqlen > 0, 'Malformed region: {}'.format(region)
+    assert seqlen > 0, 'Malformed genomic region (len): {}'.format(_format_malformed_region(region))
     total_G = seq.count('g')
     total_C = seq.count('c')
     total_CpG = seq.count('cg')
@@ -277,11 +294,11 @@ def feat_coreprom_motifs(region):
     tmpseq = region['seq'].upper()
     try:
         reglen = region[FEAT_LENGTH]
-        assert len(tmpseq) == reglen, 'Malformed genomic region (length): {}'.format(region)
+        assert len(tmpseq) == reglen, 'PRM-I: malformed region (len): {}'.format(_format_malformed_region(region))
     except KeyError:
         try:
             reglen = region['end'] - region['start']
-            assert len(tmpseq) == reglen, 'Malformed genomic region (length): {}'.format(region)
+            assert len(tmpseq) == reglen, 'PRM-II: malformed region (len): {}'.format(_format_malformed_region(region))
         except KeyError:
             reglen = len(tmpseq)
     for name, motifre in core_motifs:
