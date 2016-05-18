@@ -214,6 +214,7 @@ def _add_train_command(subparsers):
                           help='Full path to model specification in JSON format.')
     comgroup.add_argument('--no-tuning', '-nt', action='store_true', default=False, dest='notuning',
                           help='Do not search for better model parameters via cross validation. Default: False')
+    comgroup.add_argument('--only-features', '-oft', type=str, nargs='+', default=[], dest='onlyfeatures')
     comgroup.add_argument('--cv-folds', '-fld', type=int, default=10, dest='cvfolds',
                           help='Number of folds in cross validation. Default: 10')
     comgroup.add_argument('--model-output', '-mo', type=str, dest='modelout',
@@ -285,22 +286,9 @@ def _add_apply_command(subparsers):
     parser_apply = subparsers.add_parser('apply',
                                          help='Apply a trained model to a dataset',
                                          description='... to be updated ...')
-    parser_apply.add_argument('--task', '-t', type=str, choices=['estsig'], dest='task',
+    parser_apply.add_argument('--task', '-t', type=str, choices=['estsig', 'clsreg'], dest='task',
                               help='Specify task')
     comgroup = parser_apply.add_argument_group('General parameters')
-    comgroup.add_argument('--model-file', '-mdf', type=str, required=True, dest='modelfile',
-                          help='Specify full path to model file produced with train command.')
-    comgroup.add_argument('--model-metadata', type=str, default='', dest='modelmetadata',
-                          help='Path to JSON file with model metadata. If left empty, use the same'
-                               ' path as for the model file and replace extension with ".json".'
-                               ' Default: <empty>')
-    comgroup.add_argument('--seq-file', '-seq', type=str, required=True, dest='seqfile',
-                          help='Full path to genomic sequence file in 2bit format.')
-    comgroup.add_argument('--target-index', '-idx', type=str, default='', dest='targetindex',
-                          help='Full path to target index created with "convert" command.'
-                               ' Only required for task "cons". Default: <empty>')
-    comgroup.add_argument('--no-smoothing', '-nosm', action='store_true', default=False, dest='nosmooth',
-                          help='Do no smooth signal estimate at the end. Default: False')
     comgroup.add_argument('--input', '-i', type=str, required=True, dest='inputfile',
                           help='Full path to input file in HDF5 format.')
     comgroup.add_argument('--input-group', '-ig', type=str, default='', dest='inputgroup',
@@ -309,6 +297,25 @@ def _add_apply_command(subparsers):
                           help='Full path to output file in HDF5 format.')
     comgroup.add_argument('--output-group', '-og', type=str, default='', dest='outputgroup',
                           help='Group root path for output. Default: <empty>')
+    comgroup.add_argument('--model-file', '-mdf', type=str, required=True, dest='modelfile',
+                          help='Specify full path to model file produced with train command.')
+    comgroup.add_argument('--model-metadata', '-mdd', type=str, default='', dest='modelmetadata',
+                          help='Path to JSON file with model metadata. If left empty, use the same'
+                               ' path as for the model file and replace extension with ".json".'
+                               ' Default: <empty>')
+
+    comgroup = parser_apply.add_argument_group('Classify regions parameters')
+    comgroup.add_argument('--class-labels', '-cll', type=str, default='', dest='classlabels')
+
+    comgroup = parser_apply.add_argument_group('Estimate signal parameters')
+    comgroup.add_argument('--seq-file', '-seq', type=str, dest='seqfile',
+                          help='Full path to genomic sequence file in 2bit format.')
+    comgroup.add_argument('--target-index', '-idx', type=str, default='', dest='targetindex',
+                          help='Full path to target index created with "convert" command.'
+                               ' Only required for task "cons". Default: <empty>')
+    comgroup.add_argument('--no-smoothing', '-nosm', action='store_true', default=False, dest='nosmooth',
+                          help='Do no smooth signal estimate at the end. Default: False')
+
     parser_apply.set_defaults(execute=_apply_execute)
     return subparsers
 
@@ -336,6 +343,7 @@ def _add_correlation_command(subparsers):
                           help='Specify task...')
     comgroup.add_argument('--measure', '-ms', type=str, choices=['pearson', 'spearman', 'r2'], nargs='+',
                           required=True, dest='measure', help='Specify statistic(s) to compute')
+    comgroup.add_argument('--roi-file', '-roi', type=str, dest='roifile')
     comgroup.add_argument('--target-index', '-idx', type=str, default='', dest='targetindex',
                           help='Full path to target index created with "convert" command.'
                                ' Only required for task "cons". Default: <empty>')

@@ -16,6 +16,7 @@ from sklearn import metrics as sklmet
 
 from crplib.auxiliary.hdf_ops import get_valid_hdf5_groups
 from crplib.auxiliary.file_ops import create_filepath
+from crplib.mlfeat.featdef import get_prefix_list
 
 
 def train_nocv(model, params, traindata, outputs):
@@ -50,7 +51,7 @@ def train_gridcv(model, params, traindata, outputs, folds, njobs):
     return tune_model
 
 
-def load_training_data(filepath, prefix):
+def load_training_data(filepath, prefix, onlyfeatures):
     """
     :param filepath:
     :param prefix:
@@ -69,6 +70,12 @@ def load_training_data(filepath, prefix):
         res = res.values[0]
     outputs = pd.Series(full_dset.loc[:, 'y_depvar'])
     feat_order = sorted([ft for ft in full_dset.columns if ft.startswith('ft')])
+    assert feat_order, 'No features selected from column names: {}'.format(full_dset.columns)
+    if onlyfeatures:
+        prefixes = get_prefix_list(onlyfeatures)
+        feat_order = filter(lambda x: any([x.startswith(p) for p in prefixes]), feat_order)
+        assert feat_order, 'No features left after filtering for: {}'.format(onlyfeatures)
+        ft_classes = onlyfeatures
     traindata = full_dset.loc[:, feat_order]
     return ft_classes, ft_kmers, res, feat_order, traindata, outputs
 
@@ -117,7 +124,7 @@ def run_train_model(args):
     model_params = json.load(open(args.modelspec))
     model = load_model(model_params['model_name'], model_params['module_path'])
     logger.debug('Loading training data')
-    ft_classes, ft_kmers, res, feat_order, traindata, outputs = load_training_data(args.traindata, args.traingroup)
+    ft_classes, ft_kmers, res, feat_order, traindata, outputs = load_training_data(args.traindata, args.traingroup, args.onlyfeatures)
     logger.debug('Training model')
     if args.notuning:
         params = model_params['default']

@@ -33,6 +33,7 @@ FEAT_COREPROM_PREFIX = 'ftprm_pct_'
 FEAT_TFMOTIF_PREFIX = 'fttfm_pct_'
 
 # all features for signal regression
+# distribution features are (atm) no longer supported
 FEAT_DIST_MEAN = 'ftdst_abs_mean_'
 FEAT_DIST_VAR = 'ftdst_abs_var_'
 FEAT_DIST_MIN = 'ftdst_abs_min_'
@@ -55,6 +56,9 @@ def _format_malformed_region(reg):
             infos.append((k, v))
             continue
         if k.startswith('ft'):
+            continue
+        if k == 'seq':
+            infos.append((k, 'seq len: {}'.format(len(v))))
             continue
         infos.append((k, v))
     return sorted(infos)
@@ -87,6 +91,22 @@ def _make_kmer_dict(k, alphabet='ACGTN'):
         except StopIteration:
             break
     return kmers
+
+
+def get_prefix_list(features):
+    """
+    :param features:
+    :return:
+    """
+    feat_prefix_map = {'len': [FEAT_LENGTH, FEAT_RELLENGTH], 'prm': [FEAT_COREPROM_PREFIX],
+                       'gc': [FEAT_GC], 'cpg': [FEAT_CPG], 'oecpg': [FEAT_OECPG],
+                       'rep': [FEAT_REPCONT], 'kmf': [FEAT_KMERFREQ_PREFIX], 'tfm': [FEAT_TFMOTIF_PREFIX],
+                       'msig': [FEAT_MAPSIG_PREFIX]}
+    relevant_prefixes = []
+    for k, v in feat_prefix_map.items():
+        if k in features:
+            relevant_prefixes.extend(v)
+    return relevant_prefixes
 
 
 def check_online_available(reqfeat):
