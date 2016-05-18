@@ -28,7 +28,7 @@ def get_valid_hdf5_groups(filepath, prefix):
         prefix = '/' + prefix
     with pd.HDFStore(filepath, 'r') as hdf:
         groups = [grp for grp in hdf.keys() if grp.startswith(prefix)]
-    return groups
+    return sorted(groups)
 
 
 def get_valid_chrom_group(filepath, chrom):
