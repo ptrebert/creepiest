@@ -73,7 +73,7 @@ def load_training_data(filepath, prefix, onlyfeatures):
     assert feat_order, 'No features selected from column names: {}'.format(full_dset.columns)
     if onlyfeatures:
         prefixes = get_prefix_list(onlyfeatures)
-        feat_order = filter(lambda x: any([x.startswith(p) for p in prefixes]), feat_order)
+        feat_order = list(filter(lambda x: any([x.startswith(p) for p in prefixes]), feat_order))
         assert feat_order, 'No features left after filtering for: {}'.format(onlyfeatures)
         ft_classes = onlyfeatures
     traindata = full_dset.loc[:, feat_order]
