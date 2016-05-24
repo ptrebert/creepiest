@@ -21,7 +21,8 @@ OUTPUTS = ['peaks', 'signal', 'raw signal', 'base overlap signal',
 
 DL_FOLDER = '/TL/deep/fhgfs/projects/pebert/thesis/biodata/dlfolder/encode'
 
-MDFILE = '/home/pebert/work/code/mpggit/creepiest/datasrc/encode/20160211_ENCODE_metadata.tsv'
+#MDFILE = '/home/pebert/work/code/mpggit/creepiest/datasrc/encode/20160211_ENCODE_metadata.tsv'
+MDFILE = '/home/pebert/work/code/mpggit/creepiest/datasrc/encode/20160524_ENCODE_metadata_merged.tsv'
 LISTFILE = '/TL/deep/fhgfs/projects/pebert/thesis/biodata/dlfolder/listing_encode.txt'
 
 # end of config
