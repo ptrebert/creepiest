@@ -42,3 +42,8 @@ Note 2016-05-24
 * Discovered that mouse (mm9) expression data is mostly listed under assay type "polyA mRNA RNA-seq"
  as opposed to the regular "RNA-seq"; though, in the metadata file, the assay is given as "RNA-seq";
  downloaded additional metadata file for mm9/expression (single ended, all read lengths)
+ 
+Note 2016-05-25
+
+* The expression data for hg19 (SE libraries) are missing quantifications beyond the exon level; downloaded
+ additional metadata/files (PE libraries) to get expression estimates on gene level
