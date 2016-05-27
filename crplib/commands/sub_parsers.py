@@ -150,7 +150,7 @@ def _add_traindata_command(subparsers):
     parser_traindata = subparsers.add_parser('traindata',
                                              help='Generate training data',
                                              description='...to be updated...')
-    parser_traindata.add_argument('--task', '-tk', type=str, choices=['regsig', 'clsreg'], dest='task')
+    parser_traindata.add_argument('--task', '-tk', type=str, choices=['regsig', 'clsreg', 'scnreg'], dest='task')
     comgroup = parser_traindata.add_argument_group('General parameters')
     comgroup.add_argument('--input', '-i', type=str, required=True, dest='inputfile')
     comgroup.add_argument('--output', '-o', type=str, dest='outputfile')

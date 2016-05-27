@@ -42,6 +42,7 @@ FEAT_DIST_SKEW = 'ftdst_abs_skew_'
 FEAT_DIST_KURT = 'ftdst_abs_kurt_'
 
 FEAT_MAPSIG_PREFIX = 'ftmsig_'
+FEAT_ROI_PREFIX = 'ftroi_'
 
 
 def _format_malformed_region(reg):
@@ -369,6 +370,63 @@ def feat_mapsig(sample, infix=''):
     ret[FEAT_MAPSIG_PREFIX + infix + 'abs_max'] = cons_max
     ret[FEAT_MAPSIG_PREFIX + infix + 'abs_min'] = cons_min
     return ret
+
+
+def _feat_roi_default(infix, quantify):
+    """
+    :param infix:
+    :param quantify:
+    :return:
+    """
+    feats = {}
+    if len(quantify & {'binary', 'all'}) > 0:
+        feats.update({FEAT_ROI_PREFIX + infix + 'bin_obs': 0})
+    if len(quantify & {'density', 'all'}) > 0:
+        feats.update({FEAT_ROI_PREFIX + infix + 'pct_dens': 0.0})
+    if len(quantify & {'coverage', 'all'}) > 0:
+        feats.update({FEAT_ROI_PREFIX + infix + 'pct_cov': 0.0})
+    return feats
+
+
+def feat_roi(regions, rois, infix='', quantify={'all'}):
+    """
+    :param regions:
+    :param rois:
+    :param infix:
+    :param quantify:
+    :return:
+    """
+    if infix and not infix.endswith('_'):
+        infix += '_'
+    default = _feat_roi_default(infix, quantify)
+    regions = [reg.update(default) for reg in regions]
+    for reg in regions:
+        ovl = rois.query('start < {} and end > {}'.format(reg['end'], reg['start']))
+        if ovl.empty:
+            continue
+        s, e = reg['start'], reg['end']
+        reglen = e - s
+        ovl.assign(bpcov=lambda r: min(r.end, e) - max(r.start, s))
+        if 'all' in quantify:
+            reg[FEAT_ROI_PREFIX + infix + 'bin_obs'] = 1
+            reg[FEAT_ROI_PREFIX + infix + 'pct_dens'] = ovl.shape[0] / reglen * 100.
+            tot_cov = ovl.bpcov.sum()
+            reg[FEAT_ROI_PREFIX + infix + 'pct_cov'] = tot_cov / reglen * 100.
+        else:
+            try:
+                reg[FEAT_ROI_PREFIX + infix + 'bin_obs'] = 1
+            except KeyError:
+                pass
+            try:
+                reg[FEAT_ROI_PREFIX + infix + 'pct_dens'] = ovl.shape[0] / reglen * 100.
+            except KeyError:
+                pass
+            try:
+                tot_cov = ovl.bpcov.sum()
+                reg[FEAT_ROI_PREFIX + infix + 'pct_cov'] = tot_cov / reglen * 100.
+            except KeyError:
+                pass
+    return regions
 
 
 def _weighted_motifs(row, start, end, binsize):

@@ -15,11 +15,10 @@ import pandas as pd
 from crplib.metadata.md_traindata import gen_obj_and_md, MD_TRAINDATA_COLDEFS
 from crplib.auxiliary.hdf_ops import load_masked_sigtrack, get_valid_hdf5_groups, \
     get_trgindex_groups, get_valid_chrom_group
-from crplib.auxiliary.text_parsers import read_chromosome_sizes
 from crplib.auxiliary.file_ops import create_filepath
 from crplib.auxiliary.seq_parsers import get_twobit_seq, add_seq_regions
 from crplib.mlfeat.featdef import feat_mapsig, feat_tf_motifs,\
-    get_online_version, check_online_available
+    get_online_version, check_online_available, feat_roi
 from crplib.auxiliary.constants import CHROMOSOME_BOUNDARY
 
 
@@ -61,6 +60,46 @@ def sample_signal_traindata(params):
     return chrom, samples
 
 
+def add_signal_features(samples, params):
+    """
+    :param samples:
+    :param params:
+    :return:
+    """
+    siglabels = params['siglabels']
+    sigfiles = params['sigfiles']
+    siggroups = params['siggroups']
+    chrom = params['chrom']
+    index_groups = get_trgindex_groups(params['targetindex'], '')
+    with pd.HDFStore(params['targetindex'], 'r') as idx:
+        mask = idx[index_groups[chrom]['mask']]
+    mapfeat = feat_mapsig
+    for sgf in sigfiles:
+        this_group = siggroups[sgf]
+        this_label = siglabels[sgf]
+        signal = load_masked_sigtrack(sgf, '', this_group, chrom, mask=mask)
+        for smp in samples:
+            smp.update(mapfeat(signal[smp['start']:smp['end']], this_label))
+    return samples
+
+
+def add_roi_features(samples, params):
+    """
+    :param samples:
+    :param params:
+    :return:
+    """
+    roilabels = params['roilabels']
+    roifiles = params['roifiles']
+    roigroups = params['roigroups']
+    roifeat = feat_roi
+    for rf in roifiles:
+        with pd.HDFStore(rf, 'r') as hdf:
+            rois = hdf[roigroups[rf]]
+            samples = roifeat(samples, rois, roilabels[rf], params['roiquant'])
+    return samples
+
+
 def get_region_traindata(params):
     """
     :param params:
@@ -96,24 +135,73 @@ def get_region_traindata(params):
             pos_samples = feat_tf_motifs(pos_samples, tfdata)
             neg_samples = feat_tf_motifs(neg_samples, tfdata)
     if 'msig' in params['features']:
-        assert params['signallabel'], 'Need a signal label for feature msig'
-        label = params['signallabel']
-        index_groups = get_trgindex_groups(params['targetindex'], '')
-        with pd.HDFStore(params['targetindex'], 'r') as idx:
-            mask = idx[index_groups[chrom]['mask']]
-        if not params['signalgroup']:
-            signal = load_masked_sigtrack(params['signalfile'], '', '', chrom, mask=mask)
-        else:
-            signal = load_masked_sigtrack(params['signalfile'], '', params['signalgroup'], chrom, mask=mask)
-        mapfeat = feat_mapsig
-        for pos, neg in zip(pos_samples, neg_samples):
-            pos.update(mapfeat(signal[pos['start']:pos['end']], label))
-            neg.update(mapfeat(signal[neg['start']:neg['end']], label))
+        pos_samples = add_signal_features(pos_samples, params)
+        neg_samples = add_signal_features(neg_samples, params)
     pos_samples = rebuild_dataframe(pos_samples)
     neg_samples = rebuild_dataframe(neg_samples)
     posgrp = params['posoutgroup']
     neggrp = params['negoutgroup']
     return chrom, pos_samples, posgrp, neg_samples, neggrp
+
+
+def prep_scan_regions(params):
+    """
+    :param params:
+    :return:
+    """
+    chrom = params['chrom']
+    with pd.HDFStore(params['inputfile'], 'r') as hdfin:
+        samples = hdfin[params['inputgroup']]
+        cleanup = [c for c in samples.columns if c.startswith('ft')]
+        samples.drop(cleanup, axis='columns', inplace=True)
+        if params['window'] > 0:
+            assert 'name' in samples.columns,\
+                'Need name column to perform sliding window scan - file {}'.format(params['inputfile'])
+            assert samples.name.unique().size == samples.name.size,\
+                'Region names have to be unique per chromosome - file {}'.format(params['inputfile'])
+        samples = samples.to_dict('record')
+    if params['addseq']:
+        assert os.path.isfile(params['seqfile']), 'Invalid path to sequence file: {}'.format(params['seqfile'])
+        samples = add_seq_regions(samples, params['seqfile'], chrom)
+    if params['window'] > 0:
+        assert params['step'] > 0,\
+            'Step size invalid, cannot proceed: {} (window: {})'.format(params['step'], params['window'])
+        samples = split_regions(samples, params['window'], params['step'])
+    if len(check_online_available(params['features'])) > 0:
+        compfeat = get_online_version(params['features'], params['kmers'])
+        samples = list(map(compfeat, samples))
+    if 'tfm' in params['features']:
+        assert os.path.isfile(params['tfmotifs']), 'Invalid path to TF motifs file specified: {}'.format(params['tfmotifs'])
+        with pd.HDFStore(params['tfmotifs'], 'r') as tffile:
+            chrgroup = get_valid_chrom_group(params['tfmotifs'], chrom)
+            tfdata = tffile[chrgroup]
+            samples = feat_tf_motifs(samples, tfdata)
+    if 'msig' in params['features']:
+        samples = add_signal_features(samples, params)
+    samples = rebuild_dataframe(samples)
+    outgroup = params['outgroup']
+    return chrom, samples, outgroup
+
+
+def split_regions(samples, window, stepsize):
+    """
+    :param samples:
+    :param params:
+    :return:
+    """
+    subsamples = []
+    # this is just to avoid running over the end
+    # if "gapped" windows are required at some point,
+    # need to check subsamples
+    assert window >= stepsize, 'Step sizes larger than window not supported: {} < {}'.format(window, stepsize)
+    for smp in samples:
+        e = smp['end'] // window * window
+        seq = smp['seq']
+        offset = smp['start']
+        for idx in range(smp['start'], e, stepsize):
+            subsamples.append({'source': smp['name'], 'start': idx, 'end': idx + window,
+                               'seq': seq[idx - offset:idx + window - offset]})
+    return subsamples
 
 
 def rebuild_dataframe(samples):
