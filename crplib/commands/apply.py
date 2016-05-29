@@ -5,6 +5,7 @@ Module to apply a previously trained model to estimate the epigenome
 for a specific cell type in a different species
 """
 
+import os as os
 import pandas as pd
 import numpy as np
 import operator as op
@@ -13,6 +14,8 @@ import json as json
 import pickle as pck
 
 from scipy.interpolate import LSQUnivariateSpline as kspline
+
+from sklearn.metrics import accuracy_score, f1_score, roc_auc_score
 
 from crplib.auxiliary.seq_parsers import get_twobit_seq
 from crplib.auxiliary.hdf_ops import load_masked_sigtrack, get_valid_hdf5_groups, get_trgindex_groups
@@ -85,11 +88,8 @@ def make_signal_estimate(params):
         y_hat = model.predict(np.array(chunks))
         for idx, val in zip(positions, y_hat):
             est_sig[idx:idx+res] = val
-    print('Smoothing {}'.format(chrom))
     if not params['nosmooth']:
         est_sig = smooth_signal_estimate(est_sig, res)
-    print(chrom)
-    print(type(est_sig))
     return chrom, est_sig
 
 
@@ -99,11 +99,7 @@ def assemble_params_estsig(args):
     :return:
     """
     all_groups = get_valid_hdf5_groups(args.inputfile, args.inputgroup)
-    if not args.modelmetadata:
-        fpath_md = args.modelfile.rsplit('.', 1)[0] + '.json'
-    else:
-        fpath_md = args.modelmetadata
-    model_md = json.load(open(fpath_md, 'r'))
+    model_md = load_model_metadata(args)
     commons = {'modelfile': args.modelfile, 'resolution': int(model_md['resolution']),
                'seqfile': args.seqfile, 'targetindex': args.targetindex, 'inputfile': args.inputfile,
                'inputgroup': args.inputgroup, 'features': model_md['features'],
@@ -145,6 +141,86 @@ def run_estimate_signal(logger, args):
     return 0
 
 
+def load_model_metadata(args):
+    """
+    :param args:
+    :return:
+    """
+    if not args.modelmetadata:
+        fpath_md = args.modelfile.rsplit('.', 1)[0] + '.json'
+    else:
+        fpath_md = args.modelmetadata
+    model_md = json.load(open(fpath_md, 'r'))
+    return model_md
+
+
+def load_region_data(fpath, groups, features, labelcol):
+    """
+    :param fpath:
+    :param groups:
+    :param features:
+    :param labelcol:
+    :return:
+    """
+
+    with pd.HDFStore(fpath, 'r') as hdf:
+        full_dataset = pd.concat([hdf[grp] for grp in groups], ignore_index=True)
+        if labelcol in full_dataset.columns:
+            classlabels = full_dataset.loc[:, labelcol].astype(np.int32, copy=False)
+        else:
+            classlabels = None
+        dataset = full_dataset.loc[:, features]
+    return dataset, classlabels
+
+
+def run_classify_regions(logger, args):
+    """
+    :param logger:
+    :param args:
+    :return:
+    """
+    logger.debug('Loading model metadata')
+    model_md = load_model_metadata(args)
+    logger.debug('Loading model')
+    model = pck.load(open(args.modelfile, 'rb'))
+    feat_order = model_md['feature_order']
+    load_groups = get_valid_hdf5_groups(args.inputfile, args.inputgroup)
+    logger.debug('Loading region dataset')
+    dataset, class_true = load_region_data(args.inputfile, load_groups, feat_order, args.classlabels)
+    logger.debug('Loaded dataset of size {}'.format(dataset.shape))
+    y_pred = model.predict(dataset)
+    y_prob = model.predict_proba(dataset)
+    class_order = list(map(int, model.classes_))
+    if class_true is not None:
+        # to serialize this to JSON, need to cast
+        # all numeric values to Python types (from numpy)
+        if len(class_order) == 2:  # binary classification
+            auc = roc_auc_score(class_true, y_prob[:, 1])
+            f1 = f1_score(class_true, y_pred)
+            acc = accuracy_score(class_true, y_pred)
+            scores = {'f1': float(f1), 'accuracy': float(acc), 'roc_auc': float(auc)}
+        else:  # multiclass classification
+            acc = -1
+            auc = -1
+            f1 = f1_score(class_true, y_pred, average='weighted', pos_label=None)
+            scores = {'f1': float(f1), 'accuracy': acc, 'roc_auc': auc}
+        true_labels = list(map(int, class_true))
+    else:
+        scores = {'f1': -1, 'accuracy': -1, 'roc_auc': -1}
+        true_labels = []
+    class_pred = list(map(int, y_pred))
+    class_probs = [list(map(float, entry)) for entry in y_prob]
+    dump = {'scores': scores, 'class_true': true_labels, 'class_pred': class_pred,
+            'class_probs': class_probs, 'class_order': class_order,
+            'inputfile': os.path.basename(args.inputfile), 'modelfile': os.path.basename(args.modelfile),
+            'n_samples': dataset.shape[0], 'n_features': dataset.shape[1]}
+    logger.debug('Dumping prediction to output file')
+    with open(args.outputfile, 'w') as outfile:
+        _ = json.dump(dump, outfile, indent=1)
+    logger.debug('Done')
+    return 0
+
+
 def run_apply_model(args):
     """
     :param args:
@@ -156,6 +232,9 @@ def run_apply_model(args):
     if args.task == 'estsig':
         logger.debug('Running task: estimate signal')
         rv = run_estimate_signal(logger, args)
+    elif args.task == 'clsreg':
+        logger.debug('Running task: classify regions')
+        rv = run_classify_regions(logger, args)
     else:
         raise ValueError('Unknown task: {}'.format(args.task))
     return rv
