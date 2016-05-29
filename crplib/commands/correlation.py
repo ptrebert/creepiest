@@ -14,6 +14,7 @@ import json as json
 from crplib.auxiliary.hdf_ops import get_valid_hdf5_groups, get_trgindex_groups
 from crplib.auxiliary.file_ops import create_filepath
 
+
 def assemble_worker_params(args):
     """
     :param args:
@@ -143,6 +144,14 @@ def compute_corr_full(params):
         infos = {'stat': corr, 'pv': pv}
         results[ms] = infos
     return params['chrom'], results
+
+
+def compute_corr_roi(params):
+    """
+    :param params:
+    :return:
+    """
+    pass
 
 
 def run_compute_correlation(args):
