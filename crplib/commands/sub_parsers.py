@@ -179,9 +179,11 @@ def _add_traindata_command(subparsers):
     comgroup.add_argument('--add-seq', '-ads', action='store_true', default=False, dest='addseq')
     comgroup.add_argument('--pos-outgroup', '-pog', type=str, default='', dest='posoutgroup')
     comgroup.add_argument('--neg-outgroup', '-nog', type=str, default='', dest='negoutgroup')
-    comgroup.add_argument('--signal-file', '-sigf', type=str, default='', dest='signalfile')
+    comgroup.add_argument('--signal-file', '-sigf', type=str, default=[], nargs='+', dest='signalfile')
     comgroup.add_argument('--signal-group', '-sigg', type=str, default='', dest='signalgroup')
-    comgroup.add_argument('--signal-label', '-sigl', type=str, default='', dest='signallabel')
+
+    comgroup.add_argument('--window', '-win', type=int, default=0, dest='window')
+    comgroup.add_argument('--stepsize', '-stp', type=int, default=0, dest='stepsize')
 
     parser_traindata.set_defaults(execute=_traindata_execute)
     return subparsers

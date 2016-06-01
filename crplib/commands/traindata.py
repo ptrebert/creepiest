@@ -15,7 +15,7 @@ import pandas as pd
 from crplib.metadata.md_traindata import gen_obj_and_md, MD_TRAINDATA_COLDEFS
 from crplib.auxiliary.hdf_ops import load_masked_sigtrack, get_valid_hdf5_groups, \
     get_trgindex_groups, get_valid_chrom_group
-from crplib.auxiliary.file_ops import create_filepath
+from crplib.auxiliary.file_ops import create_filepath, check_array_serializable, load_mmap_array
 from crplib.auxiliary.seq_parsers import get_twobit_seq, add_seq_regions
 from crplib.mlfeat.featdef import feat_mapsig, feat_tf_motifs,\
     get_online_version, check_online_available, feat_roi
@@ -156,17 +156,17 @@ def prep_scan_regions(params):
         samples.drop(cleanup, axis='columns', inplace=True)
         if params['window'] > 0:
             assert 'name' in samples.columns,\
-                'Need name column to perform sliding window scan - file {}'.format(params['inputfile'])
+                'Need name column to perform sliding window scan - file {} / chrom {}'.format(params['inputfile'], chrom)
             assert samples.name.unique().size == samples.name.size,\
-                'Region names have to be unique per chromosome - file {}'.format(params['inputfile'])
+                'Region names have to be unique per chromosome - file {} / chrom {}'.format(params['inputfile'], chrom)
         samples = samples.to_dict('record')
     if params['addseq']:
         assert os.path.isfile(params['seqfile']), 'Invalid path to sequence file: {}'.format(params['seqfile'])
         samples = add_seq_regions(samples, params['seqfile'], chrom)
     if params['window'] > 0:
-        assert params['step'] > 0,\
+        assert params['stepsize'] > 0,\
             'Step size invalid, cannot proceed: {} (window: {})'.format(params['step'], params['window'])
-        samples = split_regions(samples, params['window'], params['step'])
+        samples = split_regions(samples, params['window'], params['stepsize'])
     if len(check_online_available(params['features'])) > 0:
         compfeat = get_online_version(params['features'], params['kmers'])
         samples = list(map(compfeat, samples))
@@ -179,7 +179,10 @@ def prep_scan_regions(params):
     if 'msig' in params['features']:
         samples = add_signal_features(samples, params)
     samples = rebuild_dataframe(samples)
-    outgroup = params['outgroup']
+    # DEBUG free some bytes in the dataframe
+    samples.drop(['seq'], axis='columns', inplace=True)
+    samples = check_array_serializable(samples)
+    outgroup = params['outputgroup']
     return chrom, samples, outgroup
 
 
@@ -199,6 +202,8 @@ def split_regions(samples, window, stepsize):
         seq = smp['seq']
         offset = smp['start']
         for idx in range(smp['start'], e, stepsize):
+            if idx + window > smp['end']:
+                break
             subsamples.append({'source': smp['name'], 'start': idx, 'end': idx + window,
                                'seq': seq[idx - offset:idx + window - offset]})
     return subsamples
@@ -210,11 +215,15 @@ def rebuild_dataframe(samples):
     :return:
     """
     assert samples, 'Received empty list of samples'
-    samples = sorted(samples, key=lambda d: d['index'])
-    index = [d['index'] for d in samples]
-    df = pd.DataFrame.from_dict(samples, orient='columns')
-    df.index = index
-    df.drop('index', axis='columns', inplace=True)
+    if 'index' in samples[0]:
+        samples = sorted(samples, key=lambda d: d['index'])
+        index = [d['index'] for d in samples]
+        df = pd.DataFrame.from_dict(samples, orient='columns')
+        df.index = index
+        df.drop('index', axis='columns', inplace=True)
+    else:
+        samples = sorted(samples, key=lambda d: (d['start'], d['end']))
+        df = pd.DataFrame.from_dict(samples, orient='columns')
     return df
 
 
@@ -290,9 +299,21 @@ def assemble_clsreg_args(args, logger):
     commons['features'] = args.features
     commons['kmers'] = args.kmers
     commons['tfmotifs'] = args.tfmotifs
-    commons['signalfile'] = args.signalfile
-    commons['signalgroup'] = args.signalgroup
-    commons['signallabel'] = args.signallabel
+    groups = dict()
+    labels = dict()
+    sigfiles = []
+    for sigf in args.signalfile:
+        lab, fp = sigf.split(':')
+        assert os.path.isfile(fp), 'Invalid path to signal file: {}'.format(fp)
+        labels[sigf] = lab
+        # TODO
+        # this could/should be changed; define group similar to
+        # label by prepending it to the filepath
+        groups[sigf] = args.signalgroup
+        sigfiles.append(sigf)
+    commons['siglabels'] = labels
+    commons['sigfiles'] = sigfiles
+    commons['siggroups'] = groups
     commons['targetindex'] = args.targetindex
     check = re.compile(args.keepchroms)
     posgroups = get_valid_hdf5_groups(args.inputfile, args.posingroup)
@@ -301,7 +322,7 @@ def assemble_clsreg_args(args, logger):
     for grp in posgroups:
         prefix, chrom = os.path.split(grp)
         if check.match(chrom) is None:
-            logger.debug('Skipping chromosome {}'.format(chrom))
+            logger.debug('Skipping group {}'.format(chrom))
             continue
         neggrp = list(filter(lambda x: x.endswith(chrom), neggroups))
         assert len(neggrp) == 1, 'Cannot find negative group for positive {}'.format(grp)
@@ -311,6 +332,52 @@ def assemble_clsreg_args(args, logger):
         tmp['negingroup'] = neggrp
         tmp['posoutgroup'] = os.path.join(args.posoutgroup, chrom)
         tmp['negoutgroup'] = os.path.join(args.negoutgroup, chrom)
+        tmp['chrom'] = chrom
+        arglist.append(tmp)
+    return arglist
+
+
+def assemble_scnreg_args(args, logger):
+    """
+    :param args:
+    :return:
+    """
+    commons = dict()
+    commons['inputfile'] = args.inputfile
+    commons['addseq'] = args.addseq
+    commons['seqfile'] = args.seqfile
+    commons['features'] = args.features
+    commons['kmers'] = args.kmers
+    commons['tfmotifs'] = args.tfmotifs
+    commons['window'] = args.window
+    commons['stepsize'] = args.stepsize
+    groups = dict()
+    labels = dict()
+    sigfiles = []
+    for sigf in args.signalfile:
+        lab, fp = sigf.split(':')
+        assert os.path.isfile(fp), 'Invalid path to signal file: {}'.format(fp)
+        labels[fp] = lab
+        # TODO
+        # this could/should be changed; define group similar to
+        # label by prepending it to the filepath
+        groups[fp] = args.signalgroup
+        sigfiles.append(fp)
+    commons['siglabels'] = labels
+    commons['sigfiles'] = sigfiles
+    commons['siggroups'] = groups
+    commons['targetindex'] = args.targetindex
+    check = re.compile(args.keepchroms)
+    ingroups = get_valid_hdf5_groups(args.inputfile, args.inputgroup)
+    arglist = []
+    for grp in ingroups:
+        prefix, chrom = os.path.split(grp)
+        if check.match(chrom) is None:
+            logger.debug('Skipping group {}'.format(chrom))
+            continue
+        tmp = dict(commons)
+        tmp['inputgroup'] = grp
+        tmp['outputgroup'] = os.path.join(args.outputgroup, chrom)
         tmp['chrom'] = chrom
         arglist.append(tmp)
     return arglist
@@ -341,6 +408,36 @@ def collect_clsreg_trainsamples(args, logger):
     return 0
 
 
+def collect_scnreg_samples(args, logger):
+    """
+    :param args:
+    :param logger:
+    :return:
+    """
+    arglist = assemble_scnreg_args(args, logger)
+    logger.debug('Argument list of size {} to process'.format(len(arglist)))
+    with pd.HDFStore(args.outputfile, 'w', complib='blosc', complevel=9, encoding='utf-8') as hdfout:
+        metadata = pd.DataFrame(columns=MD_TRAINDATA_COLDEFS)
+        with mp.Pool(args.workers) as pool:
+            resit = pool.imap_unordered(prep_scan_regions, arglist, chunksize=1)
+            for chrom, samples, group in resit:
+                logger.debug('Received data for chromosome {}'.format(chrom))
+                if isinstance(samples, tuple):
+                    logger.debug('Large dataset for chromosome {}, reading from file buffer'.format(chrom))
+                    tmpfn = samples[0]
+                    samples, rm_tmp = load_mmap_array(tmpfn, 'pandas')
+                    if not rm_tmp:
+                        logger.warning('Could not remove temp buffer {}'.format(tmpfn))
+                grp, dataobj, metadata = gen_obj_and_md(metadata, group, chrom, args, samples)
+                hdfout.put(grp, dataobj, format='fixed')
+                hdfout.flush()
+                logger.debug('Data flushed to file')
+        hdfout.put('metadata', metadata, format='table')
+        hdfout.flush()
+    logger.debug('Collecting training data done')
+    return 0
+
+
 def run_collect_traindata(args):
     """
     :param args:
@@ -359,6 +456,9 @@ def run_collect_traindata(args):
         logger.debug('Collecting training data for task {}'.format(args.task))
         assert args.posingroup and args.negingroup, 'Need to specify HDF groups for positive and negative class'
         _ = collect_clsreg_trainsamples(args, logger)
+    elif args.task == 'scnreg':
+        logger.debug('Computing region features for task: {}'.format(args.task))
+        _ = collect_scnreg_samples(args, logger)
     else:
         raise NotImplementedError('Task unknown: {}'.format(args.task))
     return 0

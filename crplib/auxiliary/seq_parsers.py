@@ -29,6 +29,9 @@ def add_seq_regions(regions, seqfile, chrom):
     :return:
     """
     seqobj = get_twobit_seq(seqfile, chrom)
+    seqlen = len(seqobj)
     for reg in regions:
+        assert reg['end'] <= seqlen, 'Region outside of chromosome boundaries: {} - {}'.format(seqlen, reg)
         reg['seq'] = seqobj[reg['start']:reg['end']]
     return regions
+

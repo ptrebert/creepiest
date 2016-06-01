@@ -31,13 +31,16 @@ def gen_obj_and_md(mdframe, group, chrom, args, datavals):
         resolution = args.resolution
     elif args.task == 'clsreg':
         resolution = 'N/A'
+    elif args.task == 'scnreg':
+        resolution = args.window
     else:
         raise ValueError('Cannot create metadata for unknown task: {}'.format(args.task))
     features = ','.join(args.features)
     kmers = ','.join(map(str, args.kmers))
     size_mem = (dataobj.values.nbytes + dataobj.index.nbytes) / DIV_B_TO_MB
+    # TODO this needs to be changed to account for the various feature types
     if 'msig' in args.features:
-        srcfiles = os.path.basename(args.inputfile) + ',' + os.path.basename(args.signalfile)
+        srcfiles = os.path.basename(args.inputfile) + ',' + ','.join([os.path.basename(sf) for sf in args.signalfile])
     else:
         srcfiles = os.path.basename(args.inputfile)
     entries = [group, chrom, mtime, int(size_mem), numsamples, resolution, features,
