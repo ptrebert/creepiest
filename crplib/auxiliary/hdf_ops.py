@@ -15,7 +15,7 @@ from crplib.auxiliary.text_parsers import get_chain_iterator, chromsize_from_cha
 from crplib.auxiliary.constants import TRGIDX_MASK, TRGIDX_SPLITS, TRGIDX_SELECT
 
 
-def get_valid_hdf5_groups(filepath, prefix):
+def get_valid_hdf5_groups(filepath, prefix, exclmd=True):
     """
     :param filepath:
     :param prefix:
@@ -28,6 +28,8 @@ def get_valid_hdf5_groups(filepath, prefix):
         prefix = '/' + prefix
     with pd.HDFStore(filepath, 'r') as hdf:
         groups = [grp for grp in hdf.keys() if grp.startswith(prefix)]
+    if exclmd:
+        groups = [grp for grp in groups if grp != '/metadata']
     return sorted(groups)
 
 

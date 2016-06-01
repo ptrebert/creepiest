@@ -288,7 +288,7 @@ def _add_apply_command(subparsers):
     parser_apply = subparsers.add_parser('apply',
                                          help='Apply a trained model to a dataset',
                                          description='... to be updated ...')
-    parser_apply.add_argument('--task', '-t', type=str, choices=['estsig', 'clsreg'], dest='task',
+    parser_apply.add_argument('--task', '-t', type=str, choices=['estsig', 'clsreg', 'scnreg'], dest='task',
                               help='Specify task')
     comgroup = parser_apply.add_argument_group('General parameters')
     comgroup.add_argument('--input', '-i', type=str, required=True, dest='inputfile',
@@ -308,6 +308,8 @@ def _add_apply_command(subparsers):
 
     comgroup = parser_apply.add_argument_group('Classify regions parameters')
     comgroup.add_argument('--class-labels', '-cll', type=str, default='', dest='classlabels')
+    comgroup.add_argument('--label-type', '-lty', type=str, default='class', choices=['class', 'value'], dest='labeltype')
+    comgroup.add_argument('--reduce-labels', '-red', type=list, default=[1], dest='reduce')
 
     comgroup = parser_apply.add_argument_group('Estimate signal parameters')
     comgroup.add_argument('--seq-file', '-seq', type=str, dest='seqfile',

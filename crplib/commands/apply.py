@@ -22,7 +22,10 @@ from crplib.auxiliary.hdf_ops import load_masked_sigtrack, get_valid_hdf5_groups
 from crplib.auxiliary.file_ops import create_filepath
 from crplib.mlfeat.featdef import feat_mapsig, get_online_version
 from crplib.auxiliary.constants import CHROMOSOME_BOUNDARY
-from crplib.metadata.md_signal import MD_SIGNAL_COLDEFS, gen_obj_and_md
+from crplib.metadata.md_signal import MD_SIGNAL_COLDEFS
+from crplib.metadata.md_signal import gen_obj_and_md as gen_sigobj
+from crplib.metadata.md_regions import MD_REGION_COLDEFS
+from crplib.metadata.md_regions import gen_obj_and_md as genregobj
 
 
 def smooth_signal_estimate(signal, res):
@@ -130,7 +133,7 @@ def run_estimate_signal(logger, args):
             resit = pool.imap_unordered(make_signal_estimate, arglist, chunksize=1)
             for chrom, valobj in resit:
                 logger.debug('Processed chromosome {}'.format(chrom))
-                group, valobj, metadata = gen_obj_and_md(metadata, args.outputgroup, chrom, args.inputfile, valobj)
+                group, valobj, metadata = gen_sigobj(metadata, args.outputgroup, chrom, args.inputfile, valobj)
                 hdfout.put(group, valobj, format='fixed')
                 hdfout.flush()
                 logger.debug('Estimated signal data saved')
@@ -154,7 +157,7 @@ def load_model_metadata(args):
     return model_md
 
 
-def load_region_data(fpath, groups, features, labelcol):
+def load_region_data(fpath, groups, features, labelcol, labeltype='class'):
     """
     :param fpath:
     :param groups:
@@ -162,11 +165,19 @@ def load_region_data(fpath, groups, features, labelcol):
     :param labelcol:
     :return:
     """
-
+    if labeltype == 'class':
+        coltype = np.int32
+    elif labeltype == 'value':
+        coltype = np.float64
+    else:
+        raise ValueError('Unknown label type: {}'.format(labeltype))
     with pd.HDFStore(fpath, 'r') as hdf:
-        full_dataset = pd.concat([hdf[grp] for grp in groups], ignore_index=True)
+        if isinstance(groups, (list, tuple)):
+            full_dataset = pd.concat([hdf[grp] for grp in sorted(groups)], ignore_index=True)
+        else:
+            full_dataset = hdf[groups]
         if labelcol in full_dataset.columns:
-            classlabels = full_dataset.loc[:, labelcol].astype(np.int32, copy=False)
+            classlabels = full_dataset.loc[:, labelcol].astype(coltype, copy=False)
         else:
             classlabels = None
         dataset = full_dataset.loc[:, features]
@@ -186,7 +197,7 @@ def run_classify_regions(logger, args):
     feat_order = model_md['feature_order']
     load_groups = get_valid_hdf5_groups(args.inputfile, args.inputgroup)
     logger.debug('Loading region dataset')
-    dataset, class_true = load_region_data(args.inputfile, load_groups, feat_order, args.classlabels)
+    dataset, class_true = load_region_data(args.inputfile, load_groups, feat_order, args.classlabels, args.labeltype)
     logger.debug('Loaded dataset of size {}'.format(dataset.shape))
     y_pred = model.predict(dataset)
     y_prob = model.predict_proba(dataset)
@@ -221,6 +232,126 @@ def run_classify_regions(logger, args):
     return 0
 
 
+def build_output_dataframe(dset, pred, probs, classes, merge, reduce):
+    """
+    :param dset:
+    :param pred:
+    :param probs:
+    :param classes:
+    :param merge:
+    :return:
+    """
+    dset = dset.assign(class_pred=pred)
+    class_cols = ['class_prob_' + cls for cls in map(str, list(map(int, classes)))]
+    dset = pd.concat([dset, pd.DataFrame(probs, columns=class_cols)], axis='columns')
+    if reduce:
+        dset = dset.loc[dset.class_pred.isin(reduce), :]
+    if merge:
+        assert len(reduce) == 1, 'Merging overlapping regions in dataset w/o reducing to single class not supported'
+        dset.drop([col for col in dset.columns if col.startswith('ft')], axis='columns', inplace=True)
+        dset.sort_values(by=['start', 'end'], axis='index', ascending=True, inplace=True)
+        dset.index = np.arange(dset.shape[0])
+        # TODO
+        # in spare time, find out if there is a more
+        # native way in Pandas to merge overlapping intervals...
+        new_rows = []
+        cur_start = dset.loc[0, 'start']
+        cur_end = dset.loc[0, 'end']
+        cur_probs = []
+        cur_names = set()
+        get_name = 'name' if 'name' in dset.columns else 'source'
+        assert get_name in dset.columns, 'No naming column exists for regions'
+        class_prob = 'class_prob_' + str(reduce[0])
+        for row in dset.itertuples(index=False):
+            if row.start <= cur_end:
+                cur_end = row.end
+                cur_probs.append(row.__getattribute__(class_prob))
+                cur_names.add(row.__getattribute__(get_name))
+            else:
+                regname = cur_names.pop()  # return any or unique
+                new_rows.append([cur_start, cur_end, regname, np.average(cur_probs)])
+                cur_names = set()
+                cur_probs = []
+                cur_start = row.start
+                cur_end = row.end
+                cur_probs.append(row.__getattribute__(class_prob))
+                cur_names.add(row.__getattribute__(get_name))
+        new_cols = ['start', 'end', 'name', 'class_prob']
+        dset = pd.DataFrame(new_rows, columns=new_cols)
+    return dset
+
+
+def model_scan_regions(params):
+    """
+    :param params:
+    :return:
+    """
+    model_md = json.load(open(params['modelmetadata'], 'r'))
+    model = pck.load(open(params['modelfile'], 'rb'))
+    feat_order = model_md['feature_order']
+    featdata, _ = load_region_data(params['inputfile'], params['inputgroup'], feat_order, params['classlabels'])
+    y_pred = model.predict(featdata)
+    y_prob = model.predict_proba(featdata)
+    class_order = model.classes_
+    with pd.HDFStore(params['inputfile'], 'r') as hdf:
+        full_dataset = hdf[params['inputgroup']]
+    df = build_output_dataframe(full_dataset, y_pred, y_prob, class_order, params['merge'], params['reduce'])
+    return params['chrom'], df
+
+
+def assemble_params_scnreg(args, logger):
+    """
+    :return:
+    """
+    all_groups = get_valid_hdf5_groups(args.inputfile, args.inputgroup)
+    logger.debug('Identified {} valid groups in input file'.format(len(all_groups)))
+    merge_regions = False
+    with pd.HDFStore(args.inputfile, 'r') as hdf:
+        md = hdf['metadata']
+        res = md.loc[0, 'resolution']
+        if res > 0:
+            merge_regions = True
+    logger.debug('Detected - merge regions: {}'.format(merge_regions))
+    if not args.modelmetadata:
+        fpath_md = args.modelfile.rsplit('.', 1)[0] + '.json'
+    else:
+        fpath_md = args.modelmetadata
+    commons = vars(args)
+    del commons['module_logger']
+    del commons['execute']
+    commons['modelmetadata'] = fpath_md
+    arglist = []
+    for g in all_groups:
+        tmp = dict(commons)
+        tmp['inputgroup'] = g
+        _, tmp['chrom'] = os.path.split(g)
+        tmp['merge'] = merge_regions
+        arglist.append(tmp)
+    logger.debug('Build argument list of size {} to process'.format(len(arglist)))
+    return arglist
+
+
+def run_scan_regions(logger, args):
+    """
+    :param logger:
+    :param args:
+    :return:
+    """
+    arglist = assemble_params_scnreg(args, logger)
+    with pd.HDFStore(args.outputfile, 'w') as hdf:
+        metadata = pd.DataFrame(columns=MD_REGION_COLDEFS)
+        with mp.Pool(args.workers) as pool:
+            resit = pool.imap_unordered(model_scan_regions, arglist, chunksize=1)
+            for chrom, dataobj in resit:
+                logger.debug('Received data for chromosome {}'.format(chrom))
+                grp, dataobj, metadata = genregobj(metadata, args.outputgroup, chrom, [args.inputfile, args.modelfile], dataobj)
+                hdf.put(grp, dataobj, format='fixed')
+                hdf.flush()
+                logger.debug('Flushed data to file')
+        hdf.put('metadata', metadata, format='table')
+    return 0
+
+
 def run_apply_model(args):
     """
     :param args:
@@ -235,6 +366,9 @@ def run_apply_model(args):
     elif args.task == 'clsreg':
         logger.debug('Running task: classify regions')
         rv = run_classify_regions(logger, args)
+    elif args.task == 'scnreg':
+        logger.debug('Running task: scan regions')
+        rv = run_scan_regions(logger, args)
     else:
         raise ValueError('Unknown task: {}'.format(args.task))
     return rv
