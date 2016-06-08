@@ -108,4 +108,18 @@ def build_pipeline(args, config, sci_obj):
                            output=os.path.join(genome_temp, '{ASSEMBLY[0]}_JASPAR_VertCore_2016.h5'),
                            extras=[cmd, jobcall])
 
+    sci_obj.set_config_env(dict(config.items('JobConfig')), dict(config.items('EnvConfig')))
+    if args.gridmode:
+        jobcall = sci_obj.ruffus_gridjob()
+    else:
+        jobcall = sci_obj.ruffus_localjob()
+
+    cmd = config.get('Pipeline', 'conv2bitfull')
+    mkfasta = pipe.transform(task_func=sci_obj.get_jobf('in_out'),
+                             name='mkfasta',
+                             input=output_from(init),
+                             filter=suffix('.2bit'),
+                             output='.fa',
+                             extras=[cmd, jobcall])
+
     return pipe
