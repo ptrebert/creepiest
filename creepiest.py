@@ -65,10 +65,13 @@ def build_main_parser(stdincfg):
                           help='Print version information and exit')
     generics.add_argument('--verbose', '-vb', action='store_true', default=False, dest='verbose',
                           help='Print status messages to stderr. Default: FALSE')
+    generics.add_argument('--outfile-mode', '-ofm', type=str, choices=['a', 'w', 'replace', 'append'], default='w',
+                          dest='filemode', help='Specify if output overwrites (replace [w]) or is'
+                                                ' appended (append [a]) to existing files. Default: replace')
     generics.add_argument('--notify', '-ntf', type=str, default='', dest='notify', metavar='EMAIL',
                           help='Send notification upon run completion to this email address.'
                                ' This assumes that localhost is configured as SMTP server'
-                               ' or knows where to find an SMTP server. Default: None')
+                               ' or knows where to find an SMTP server. Default: <empty>')
     generics.add_argument('--send-log', '-snd', action='store_true', dest='sendlog', default=False,
                           help='When sending the email notification, include the complete log.'
                                ' Warning: this can be a lot of text! Default: FALSE')
