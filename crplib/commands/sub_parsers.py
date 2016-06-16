@@ -115,20 +115,22 @@ def _add_convert_command(subparsers):
     comgroup = parser_convert.add_argument_group('BED parameters')
     comgroup.add_argument('--name-idx', '-nix', type=int, default=-1, dest='nameidx',
                           help='Specify column index (0-based) with region names. If set to -1,'
-                               ' new names will be assigned based on genomic sort order. Default: -1')
+                               ' generic names will be assigned based on genomic sort order'
+                               ' (if the file does not contain a header; see --use-header). Default: -1')
     comgroup.add_argument('--score-idx', '-six', type=int, default=-1, dest='scoreidx',
                           help='Specify column index (0-based) with score to rank regions. If set to'
-                               ' -1 no ranking can be performed. Assumes ranking from high to low. Default: -1')
+                               ' -1 no ranking can be performed. Assumes ranking from high to low score. Default: -1')
     comgroup.add_argument('--use-header', action='store_true', default=False, dest='useheader',
-                          help='If set to TRUE, the BED file to convert must have a full header (starting # will'
-                               ' be ignored) that contains at least the fields "chrom[osome]", "start" and "end".'
-                               ' If the header includes the fields "name" or "score", these will be used'
-                               ' accordingly.')
+                          help='If set, the BED file to convert must have a full header (starting # will'
+                               ' be ignored). The first three fields are always assumed to be "chromosome",'
+                               ' "region start" and "region end", no matter what their actual name is.'
+                               ' If the header includes the field "name", it will be used automatically,'
+                               ' i.e. setting --name-idx appropriately is not required.')
     comgroup.add_argument('--keep-top', '-topk', type=float, default=95, dest='keeptop',
                           help='Specify top N percent of regions to keep after ranking. Requires --score-idx'
                                ' to be set to a valid column index. Default: 95')
-    comgroup.add_argument('--filter-size', '-fs', type=int, default=150, dest='filtersize',
-                          help='Remove regions smaller than this value. Default: 150')
+    comgroup.add_argument('--filter-size', '-fs', type=int, default=0, dest='filtersize',
+                          help='Remove regions smaller than this value. Default: 0')
     comgroup = parser_convert.add_argument_group('TF motif parameter')
     comgroup.add_argument('--motif-db', '-mdb', type=str, default='', dest='motifdb')
     comgroup.add_argument('--db-format', '-dbf', type=str, choices=['meme', 'map', 'list'], dest='dbformat')
