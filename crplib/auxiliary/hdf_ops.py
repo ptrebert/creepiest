@@ -45,6 +45,21 @@ def get_valid_chrom_group(filepath, chrom):
     return single_group[0]
 
 
+def get_default_group(filepath):
+    """
+    :param filepath:
+    :return:
+    """
+    group_root = set()
+    with pd.HDFStore(filepath, 'r') as hdf:
+        mdf = hdf['metadata']
+        for row in mdf.itertuples(index=False):
+            group_root.add(os.path.split(row.group)[0])
+    assert len(group_root) == 1,\
+        'Cannot identify default group in file {} - several groups per chromosome: {}'.format(os.path.basename(filepath), group_root)
+    return group_root.pop()
+
+
 def get_trgindex_groups(fpath, grproot):
     """
     :param fpath:

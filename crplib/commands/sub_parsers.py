@@ -172,6 +172,11 @@ def _add_traindata_command(subparsers):
     comgroup.add_argument('--seq-file', '-sf', type=str, default='', dest='seqfile')
     comgroup.add_argument('--tf-motifs', '-tfm', type=str, default='', dest='tfmotifs')
 
+    comgroup.add_argument('--signal-file', '-sigf', type=str, default=[], nargs='+', dest='sigfile')
+    comgroup.add_argument('--roi-file', '-roif', type=str, default=[], nargs='+', dest='roifile')
+    comgroup.add_argument('--roi-quant', '-roiq', type=str, default=['all'], nargs='+',
+                          choices=['all', 'binary', 'counts', 'coverage'], dest='roiquant')
+
     comgroup = parser_traindata.add_argument_group('Parameter for signal regression (regsig)')
     comgroup.add_argument('--num-samples', '-smp', type=int, default=20000, dest='numsamples',
                           help='Number of training samples to collect')
@@ -186,8 +191,6 @@ def _add_traindata_command(subparsers):
     comgroup.add_argument('--add-seq', '-ads', action='store_true', default=False, dest='addseq')
     comgroup.add_argument('--pos-outgroup', '-pog', type=str, default='', dest='posoutgroup')
     comgroup.add_argument('--neg-outgroup', '-nog', type=str, default='', dest='negoutgroup')
-    comgroup.add_argument('--signal-file', '-sigf', type=str, default=[], nargs='+', dest='signalfile')
-    comgroup.add_argument('--signal-group', '-sigg', type=str, default='', dest='signalgroup')
 
     comgroup.add_argument('--window', '-win', type=int, default=0, dest='window')
     comgroup.add_argument('--stepsize', '-stp', type=int, default=0, dest='stepsize')

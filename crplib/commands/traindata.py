@@ -14,7 +14,7 @@ import pandas as pd
 
 from crplib.metadata.md_traindata import gen_obj_and_md, MD_TRAINDATA_COLDEFS
 from crplib.auxiliary.hdf_ops import load_masked_sigtrack, get_valid_hdf5_groups, \
-    get_trgindex_groups, get_valid_chrom_group
+    get_trgindex_groups, get_valid_chrom_group, get_default_group
 from crplib.auxiliary.file_ops import create_filepath, check_array_serializable, load_mmap_array
 from crplib.auxiliary.seq_parsers import get_twobit_seq, add_seq_regions
 from crplib.mlfeat.featdef import feat_mapsig, feat_tf_motifs,\
@@ -92,11 +92,14 @@ def add_roi_features(samples, params):
     roilabels = params['roilabels']
     roifiles = params['roifiles']
     roigroups = params['roigroups']
-    roifeat = feat_roi
+    chrom = params['chrom']
     for rf in roifiles:
         with pd.HDFStore(rf, 'r') as hdf:
-            rois = hdf[roigroups[rf]]
-            samples = roifeat(samples, rois, roilabels[rf], params['roiquant'])
+            grp = roigroups[rf]
+            if not grp.endswith(chrom):
+                grp = os.path.join(grp, chrom)
+            rois = hdf[grp]
+            samples = feat_roi(samples, rois, roilabels[rf], params['roiquant'])
     return samples
 
 
@@ -137,6 +140,9 @@ def get_region_traindata(params):
     if 'msig' in params['features']:
         pos_samples = add_signal_features(pos_samples, params)
         neg_samples = add_signal_features(neg_samples, params)
+    if 'roi' in params['features']:
+        pos_samples = add_roi_features(pos_samples, params)
+        neg_samples = add_roi_features(neg_samples, params)
     pos_samples = rebuild_dataframe(pos_samples)
     neg_samples = rebuild_dataframe(neg_samples)
     posgrp = params['posoutgroup']
@@ -178,6 +184,8 @@ def prep_scan_regions(params):
             samples = feat_tf_motifs(samples, tfdata)
     if 'msig' in params['features']:
         samples = add_signal_features(samples, params)
+    if 'roi' in params['features']:
+        samples = add_roi_features(samples, params)
     samples = rebuild_dataframe(samples)
     # DEBUG free some bytes in the dataframe
     samples.drop(['seq'], axis='columns', inplace=True)
@@ -225,6 +233,26 @@ def rebuild_dataframe(samples):
         samples = sorted(samples, key=lambda d: (d['start'], d['end']))
         df = pd.DataFrame.from_dict(samples, orient='columns')
     return df
+
+
+def build_featurefile_info(files):
+    """
+    :param files:
+    :return:
+    """
+    labels = dict()
+    groups = dict()
+    featfiles = []
+    for f in files:
+        label, grp, fp = f.split(':')
+        assert os.path.isfile(fp), 'Path to file {} invalid'.format(fp)
+        if not grp or grp in ['default', 'auto']:
+            grp = get_default_group(fp)
+        label = label.strip('_')
+        labels[fp] = label
+        groups[fp] = grp
+        featfiles.append(fp)
+    return featfiles, labels, groups
 
 
 def assemble_regsig_args(chromlim, args):
@@ -299,21 +327,15 @@ def assemble_clsreg_args(args, logger):
     commons['features'] = args.features
     commons['kmers'] = args.kmers
     commons['tfmotifs'] = args.tfmotifs
-    groups = dict()
-    labels = dict()
-    sigfiles = []
-    for sigf in args.signalfile:
-        lab, fp = sigf.split(':')
-        assert os.path.isfile(fp), 'Invalid path to signal file: {}'.format(fp)
-        labels[sigf] = lab
-        # TODO
-        # this could/should be changed; define group similar to
-        # label by prepending it to the filepath
-        groups[sigf] = args.signalgroup
-        sigfiles.append(sigf)
-    commons['siglabels'] = labels
+    sigfiles, siglabels, siggroups = build_featurefile_info(args.sigfile)
+    commons['siglabels'] = siglabels
     commons['sigfiles'] = sigfiles
-    commons['siggroups'] = groups
+    commons['siggroups'] = siggroups
+    roifiles, roilabels, roigroups = build_featurefile_info(args.roifile)
+    commons['roilabels'] = roilabels
+    commons['roifiles'] = roifiles
+    commons['roigroups'] = roigroups
+    commons['roiquant'] = args.roiquant
     commons['targetindex'] = args.targetindex
     check = re.compile(args.keepchroms)
     posgroups = get_valid_hdf5_groups(args.inputfile, args.posingroup)
@@ -351,22 +373,16 @@ def assemble_scnreg_args(args, logger):
     commons['tfmotifs'] = args.tfmotifs
     commons['window'] = args.window
     commons['stepsize'] = args.stepsize
-    groups = dict()
-    labels = dict()
-    sigfiles = []
-    for sigf in args.signalfile:
-        lab, fp = sigf.split(':')
-        assert os.path.isfile(fp), 'Invalid path to signal file: {}'.format(fp)
-        labels[fp] = lab
-        # TODO
-        # this could/should be changed; define group similar to
-        # label by prepending it to the filepath
-        groups[fp] = args.signalgroup
-        sigfiles.append(fp)
-    commons['siglabels'] = labels
+    sigfiles, siglabels, siggroups = build_featurefile_info(args.sigfile)
+    commons['siglabels'] = siglabels
     commons['sigfiles'] = sigfiles
-    commons['siggroups'] = groups
+    commons['siggroups'] = siggroups
     commons['targetindex'] = args.targetindex
+    roifiles, roilabels, roigroups = build_featurefile_info(args.roifile)
+    commons['roilabels'] = roilabels
+    commons['roifiles'] = roifiles
+    commons['roigroups'] = roigroups
+    commons['roiquant'] = args.roiquant
     check = re.compile(args.keepchroms)
     ingroups = get_valid_hdf5_groups(args.inputfile, args.inputgroup)
     arglist = []

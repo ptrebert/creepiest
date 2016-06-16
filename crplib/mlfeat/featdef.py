@@ -74,7 +74,8 @@ def _get_feat_fun_map():
                     'rep': feat_repetitive_content,
                     'kmf': feat_kmer_frequency,
                     'tfm': feat_tf_motifs,
-                    'msig': feat_mapsig}
+                    'msig': feat_mapsig,
+                    'roi': feat_roi}
     return feat_fun_map
 
 
@@ -102,7 +103,7 @@ def get_prefix_list(features):
     feat_prefix_map = {'len': [FEAT_LENGTH, FEAT_RELLENGTH], 'prm': [FEAT_COREPROM_PREFIX],
                        'gc': [FEAT_GC], 'cpg': [FEAT_CPG], 'oecpg': [FEAT_OECPG],
                        'rep': [FEAT_REPCONT], 'kmf': [FEAT_KMERFREQ_PREFIX], 'tfm': [FEAT_TFMOTIF_PREFIX],
-                       'msig': [FEAT_MAPSIG_PREFIX]}
+                       'msig': [FEAT_MAPSIG_PREFIX], 'roi': [FEAT_ROI_PREFIX]}
     relevant_prefixes = []
     for k, v in feat_prefix_map.items():
         if k in features:
@@ -382,7 +383,7 @@ def _feat_roi_default(infix, quantify):
     if len(quantify & {'binary', 'all'}) > 0:
         feats.update({FEAT_ROI_PREFIX + infix + 'bin_obs': 0})
     if len(quantify & {'density', 'all'}) > 0:
-        feats.update({FEAT_ROI_PREFIX + infix + 'pct_dens': 0.0})
+        feats.update({FEAT_ROI_PREFIX + infix + 'abs_num': 0.0})
     if len(quantify & {'coverage', 'all'}) > 0:
         feats.update({FEAT_ROI_PREFIX + infix + 'pct_cov': 0.0})
     return feats
@@ -396,29 +397,32 @@ def feat_roi(regions, rois, infix='', quantify={'all'}):
     :param quantify:
     :return:
     """
+    quantify = set(quantify)
     if infix and not infix.endswith('_'):
         infix += '_'
     default = _feat_roi_default(infix, quantify)
-    regions = [reg.update(default) for reg in regions]
+    [reg.update(default) for reg in regions]
     for reg in regions:
         ovl = rois.query('start < {} and end > {}'.format(reg['end'], reg['start']))
         if ovl.empty:
             continue
         s, e = reg['start'], reg['end']
         reglen = e - s
-        ovl.assign(bpcov=lambda r: min(r.end, e) - max(r.start, s))
+        ovl = ovl.assign(regstart=s, regend=e)
+        ovl = ovl.assign(maxstart=lambda r: ovl[['start', 'regstart']].max(axis=1), minend=lambda r: ovl[['end', 'regend']].min(axis=1))
+        ovl = ovl.assign(bpcov=lambda r: r.minend - r.maxstart)
         if 'all' in quantify:
             reg[FEAT_ROI_PREFIX + infix + 'bin_obs'] = 1
-            reg[FEAT_ROI_PREFIX + infix + 'pct_dens'] = ovl.shape[0] / reglen * 100.
             tot_cov = ovl.bpcov.sum()
             reg[FEAT_ROI_PREFIX + infix + 'pct_cov'] = tot_cov / reglen * 100.
+            reg[FEAT_ROI_PREFIX + infix + 'abs_num'] = ovl.shape[0]
         else:
             try:
                 reg[FEAT_ROI_PREFIX + infix + 'bin_obs'] = 1
             except KeyError:
                 pass
             try:
-                reg[FEAT_ROI_PREFIX + infix + 'pct_dens'] = ovl.shape[0] / reglen * 100.
+                reg[FEAT_ROI_PREFIX + infix + 'abs_num'] = ovl.shape[0]
             except KeyError:
                 pass
             try:
