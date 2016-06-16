@@ -9,69 +9,126 @@ import multiprocessing as mp
 import collections as col
 import numpy as np
 import re as re
-import operator as op
 import scipy.stats as stats
 
 from crplib.auxiliary.file_ops import text_file_mode
 from crplib.metadata.md_regions import gen_obj_and_md, MD_REGION_COLDEFS
+from crplib.auxiliary.text_parsers import determine_text_table_type
 
 
-def assemble_worker_args(args):
+def assemble_worker_args(args, logger):
     """
     :param args:
     :return:
     """
-    cols = (0, 1, 2)
-    if args.nameidx != -1:
-        cols += args.nameidx,
-    if args.scoreidx != -1:
-        cols += args.scoreidx,
     arglist = []
+    assert args.nameidx not in {0, 1, 2},\
+        'Specified name index field as {} - first three fields need to be "chrom - start - end"'.format(args.nameidx)
+    assert args.scoreidx not in {0, 1, 2},\
+        'Specified score index field as {} - first three fields need to be "chrom - start - end"'.format(args.scoreidx)
     for fp in args.inputfile:
+        skip, delim, colnames = determine_text_table_type(fp, args.useheader, logger)
+        if colnames:
+            colnames[0] = 'chrom'
+            colnames[1] = 'start'
+            colnames[2] = 'end'
+            if args.nameidx != -1:
+                colnames[args.nameidx] = 'name'
+        else:
+            colnames = ['chrom', 'start', 'end']
+            # note if both are set to -1, then max(-1,-1) + 1 = 0
+            # so range(3,0,1) results in empty list
+            for idx in range(3, max(args.nameidx, args.scoreidx) + 1, 1):
+                if idx == args.nameidx:
+                    colnames.append('name')
+                elif idx == args.scoreidx:
+                    colnames.append('score')
+                else:
+                    colnames.append('col' + str(idx))
+        colnames = validate_column_names(colnames, args.nameidx, logger)
         commons = dict()
+        commons['skip'] = skip
+        commons['delimiter'] = delim
+        commons['colnames'] = colnames
         commons['inputfile'] = fp
         commons['keepchroms'] = args.keepchroms
         commons['keeptop'] = args.keeptop
         commons['scoreidx'] = args.scoreidx
-        commons['columns'] = cols
+        commons['useheader'] = args.useheader
         commons['filtersize'] = args.filtersize
         arglist.append(commons)
     return arglist
 
 
-def merge_overlapping_regions(allregions):
+def validate_column_names(colnames, nameidx, logger):
     """
-    :param allregions:
+    :param colnames:
+    :param nameidx:
     :return:
     """
-    merged = []
-    this = allregions.popleft()
-    while 1:
-        try:
-            step = allregions.popleft()
-        except IndexError:  # deque empty
-            break
-        if this[0] == step[0]:  # check chroms are identical
-            # if this_end < next_start
-            if this[2] < step[1]:
-                merged.append(this)
+    if any([cn.startswith('ft') for cn in colnames]):
+        logger.error('Detected column names starting with "ft" - conversion of such fields'
+                     ' not supported: {}'.format(' | '.join([cn for cn in colnames if cn.startswith('ft')])))
+        raise AssertionError('Prefix "ft" in column names detected')
+    if len(colnames) != len(set(colnames)):  # duplicates
+        logger.debug('Detected duplicates in column names')
+        fix_indices = {0, 1, 2}
+        if nameidx != -1:
+            fix_indices.add(nameidx)
+        duplicates = set()
+        seen = set()
+        for cn in colnames:
+            if cn in seen:
+                duplicates.add(cn)
+            else:
+                seen.add(cn)
+        for idx, cn in enumerate(colnames):
+            # need to check for the fix indices here since
+            # the user specified name column can be anywhere
+            if cn in duplicates and idx not in fix_indices:
+                logger.debug('Duplicate name {} is suffixed with _dup{}'.format(cn, idx))
+                colnames[idx] = cn + '_dup' + str(idx)
+    return colnames
+
+
+def merge_overlapping_regions(allregions, allchroms):
+    """
+    :param allregions:
+    :param allchroms:
+    :return:
+    """
+    allregions.sort_values(['chrom', 'start', 'end'], axis='index', inplace=True)
+    merged_regions = None
+    for chrom in allchroms:
+        chrom_regions = allregions[allregions.chrom == chrom]
+        chrom_regions = col.deque(chrom_regions.to_dict('record'))
+        chrom_merged = []
+        this = chrom_regions.popleft()
+        while 1:
+            try:
+                step = chrom_regions.popleft()
+            except IndexError:  # deque empty
+                break
+            if this['end'] < step['start']:
+                chrom_merged.append(this)
                 this = step
                 continue
             else:
                 # since all regions are sorted, must overlap now,
                 # or be at least book-ended
-                if len(this) == 3:
-                    this = (this[0], min(this[1], step[1]), max(this[2], step[2]))
-                elif len(this) == 4:
-                    this = (this[0], min(this[1], step[1]), max(this[2], step[2]), this[3] + '-' + step[3])
-                else:
-                    raise ValueError('Unexpected number of components for region: {}'.format(this))
+                this['start'] = min(this['start'], step['start'])
+                this['end'] = max(this['end'], step['end'])
+                if 'name' in this:
+                    this['name'] = this['name'] + '-' + step['name']
+        if merged_regions is None:
+            merged_regions = pd.DataFrame.from_dict(chrom_merged, orient='columns')
         else:
-            merged.append(this)
-            this = step
-            continue
-    merged.append(this)
-    return merged
+            merged_regions = pd.concat([merged_regions, pd.DataFrame.from_dict(chrom_merged, orient='columns')],
+                                       ignore_index=True, axis=0)
+    merged_regions.sort_values(['chrom', 'start', 'end'], axis='index', inplace=True)
+    merged_regions.index = np.arange(merged_regions.shape[0])
+    assert not merged_regions.empty, 'Something went wrong - no regions left after merging'
+    return merged_regions
 
 
 def process_regions(params):
@@ -79,52 +136,74 @@ def process_regions(params):
     :param params:
     :return:
     """
-    mypid = mp.current_process().pid
     fpath = params['inputfile']
     chr_match = re.compile(params['keepchroms'])
-    getvals = op.itemgetter(*params['columns'])
-    filter_size = params['filtersize']
-    regions = []
+    score_col_idx = params['scoreidx']
+    if score_col_idx != -1:
+        score_col_name = params['colnames'][score_col_idx]
+        datatypes = {'start': np.int32, 'end': np.int32, score_col_name: np.float64}
+    else:
+        datatypes = {'start': np.int32, 'end': np.int32}
+
     opn, mode = text_file_mode(fpath)
     with opn(fpath, mode=mode, encoding='ascii') as infile:
-        for line in infile:
-            if not line or chr_match.match(line) is None:
+        regions = pd.read_csv(infile, sep=params['delimiter'], names=params['colnames'],
+                              index_col=False, dtype=datatypes, header=None,
+                              skipinitialspace=True, skiprows=params['skip'], skip_blank_lines=True,
+                              encoding='utf-8', comment='#', usecols=params['colnames'])
+    chroms_in_file = regions.chrom.drop_duplicates().tolist()
+    remove_chroms = set(filter(lambda x: chr_match.match(x) is None, chroms_in_file))
+    drop_columns = ['filter_for_chrom']
+    regions = regions.assign(filter_for_chrom=lambda x: x.chrom.isin(remove_chroms))
+    regions.drop(regions.index[regions.filter_for_chrom], inplace=True, axis='index')
+    if params['filtersize'] > 0:
+        drop_columns.append('filter_for_length')
+        regions = regions.assign(filter_for_length=lambda x: x.end - x.start)
+        regions.drop(regions[regions.filter_for_length < params['filtersize']].index, inplace=True, axis='index')
+    if score_col_idx != -1 and params['keeptop'] < 100:
+        drop_columns.append('filter_for_score')
+        # heuristic to check if score column seems to be reasonable
+        assert regions[score_col_name].var() > 0, \
+            'Scores have 0 variance in file {} for selected column {}'.format(fpath, score_col_idx)
+        lower_threshold = stats.scoreatpercentile(regions[score_col_name].values, 100 - params['keeptop'])
+        regions = regions.assign(filter_for_score=lambda x: x[score_col_name] < lower_threshold)
+        regions.drop(regions.index[regions.filter_for_score], inplace=True, axis='index')
+    if not params['useheader']:
+        for col in regions.columns:
+            if col in ['chrom', 'start', 'end', 'name']:
                 continue
-            reg = getvals(line.split())
-            if int(reg[2]) - int(reg[1]) < filter_size:
-                continue
-            regions.append(reg)
-    assert len(regions) > 0,\
-        'No regions selected for file {} and pattern {}'.format(fpath, params['keepchroms'])
-    if params['scoreidx'] != -1 and params['keeptop'] < 100.:
-        # convention here: score is always last index by construction
-        # and assume ranking where highest score is first one
-        scores = np.array([float(reg[-1]) for reg in regions])
-        # this is heuristic to check if the selected score column makes sense
-        assert np.var(scores) > 0,\
-            'Scores have 0 variance for file {} and column {}'.format(fpath, params['columns'][-1])
-        thres = stats.scoreatpercentile(scores, 100 - params['keeptop'])
-        regions = [reg[:-1] for reg in regions if float(reg[-1]) > thres]
-    if len(regions[0]) == 3:
-        regions = [(reg[0], int(reg[1]), int(reg[2])) for reg in regions]
-    elif len(regions[0]) == 4:
-        # means there was a name column specified
-        regions = [(reg[0], int(reg[1]), int(reg[2]), reg[3]) for reg in regions]
-    else:
-        raise ValueError('Unexpected number of components for region: {}'.format(regions[0]))
-    return mypid, regions
+            drop_columns.append(col)
+    regions.drop(drop_columns, axis='columns', inplace=True)
+    reordered_columns = reorder_columns(regions.columns.tolist())
+    regions = regions[reordered_columns]
+    regions.sort_values(['chrom', 'start', 'end'], axis='index', inplace=True)
+    regions.index = np.arange(regions.shape[0])
+    assert not regions.empty, 'No regions read from file {} (or are left after filtering)'.format(fpath)
+    return regions, set(regions.chrom.drop_duplicates().tolist())
 
 
-def add_names(allregions):
+def reorder_columns(colnames):
     """
-    :param allregions:
+    :param colnames:
     :return:
     """
-    out = []
-    for idx, reg in enumerate(allregions, start=1):
-        name = 'region_' + reg[0] + '_' + str(idx)
-        out.append(reg + (name,))
-    return out
+    reordered = []
+    idx = 5
+    for col in colnames:
+        if col == 'chrom':
+            reordered.append((0, col))
+        elif col == 'start':
+            reordered.append((1, col))
+        elif col == 'end':
+            reordered.append((2, col))
+        elif col == 'name':
+            reordered.append((3, col))
+        elif col == 'score':
+            reordered.append((4, col))
+        else:
+            reordered.append((idx, col))
+            idx += 1
+    return [t[1] for t in sorted(reordered)]
 
 
 def run_region_conversion(args, logger):
@@ -133,40 +212,48 @@ def run_region_conversion(args, logger):
     :param logger:
     :return:
     """
-    arglist = assemble_worker_args(args)
+    if args.useheader:
+        assert len(args.inputfile) == 1, 'Too many input files. Cannot use header information when merging' \
+                                         ' several input files (since merging only works on overlapping' \
+                                         ' intervals defined by start and end coordinate).'
+    arglist = assemble_worker_args(args, logger)
     logger.debug('Start processing {} region file(s)'.format(len(args.inputfile)))
-    with pd.HDFStore(args.outputfile, 'a', complevel=9, complib='blosc') as hdfout:
+    with pd.HDFStore(args.outputfile, args.filemode, complevel=9, complib='blosc') as hdfout:
+        if 'metadata' in hdfout:
+            metadata = hdfout['metadata']
+        else:
+            metadata = pd.DataFrame(columns=MD_REGION_COLDEFS)
         with mp.Pool(args.workers) as pool:
-            if 'metadata' in hdfout:
-                metadata = hdfout['metadata']
-            else:
-                metadata = pd.DataFrame(columns=MD_REGION_COLDEFS)
-            all_regions = list()
-            chroms = set()
+            all_chroms = set()
+            all_regions = None
             logger.debug('Iterating results')
-            mapres = pool.map_async(process_regions, arglist)
-            for pid, regobj in mapres.get():
-                logger.debug('Worker (PID {}) completed, returned {} regions'.format(pid, len(regobj)))
+            resit = pool.imap_unordered(process_regions, arglist, chunksize=1)
+            for regobj, chroms in resit:
+                logger.debug('Received {} regions'.format(regobj.shape[0]))
                 # collect all chromosomes in dataset(s)
-                [chroms.add(reg[0]) for reg in regobj]
-                all_regions.extend(regobj)
-            # TODO
-            # below here: looks like it could be simplified...
-            logger.debug('All files processed, sorting {} regions...'.format(len(all_regions)))
-            assert len(all_regions) > 0, 'No regions selected by worker processes: {}'.format(args.inputfile)
-            all_regions = sorted(all_regions)
-            if len(args.inputfile) == 1:
-                pass  # nothing more to do ?
-            else:
-                all_regions = merge_overlapping_regions(col.deque(all_regions))
-                logger.debug('After merging {} regions left'.format(len(all_regions)))
-            if args.nameidx == -1:
-                all_regions = add_names(all_regions)
-            logger.debug('Identified {} chromosomes in dataset(s)'.format(len(chroms)))
-            for chrom in sorted(chroms):
-                grp, valobj, metadata = gen_obj_and_md(metadata, args.outputgroup, chrom, args.inputfile,
-                                                       [reg for reg in all_regions if reg[0] == chrom])
-                hdfout.put(grp, valobj, format='fixed')  # not sure here... usually replace entire object I guess
+                all_chroms |= chroms
+                if all_regions is None:
+                    all_regions = regobj
+                else:
+                    # note to self: concat does not accept aliases 'index' and 'columns' for parameter axis
+                    all_regions = pd.concat([all_regions, regobj], axis=0, ignore_index=True, join='inner')
+            logger.debug('All files processed...')
+            if len(args.inputfile) > 1:
+                logger.debug('Merging {} files...'.format(len(args.inputfile)))
+                all_regions = merge_overlapping_regions(all_regions, all_chroms)
+                logger.debug('Merging resulted in {} regions'.format(all_regions.shape[0]))
+            # note here that if the file contains a "name" field in the header
+            # the user does not need to specify name-idx
+            if args.nameidx == -1 and 'name' not in all_regions.columns:
+                all_regions = all_regions.assign(name=lambda x: ['region_' + str(idx) for idx in x.index])
+            logger.debug('Identified {} chromosomes in dataset(s)'.format(len(all_chroms)))
+            for chrom in sorted(all_chroms):
+                chrom_regions = all_regions[all_regions.chrom == chrom]
+                chrom_regions = chrom_regions.drop(['chrom'], axis='columns', inplace=False)
+                if chrom_regions.empty:
+                    continue
+                grp, valobj, metadata = gen_obj_and_md(metadata, args.outputgroup, chrom, args.inputfile, chrom_regions)
+                hdfout.put(grp, valobj, format='fixed')
                 hdfout.flush()
                 logger.debug('Processed chromosome {}'.format(chrom))
         hdfout.put('metadata', metadata, format='table')

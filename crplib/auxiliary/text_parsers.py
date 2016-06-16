@@ -5,10 +5,13 @@ Some helper functions to parse text-based files
 with more or less no well-defined format
 """
 
+import os as os
 import re as re
+import csv as csv
 import collections as col
 
 from crplib.auxiliary.file_ops import text_file_mode
+from crplib.auxiliary.constants import VALID_DELIMITERS, DELIMITER_NAMES
 
 
 def read_chromosome_sizes(fpath, keep='.+'):
@@ -195,3 +198,104 @@ def get_binned_motifs_iterator(fobj):
         collect[tfid] += ovl
     yield curr_chrom, curr_index, collect
     return
+
+
+def get_text_table_header(headline, delimiter):
+    """
+    :param headline:
+    :param delimiter:
+    :return:
+    """
+    headline = headline.strip().lstrip('#')
+    assert len(headline) > 0, 'Cannot determine column names - header line appears to be empty'
+    header_fields = headline.split(delimiter)
+    assert len(header_fields) > 1, 'Splitting header line {} with delimiter {} resulted in <=1 column' \
+                                   ' name. This is most likely an error'.format(headline, DELIMITER_NAMES[delimiter])
+    return header_fields
+
+
+def check_header_garbage(headerfields):
+    """
+    :param headerfields:
+    :return:
+    """
+    garbage = re.compile('[\.\-_0-9e]+', flags=re.IGNORECASE)
+    suspicious = set()
+    for hf in headerfields:
+        if garbage.match(hf) is not None:
+            suspicious.add(hf)
+    return suspicious
+
+
+def determine_text_table_type(filepath, useheader, logger=None):
+    """
+    :param filepath:
+    :param useheader:
+    :param logger:
+    :return:
+    """
+    opn, mode = text_file_mode(filepath)
+    fieldnames = []
+    skip = 0
+    read_chars = 0
+    with opn(filepath, mode=mode, encoding='ascii') as text:
+        # heuristic to determine the chunksize to be read
+        # from the file to surely include a potential header
+        # and a full data line
+        # Note to self: I always (?) open files in text mode,
+        # so len() is fine (number of characters)
+        read_chars += len(text.readline())
+        read_chars += len(text.readline())
+        assert read_chars > 0, 'No lines read from file {} - it appears to be empty'.format(filepath)
+        text.seek(0)
+        sniffer = csv.Sniffer()
+        text.seek(0)
+        dialect = sniffer.sniff(text.read(read_chars), delimiters=VALID_DELIMITERS)
+        if dialect.delimiter == ' ' and logger is not None:
+            logger.warning('Detected {} as delimiter for file {} - this is not ideal'
+                           ' and potentially error-prone. Processing will proceed but if you encounter'
+                           ' strange values in your (textual) data, it is highly recommended to reformat'
+                           ' your files to be {} or {} separated'
+                           ' and to restart the whole process.'.format(DELIMITER_NAMES[' '],
+                                                                       filepath,
+                                                                       DELIMITER_NAMES['\t'],
+                                                                       DELIMITER_NAMES[',']))
+        else:
+            if logger is not None:
+                logger.debug('Detected {} as delimiter in file {}'.format(DELIMITER_NAMES.get(dialect.delimiter, dialect.delimiter), os.path.basename(filepath)))
+        text.seek(0)
+        header = sniffer.has_header(text.read(read_chars))
+        if header and not useheader:
+            skip = 1
+            text.seek(0)
+            assumed_header = text.readline()
+            if logger is not None:
+                logger.debug('Skipping line {} from file {} since'
+                             ' "use header" is set to FALSE'.format(assumed_header, os.path.basename(filepath)))
+        elif header and useheader:
+            # perfect situation
+            text.seek(0)
+            fieldnames = get_text_table_header(text.readline(), dialect.delimiter)
+            if logger is not None:
+                logger.debug('Identified header fields: {}'.format(fieldnames))
+        elif not header and useheader:
+            text.seek(0)
+            assumed_header = text.readline()
+            if logger is not None:
+                logger.warning('csv.Sniffer could not identify a header in file {},'
+                               ' but "use header" is TRUE. Trying to extract column'
+                               ' names from line {}'.format(os.path.basename(filepath), assumed_header))
+            fieldnames = get_text_table_header(assumed_header, dialect.delimiter)
+            garbage = check_header_garbage(fieldnames)
+            if garbage and logger is not None:
+                logger.warning('The following field names in the header seem uncommon'
+                               ' or their names have been chosen poorly: {} -'
+                               ' Are you sure this file has a header?'.format('[ ' + ' | '.join(garbage) + ' ]'))
+        elif not header and not useheader:
+            if logger is not None:
+                logger.debug('No header detected or forced - ok')
+            # fieldnames will be empty, defaults to chrom - start - end
+            pass
+        else:
+            raise AssertionError('How did I end up here?! We need more unit tests...')
+    return skip, dialect.delimiter, fieldnames

@@ -19,4 +19,14 @@ TRGIDX_MASK = 'cons/mask'
 TRGIDX_SPLITS = 'cons/splits'
 TRGIDX_SELECT = 'cons/select'
 
+# this is deprecated...
 FEAT_FP_PREC = 5
+
+# this is used in conjunction with
+# csv.Sniffer to determine the format
+# of tables in text format (most likely
+# BED-like files)
+VALID_DELIMITERS = [' ', '\t', ',']
+DELIMITER_NAMES = {' ': '<WHITESPACE>',
+                   '\t': '<TAB>',
+                   ',': '<COMMA>'}
