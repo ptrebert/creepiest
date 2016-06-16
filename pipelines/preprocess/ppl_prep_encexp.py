@@ -261,7 +261,7 @@ def merge_expquant_files(inputfiles, outputfile, genemodel):
 
     all_exps = []
     with open(outputfile, 'w') as outf:
-        _ = outf.write('\t'.join(['#chrom', 'start', 'end', 'ensid', 'symbol', 'expr']) + '\n')
+        _ = outf.write('\t'.join(['#chrom', 'start', 'end', 'ensid', 'symbol', 'expr', 'y_depvar']) + '\n')
         for gene in all_genes:
             line = '\t'.join([gene['chrom'], str(gene['start']), str(gene['end']), gene['ensid'], gene['symbol'], ''])
             try:
@@ -269,11 +269,17 @@ def merge_expquant_files(inputfiles, outputfile, genemodel):
                 avg = np.average(vals)
                 if np.isnan(avg):
                     avg = 0.
+                if avg < 1:
+                    level = '0'
+                elif avg < 10:
+                    level = '1'
+                else:
+                    level = '2'
                 all_exps.append(avg)
-                line += str(avg) + '\n'
+                line += str(avg) + '\t' + level + '\n'
                 _ = outf.write(line)
             except KeyError:
-                line += '0' + '\n'
+                line += '0\t0' + '\n'
                 _ = outf.write(line)
     return outputfile
 
@@ -349,12 +355,18 @@ def salmon_to_bed_genes(inputfile, outputfile, gencode):
     outbuf = []
     for symbol, tpm in gene_expression.items():
         chrom, start, end, ensid = annotation[symbol]
-        gene_region = chrom, start, end, ensid, symbol, str(tpm)
+        if tpm < 1:
+            level = '0'
+        elif tpm < 10:
+            level = '1'
+        else:
+            level = '2'
+        gene_region = chrom, start, end, ensid, symbol, str(tpm), level
         outbuf.append(gene_region)
 
     outbuf = sorted(outbuf, key=lambda x: (x[0], x[1], x[2]))
     with open(outputfile, 'w') as outf:
-        _ = outf.write('\t'.join(['#chrom', 'start', 'end', 'ensid', 'symbol', 'expr']) + '\n')
+        _ = outf.write('\t'.join(['#chrom', 'start', 'end', 'ensid', 'symbol', 'expr', 'y_depvar']) + '\n')
         outbuf = ['\t'.join(map(str, gene)) for gene in outbuf]
         _ = outf.write('\n'.join(outbuf) + '\n')
     return outputfile
