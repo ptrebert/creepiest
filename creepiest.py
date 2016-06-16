@@ -167,6 +167,23 @@ def init_logging_system(args, logbuf):
     return logger
 
 
+def normalize_file_mode(selected):
+    """
+    :param selected:
+    :return:
+    """
+    if selected in ['a', 'w']:
+        pass
+    elif selected == 'replace':
+        selected = 'w'
+    elif selected == 'append':
+        selected = 'a'
+    else:
+        raise AssertionError('This should be impossible - but:\n'
+                             'In the face of ambiguity, refuse the temptation to guess.')
+    return selected
+
+
 def run():
     """
     :return: exit code
@@ -198,6 +215,7 @@ def run():
             logger.debug('Configuration dumped to: {}'.format(conf_dump))
         logger.debug('Executing command: {}'.format(args.subparser_name))
         args.__dict__['module_logger'] = logging.getLogger(args.subparser_name)
+        args.__dict__['filemode'] = normalize_file_mode(args.filemode)
         if args.profiling:
             retcode = cprf.runctx('args.execute(args)', {}, {'args': args}, 'crp_' + args.subparser_name + '.prf')
         else:
