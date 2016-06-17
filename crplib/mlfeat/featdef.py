@@ -447,6 +447,11 @@ def _weighted_motifs(row, start, end, binsize):
     :param binsize:
     :return:
     """
+    # Important: this works with the TF motifs
+    # because these don't have a name column by construction,
+    # i.e. row.name gives the index (start coordinate by construction).
+    # Iff there is a name column in the row that needs to be accessed,
+    # it has to be done as row['name']
     ridx = row.name
     if start >= ridx and end <= ridx + binsize:
         w = (end - start) / binsize
@@ -471,7 +476,6 @@ def feat_tf_motifs(regions, motifcounts):
     """
     :param regions:
      :type: list of dict
-    :param motifnames:
     :param motifcounts: Pandas DataFrame
     :return:
     """
