@@ -389,6 +389,10 @@ def _feat_roi_default(infix, quantify):
     return feats
 
 
+def _feat_roi_bpcov(row, start, end):
+    return max(row.start, start) - min(row.end, end)
+
+
 def feat_roi(regions, rois, infix='', quantify={'all'}):
     """
     :param regions:
@@ -401,6 +405,7 @@ def feat_roi(regions, rois, infix='', quantify={'all'}):
     if infix and not infix.endswith('_'):
         infix += '_'
     default = _feat_roi_default(infix, quantify)
+    calc_bpcov = _feat_roi_bpcov
     [reg.update(default) for reg in regions]
     for reg in regions:
         ovl = rois.query('start < {} and end > {}'.format(reg['end'], reg['start']))
@@ -408,14 +413,15 @@ def feat_roi(regions, rois, infix='', quantify={'all'}):
             continue
         s, e = reg['start'], reg['end']
         reglen = e - s
-        ovl = ovl.assign(regstart=s, regend=e)
-        ovl = ovl.assign(maxstart=lambda r: ovl[['start', 'regstart']].max(axis=1), minend=lambda r: ovl[['end', 'regend']].min(axis=1))
-        ovl = ovl.assign(bpcov=lambda r: r.minend - r.maxstart)
+        bpcov = ovl.apply(calc_bpcov, axis=1, args=(s, e))
         if 'all' in quantify:
             reg[FEAT_ROI_PREFIX + infix + 'bin_obs'] = 1
-            tot_cov = ovl.bpcov.sum()
+            tot_cov = bpcov.sum()
             reg[FEAT_ROI_PREFIX + infix + 'pct_cov'] = tot_cov / reglen * 100.
             reg[FEAT_ROI_PREFIX + infix + 'abs_num'] = ovl.shape[0]
+        # TODO here:
+        # write smaller functions that allow to avoid this clunky construct
+        # by setting defaults as necessary (as soon as performance becomes an issue)
         else:
             try:
                 reg[FEAT_ROI_PREFIX + infix + 'bin_obs'] = 1
