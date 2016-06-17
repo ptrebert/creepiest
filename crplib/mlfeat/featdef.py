@@ -414,9 +414,9 @@ def feat_roi(regions, rois, infix='', quantify={'all'}):
         s, e = reg['start'], reg['end']
         reglen = e - s
         bpcov = ovl.apply(calc_bpcov, axis=1, args=(s, e))
+        tot_cov = bpcov.sum()
         if 'all' in quantify:
             reg[FEAT_ROI_PREFIX + infix + 'bin_obs'] = 1
-            tot_cov = bpcov.sum()
             reg[FEAT_ROI_PREFIX + infix + 'pct_cov'] = tot_cov / reglen * 100.
             reg[FEAT_ROI_PREFIX + infix + 'abs_num'] = ovl.shape[0]
         # TODO here:
@@ -432,7 +432,6 @@ def feat_roi(regions, rois, infix='', quantify={'all'}):
             except KeyError:
                 pass
             try:
-                tot_cov = ovl.bpcov.sum()
                 reg[FEAT_ROI_PREFIX + infix + 'pct_cov'] = tot_cov / reglen * 100.
             except KeyError:
                 pass
