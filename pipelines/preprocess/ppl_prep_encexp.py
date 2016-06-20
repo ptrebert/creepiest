@@ -478,4 +478,18 @@ def build_pipeline(args, config, sci_obj):
 
     musbed = pipe.files(salmon_to_bed_genes, musbed_params, name='musbed').jobs_limit(2).follows(musquant).follows(convgenc)
 
+    sci_obj.set_config_env(dict(config.items('JobConfig')), dict(config.items('EnvConfig')))
+    if args.gridmode:
+        jobcall = sci_obj.ruffus_gridjob()
+    else:
+        jobcall = sci_obj.ruffus_localjob()
+
+    cmd = config.get('Pipeline', 'convbedexp')
+    convbedexp = pipe.transform(task_func=sci_obj.get_jobf('in_out'),
+                                name='convbedexp',
+                                input=output_from(musbed, mergequant),
+                                filter=formatter('(?P<SAMPLE>\w+)\.genc-(?P<GENCVER>v[A-Z0-9]+)\.bed'),
+                                output=os.path.join(bedout, '{SAMPLE[0]}.genc-{GENCVER[0]}.h5'),
+                                extras=[cmd, jobcall])
+
     return pipe
