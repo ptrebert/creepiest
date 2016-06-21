@@ -354,8 +354,6 @@ def feat_dnase_motif(region):
                        index=list('ATCG'), columns=np.arange(6), dtype=np.float64)
     pwm /= 100.
     tmpseq = region['seq'].upper()
-    reglen = len(tmpseq)
-    # N - k + 1 = number substrings of length k in string of length N
     region[FEAT_DNASE_MEDPROB] = 0
     region[FEAT_DNASE_MAXPROB] = 0
     region[FEAT_DNASE_MEDAD] = 0
