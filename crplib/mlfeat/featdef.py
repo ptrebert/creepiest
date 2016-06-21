@@ -13,8 +13,8 @@ import copy as cp
 import itertools as itt
 import functools as funct
 import collections as col
+import pandas as pd
 
-from crplib.auxiliary.constants import FEAT_FP_PREC
 
 FEAT_LENGTH = 'ftlen_abs_length'
 FEAT_RELLENGTH = 'ftlen_pct_length'
@@ -43,6 +43,10 @@ FEAT_DIST_KURT = 'ftdst_abs_kurt_'
 
 FEAT_MAPSIG_PREFIX = 'ftmsig_'
 FEAT_ROI_PREFIX = 'ftroi_'
+
+FEAT_DNASE_MEDPROB = 'ftdnm_abs_medprob'
+FEAT_DNASE_MAXPROB = 'ftdnm_abs_maxprob'
+FEAT_DNASE_MEDAD = 'ftdnm_abs_medad'
 
 
 def _format_malformed_region(reg):
@@ -75,7 +79,8 @@ def _get_feat_fun_map():
                     'kmf': feat_kmer_frequency,
                     'tfm': feat_tf_motifs,
                     'msig': feat_mapsig,
-                    'roi': feat_roi}
+                    'roi': feat_roi,
+                    'dnm': feat_dnase_motif}
     return feat_fun_map
 
 
@@ -103,7 +108,7 @@ def get_prefix_list(features):
     feat_prefix_map = {'len': [FEAT_LENGTH, FEAT_RELLENGTH], 'prm': [FEAT_COREPROM_PREFIX],
                        'gc': [FEAT_GC], 'cpg': [FEAT_CPG], 'oecpg': [FEAT_OECPG],
                        'rep': [FEAT_REPCONT], 'kmf': [FEAT_KMERFREQ_PREFIX], 'tfm': [FEAT_TFMOTIF_PREFIX],
-                       'msig': [FEAT_MAPSIG_PREFIX], 'roi': [FEAT_ROI_PREFIX]}
+                       'msig': [FEAT_MAPSIG_PREFIX], 'roi': [FEAT_ROI_PREFIX], 'dnm': [FEAT_DNASE_PREFIX]}
     relevant_prefixes = []
     for k, v in feat_prefix_map.items():
         if k in features:
@@ -116,7 +121,7 @@ def check_online_available(reqfeat):
     :param reqfeat:
     :return:
     """
-    avfeat = filter(lambda f: f in ['len', 'prm', 'gc', 'cpg', 'oecpg', 'rep', 'kmf'], reqfeat)
+    avfeat = filter(lambda f: f in ['len', 'prm', 'gc', 'cpg', 'oecpg', 'rep', 'kmf', 'dnm'], reqfeat)
     return list(avfeat)
 
 
@@ -313,19 +318,57 @@ def feat_coreprom_motifs(region):
     # DOI:10.1093/nar/gkv1032
     # Marbach-Bar et al., 2016 NAR
     core_motifs.append(('dtieMx', 'G[CGT][CGT][AG][AGT][ACGTN][ACT]GG'))  # Downstream Transcription Initiation Element (DTIE)
+
     tmpseq = region['seq'].upper()
-    try:
-        reglen = region[FEAT_LENGTH]
-        assert len(tmpseq) == reglen, 'PRM-I: malformed region (len): {}'.format(_format_malformed_region(region))
-    except KeyError:
-        try:
-            reglen = region['end'] - region['start']
-            assert len(tmpseq) == reglen, 'PRM-II: malformed region (len): {}'.format(_format_malformed_region(region))
-        except KeyError:
-            reglen = len(tmpseq)
+    reglen = len(tmpseq)
     for name, motifre in core_motifs:
         bpcov = sum(len(m) for m in re.findall(motifre, tmpseq))
         region[FEAT_COREPROM_PREFIX + name] = (bpcov / reglen) * 100
+    return region
+
+
+def _pwm_motif_prob(pwm, posindices, match):
+    """
+    :param match:
+    :param pwm:
+    :return:
+    """
+    p = (pwm.lookup(list(match), posindices)).prod()
+    return p
+
+
+def feat_dnase_motif(region):
+    """ Since the computations for this function are a bit more involved,
+    this is the first candidate to remove from the set of online feature
+    functions
+    :param region:
+    :return:
+    """
+    # PWM for preferred DNaseI cleavage sites
+    # taken from
+    # Herrera and Chaires, J. Mol. Biol. (1994) 236, 405-411
+    pwm = pd.DataFrame([[44, 4, 28, 19, 31, 24],
+                        [26, 39, 46, 42, 2, 20],
+                        [7, 41, 15, 19, 33, 35],
+                        [22, 17, 11, 20, 33, 20]],
+                       index=list('ATCG'), columns=np.arange(6), dtype=np.float64)
+    pwm /= 100.
+    tmpseq = region['seq'].upper()
+    reglen = len(tmpseq)
+    # N - k + 1 = number substrings of length k in string of length N
+    region[FEAT_DNASE_MEDPROB] = 0
+    region[FEAT_DNASE_MAXPROB] = 0
+    region[FEAT_DNASE_MEDAD] = 0
+    motif_prob = funct.partial(_pwm_motif_prob, *(pwm, np.arange(6)))
+    match_probs = []
+    for idx in range(0, 6):
+        match_probs.extend([motif_prob(m) for m in re.findall('[ACGT]{6}', tmpseq[idx:])])
+    if match_probs:
+        match_probs = np.array(match_probs, dtype=np.float64)
+        medprob = np.median(match_probs)
+        region[FEAT_DNASE_MEDPROB] = medprob
+        region[FEAT_DNASE_MAXPROB] = np.max(match_probs)
+        region[FEAT_DNASE_MEDAD] = np.median(np.absolute(match_probs - medprob))
     return region
 
 
