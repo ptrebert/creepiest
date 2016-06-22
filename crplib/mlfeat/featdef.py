@@ -15,7 +15,6 @@ import functools as funct
 import collections as col
 import pandas as pd
 
-
 FEAT_LENGTH = 'ftlen_abs_length'
 FEAT_RELLENGTH = 'ftlen_pct_length'
 FEAT_OECPG = 'ftoecpg_rat_oeCpG'
@@ -108,7 +107,8 @@ def get_prefix_list(features):
     feat_prefix_map = {'len': [FEAT_LENGTH, FEAT_RELLENGTH], 'prm': [FEAT_COREPROM_PREFIX],
                        'gc': [FEAT_GC], 'cpg': [FEAT_CPG], 'oecpg': [FEAT_OECPG],
                        'rep': [FEAT_REPCONT], 'kmf': [FEAT_KMERFREQ_PREFIX], 'tfm': [FEAT_TFMOTIF_PREFIX],
-                       'msig': [FEAT_MAPSIG_PREFIX], 'roi': [FEAT_ROI_PREFIX], 'dnm': [FEAT_DNASE_PREFIX]}
+                       'msig': [FEAT_MAPSIG_PREFIX], 'roi': [FEAT_ROI_PREFIX],
+                       'dnm': [FEAT_DNASE_MEDPROB, FEAT_DNASE_MAXPROB, FEAT_DNASE_MEDAD]}
     relevant_prefixes = []
     for k, v in feat_prefix_map.items():
         if k in features:
@@ -327,13 +327,23 @@ def feat_coreprom_motifs(region):
     return region
 
 
-def _pwm_motif_prob(pwm, posindices, match):
+@funct.lru_cache(maxsize=4096, typed=False)
+def _pwm_motif_prob(match):
     """
     :param match:
     :param pwm:
     :return:
     """
-    p = (pwm.lookup(list(match), posindices)).prod()
+    # PWM for preferred DNaseI cleavage sites
+    # taken from
+    # Herrera and Chaires, J. Mol. Biol. (1994) 236, 405-411
+    pwm = pd.DataFrame([[44, 4, 28, 19, 31, 24],
+                        [26, 39, 46, 42, 2, 20],
+                        [7, 41, 15, 19, 33, 35],
+                        [22, 17, 11, 20, 33, 20]],
+                       index=list('ATCG'), columns=[0, 1, 2, 3, 4, 5], dtype=np.float64)
+    pwm /= 100.
+    p = (pwm.lookup(list(match), [0, 1, 2, 3, 4, 5])).prod()
     return p
 
 
@@ -344,23 +354,19 @@ def feat_dnase_motif(region):
     :param region:
     :return:
     """
-    # PWM for preferred DNaseI cleavage sites
-    # taken from
-    # Herrera and Chaires, J. Mol. Biol. (1994) 236, 405-411
-    pwm = pd.DataFrame([[44, 4, 28, 19, 31, 24],
-                        [26, 39, 46, 42, 2, 20],
-                        [7, 41, 15, 19, 33, 35],
-                        [22, 17, 11, 20, 33, 20]],
-                       index=list('ATCG'), columns=np.arange(6), dtype=np.float64)
-    pwm /= 100.
     tmpseq = region['seq'].upper()
     region[FEAT_DNASE_MEDPROB] = 0
     region[FEAT_DNASE_MAXPROB] = 0
     region[FEAT_DNASE_MEDAD] = 0
-    motif_prob = funct.partial(_pwm_motif_prob, *(pwm, np.arange(6)))
+    #motif_prob = funct.partial(_pwm_motif_prob, *(pwm, np.arange(6)))
+    motif_prob = _pwm_motif_prob
     match_probs = []
     for idx in range(0, 6):
         match_probs.extend([motif_prob(m) for m in re.findall('[ACGT]{6}', tmpseq[idx:])])
+        # Note to self:
+        # benchmarking indicates that findall is faster than finditer here
+        # I assume because of mobj.group() call for each object
+        #match_probs.extend([motif_prob(mobj.group(0)) for mobj in re.finditer('[ACGT]{6}', tmpseq[idx:])])
     if match_probs:
         match_probs = np.array(match_probs, dtype=np.float64)
         medprob = np.median(match_probs)
