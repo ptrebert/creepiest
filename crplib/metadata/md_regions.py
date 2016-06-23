@@ -5,7 +5,7 @@ import datetime as dt
 import pandas as pd
 
 from crplib.auxiliary.constants import DIV_B_TO_MB
-from crplib.metadata.md_helpers import normalize_group_path, update_metadata_index
+from crplib.metadata.md_helpers import normalize_group_path, update_metadata_index, flaterator
 
 
 MD_REGION_COLDEFS = ['group', 'chrom', 'mtime', 'size_mb', 'numreg', 'covbp', 'srcfile']
@@ -21,12 +21,7 @@ def gen_obj_and_md(mdframe, group, chrom, srcfiles, datavals):
     :return:
     """
     group = normalize_group_path(group, chrom)
-    if isinstance(srcfiles, (list, tuple)):
-        tmpsrc = ','.join([os.path.basename(f) for f in srcfiles])
-    elif isinstance(srcfiles, str):
-        tmpsrc = os.path.basename(srcfiles)
-    else:
-        raise TypeError('Cannot handle source file references: {}'.format(srcfiles))
+    srcfiles = ','.join(list(flaterator(srcfiles)))
     if isinstance(datavals, list):
         numreg = len(datavals)
         datavals = [(reg[1], reg[2], reg[3]) for reg in datavals]
@@ -37,7 +32,7 @@ def gen_obj_and_md(mdframe, group, chrom, srcfiles, datavals):
     mtime = dt.datetime.now()
     covbp = (dataobj.end - dataobj.start).sum()
     size_mem = (dataobj.values.nbytes + dataobj.index.nbytes) / DIV_B_TO_MB
-    entries = [group, chrom, mtime, int(size_mem), numreg, covbp, tmpsrc]
+    entries = [group, chrom, mtime, int(size_mem), numreg, covbp, srcfiles]
     upd_idx = update_metadata_index(mdframe, group)
     if upd_idx is not None:
         mdframe.iloc[upd_idx, ] = entries

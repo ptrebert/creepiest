@@ -18,7 +18,7 @@ from crplib.auxiliary.hdf_ops import load_masked_sigtrack, get_valid_hdf5_groups
 from crplib.auxiliary.file_ops import create_filepath, check_array_serializable, load_mmap_array
 from crplib.auxiliary.seq_parsers import get_twobit_seq, add_seq_regions
 from crplib.mlfeat.featdef import feat_mapsig, feat_tf_motifs,\
-    get_online_version, check_online_available, feat_roi
+    get_online_version, check_online_available, feat_roi, verify_sample_integrity
 from crplib.auxiliary.constants import CHROMOSOME_BOUNDARY
 
 
@@ -126,6 +126,8 @@ def get_region_traindata(params):
         assert os.path.isfile(params['seqfile']), 'Invalid path to sequence file: {}'.format(params['seqfile'])
         pos_samples = add_seq_regions(pos_samples, params['seqfile'], chrom)
         neg_samples = add_seq_regions(neg_samples, params['seqfile'], chrom)
+    verify_sample_integrity(pos_samples, True)
+    verify_sample_integrity(neg_samples, True)
     if len(check_online_available(params['features'])) > 0:
         compfeat = get_online_version(params['features'], params['kmers'])
         pos_samples = list(map(compfeat, pos_samples))
@@ -173,6 +175,7 @@ def prep_scan_regions(params):
         assert params['stepsize'] > 0,\
             'Step size invalid, cannot proceed: {} (window: {})'.format(params['step'], params['window'])
         samples = split_regions(samples, params['window'], params['stepsize'])
+    verify_sample_integrity(samples, True)
     if len(check_online_available(params['features'])) > 0:
         compfeat = get_online_version(params['features'], params['kmers'])
         samples = list(map(compfeat, samples))
@@ -197,7 +200,8 @@ def prep_scan_regions(params):
 def split_regions(samples, window, stepsize):
     """
     :param samples:
-    :param params:
+    :param window:
+    :param stepsize:
     :return:
     """
     subsamples = []
@@ -206,14 +210,24 @@ def split_regions(samples, window, stepsize):
     # need to check subsamples
     assert window >= stepsize, 'Step sizes larger than window not supported: {} < {}'.format(window, stepsize)
     for smp in samples:
+        added = False
         e = smp['end'] // window * window
         seq = smp['seq']
         offset = smp['start']
+        # Note to self here:
+        # if e <= smp['start'], won't fire
+        # added is False, add entire sample
         for idx in range(smp['start'], e, stepsize):
             if idx + window > smp['end']:
                 break
             subsamples.append({'source': smp['name'], 'start': idx, 'end': idx + window,
                                'seq': seq[idx - offset:idx + window - offset]})
+            added = True
+        if not added:
+            # it could be that for very small regions the window size is too large,
+            # breaking the loop immediately and thus skipping the sample
+            subsamples.append({'source': smp['name'], 'start': smp['start'], 'end': smp['end'],
+                               'seq': seq})
     return subsamples
 
 

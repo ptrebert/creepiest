@@ -33,3 +33,22 @@ def update_metadata_index(mdframe, group):
         assert len(tmp) == 1, 'Group {} multiple times in metadata'.format(group)
         update_index = tmp[0]
     return update_index
+
+
+def flaterator(iterable):
+    """ This iterator is only intended for small iterables
+    (due to the simple buffer construct)
+    :param iterable:
+    :return:
+    """
+    buffer = []
+    for thing in iterable:
+        if isinstance(thing, str):
+            yield thing
+        elif not hasattr(thing, '__iter__'):
+            yield thing
+        else:
+            buffer.extend(list(flaterator(thing)))
+    for item in buffer:
+        yield item
+    return

@@ -23,6 +23,7 @@ def add_sub_parsers(main_parser):
     subparsers = _add_apply_command(subparsers)
     subparsers = _add_correlation_command(subparsers)
     subparsers = _add_match_command(subparsers)
+    subparsers = _add_merge_command(subparsers)
     return main_parser
 
 
@@ -206,6 +207,39 @@ def _traindata_execute(args):
     """
     traindata = implib.import_module('crplib.commands.traindata')
     retval = traindata.run_collect_traindata(args)
+    return retval
+
+
+def _add_merge_command(subparsers):
+    """
+    :param subparsers:
+    :return:
+    """
+    parser_apply = subparsers.add_parser('merge',
+                                         help='Merge two datasets or add new data',
+                                         description='... to be updated ...')
+    comgroup = parser_apply.add_argument_group('General parameters')
+    comgroup.add_argument('--input', '-i', type=str, required=True, nargs='+', dest='inputfile',
+                          help='Full path to input file in HDF5 format.')
+    comgroup.add_argument('--output', '-o', type=str, required=True, dest='outputfile',
+                          help='Full path to output file in HDF5 format.')
+    comgroup.add_argument('--output-group', '-og', type=str, default='', dest='outputgroup',
+                          help='Group root path for output. Default: <empty>')
+    comgroup.add_argument('--merge-on', '-mrg', type=str, default=['name'], nargs='+', dest='mergeon')
+    comgroup.add_argument('--add-values', '-val', type=str, nargs='*', default=[], dest='valfile')
+    comgroup.add_argument('--from-columns', '-col', type=str, nargs='*', default=[], dest='valcolumns')
+
+    parser_apply.set_defaults(execute=_merge_execute)
+    return subparsers
+
+
+def _merge_execute(args):
+    """
+    :param args:
+    :return:
+    """
+    merge = implib.import_module('crplib.commands.merge')
+    retval = merge.run_merge_datasets(args)
     return retval
 
 

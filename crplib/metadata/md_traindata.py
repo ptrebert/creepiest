@@ -5,7 +5,7 @@ import datetime as dt
 import pandas as pd
 
 from crplib.auxiliary.constants import DIV_B_TO_MB
-from crplib.metadata.md_helpers import normalize_group_path, update_metadata_index
+from crplib.metadata.md_helpers import normalize_group_path, update_metadata_index, flaterator
 
 MD_TRAINDATA_COLDEFS = ['group', 'chrom', 'mtime', 'size_mb', 'numsamples',
                         'resolution', 'features', 'kmers', 'srcfile', 'indexfile']
@@ -38,11 +38,13 @@ def gen_obj_and_md(mdframe, group, chrom, args, datavals):
     features = ','.join(args.features)
     kmers = ','.join(map(str, args.kmers))
     size_mem = (dataobj.values.nbytes + dataobj.index.nbytes) / DIV_B_TO_MB
-    # TODO this needs to be changed to account for the various feature types
+    srcfiles = ','.join(list(flaterator(args.inputfile)))
     if 'msig' in args.features:
-        srcfiles = os.path.basename(args.inputfile) + ',' + ','.join([os.path.basename(sf) for sf in args.signalfile])
-    else:
-        srcfiles = os.path.basename(args.inputfile)
+        srcfiles += ',' + ','.join([os.path.basename(sf) for sf in args.sigfile])
+    if 'roi' in args.features:
+        srcfiles += ',' + ','.join([os.path.basename(sf) for sf in args.roifile])
+    if 'tfm' in args.features:
+        srcfiles += ',' + os.path.basename(args.tfmotifs)
     entries = [group, chrom, mtime, int(size_mem), numsamples, resolution, features,
                kmers, srcfiles, os.path.basename(args.targetindex)]
     upd_idx = update_metadata_index(mdframe, group)

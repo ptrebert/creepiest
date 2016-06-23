@@ -99,6 +99,24 @@ def _make_kmer_dict(k, alphabet='ACGTN'):
     return kmers
 
 
+def verify_sample_integrity(samples, check_seq=False):
+    """
+    :param samples:
+    :param check_seq:
+    :return:
+    """
+    for smp in samples:
+        try:
+            reglen = smp['end'] - smp['start']
+            assert reglen > 0, 'Malformed region (length): {}'.format(_format_malformed_region(smp))
+            if check_seq:
+                seqlen = len(smp['seq'])
+                assert reglen == seqlen, 'Malformed region (seq. length): {}'.format(_format_malformed_region(smp))
+        except KeyError as ke:
+            raise AssertionError('Was expecting key {} while checking region integrity'.format(str(ke)))
+    return
+
+
 def get_prefix_list(features):
     """
     :param features:

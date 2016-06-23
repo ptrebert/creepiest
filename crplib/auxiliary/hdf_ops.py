@@ -60,6 +60,22 @@ def get_default_group(filepath):
     return group_root.pop()
 
 
+def get_chrom_list(filepath, verify=False):
+    """
+    :param filepath:
+    :param verify:
+    :return:
+    """
+    with pd.HDFStore(filepath, 'r') as hdf:
+        chroms = hdf['metadata'].chrom.tolist()
+        if verify:
+            for grp in hdf.keys():
+                root, chrom = os.path.split(grp)
+                assert chrom.strip('/') in chroms, \
+                    'Could not find data group for chrom {} in file {}'.format(chrom, os.path.basename(filepath))
+    return chroms
+
+
 def get_trgindex_groups(fpath, grproot):
     """
     :param fpath:
@@ -80,6 +96,21 @@ def get_trgindex_groups(fpath, grproot):
         else:
             raise ValueError('Unexpected group in target index {}: {}'.format(fpath, g))
     return infos
+
+
+def load_data_group(filepath, group, chrom=''):
+    """
+    :param filepath:
+    :param group:
+    :param chrom:
+    :return:
+    """
+    if chrom:
+        if not group.endswith(chrom):
+            group = os.path.join(group, chrom)
+    with pd.HDFStore(filepath, 'r') as hdf:
+        data_group = hdf[group]
+    return data_group
 
 
 def build_conservation_mask(chainfile, chrom, csize=None):
