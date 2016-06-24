@@ -16,7 +16,7 @@ from sklearn import metrics as sklmet
 
 from crplib.auxiliary.hdf_ops import get_valid_hdf5_groups
 from crplib.auxiliary.file_ops import create_filepath
-from crplib.mlfeat.featdef import get_prefix_list
+from crplib.mlfeat.featdef import get_prefix_list, get_classes_from_names
 
 
 def train_nocv(model, params, traindata, outputs):
@@ -60,17 +60,24 @@ def load_training_data(filepath, prefix, onlyfeatures):
     all_groups = get_valid_hdf5_groups(filepath, prefix)
     with pd.HDFStore(filepath, 'r') as hdf:
         full_dset = pd.concat([hdf[g] for g in all_groups], ignore_index=True)
+        feat_order = sorted([ft for ft in full_dset.columns if ft.startswith('ft')])
+        assert feat_order, 'No features selected from column names: {}'.format(full_dset.columns)
         mdf = hdf['metadata']
         load_group = all_groups[0]
-        ft_classes = mdf.where(mdf.group == load_group).dropna()['features']
-        ft_classes = ft_classes.values[0].split(',')
-        ft_kmers = mdf.where(mdf.group == load_group).dropna()['kmers']
-        ft_kmers = list(map(int, ft_kmers.values[0].split(',')))
-        res = mdf.where(mdf.group == load_group).dropna()['resolution']
-        res = res.values[0]
+        if 'features' in mdf.columns:
+            # regular training dataset
+            ft_classes = mdf.where(mdf.group == load_group).dropna()['features']
+            ft_classes = ft_classes.values[0].split(',')
+            ft_kmers = mdf.where(mdf.group == load_group).dropna()['kmers']
+            ft_kmers = list(map(int, ft_kmers.values[0].split(',')))
+            res = mdf.where(mdf.group == load_group).dropna()['resolution']
+            res = res.values[0]
+        else:
+            # apparently, just regions
+            ft_classes = get_classes_from_names(feat_order)
+            ft_kmers = []
+            res = 0
     outputs = pd.Series(full_dset.loc[:, 'y_depvar'])
-    feat_order = sorted([ft for ft in full_dset.columns if ft.startswith('ft')])
-    assert feat_order, 'No features selected from column names: {}'.format(full_dset.columns)
     if onlyfeatures:
         prefixes = get_prefix_list(onlyfeatures)
         feat_order = list(filter(lambda x: any([x.startswith(p) for p in prefixes]), feat_order))

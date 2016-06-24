@@ -47,6 +47,20 @@ FEAT_DNASE_MEDPROB = 'ftdnm_abs_medprob'
 FEAT_DNASE_MAXPROB = 'ftdnm_abs_maxprob'
 FEAT_DNASE_MEDAD = 'ftdnm_abs_medad'
 
+FEAT_PREFIX_MAP = {'len': [FEAT_LENGTH, FEAT_RELLENGTH], 'prm': [FEAT_COREPROM_PREFIX],
+                   'gc': [FEAT_GC], 'cpg': [FEAT_CPG], 'oecpg': [FEAT_OECPG],
+                   'rep': [FEAT_REPCONT], 'kmf': [FEAT_KMERFREQ_PREFIX], 'tfm': [FEAT_TFMOTIF_PREFIX],
+                   'msig': [FEAT_MAPSIG_PREFIX], 'roi': [FEAT_ROI_PREFIX],
+                   'dnm': [FEAT_DNASE_MEDPROB, FEAT_DNASE_MAXPROB, FEAT_DNASE_MEDAD]}
+
+FEAT_CLASS_MAP = dict()
+for ftclass, prefixes in FEAT_PREFIX_MAP.items():
+    for pref in prefixes:
+        FEAT_CLASS_MAP[pref] = ftclass
+        FEAT_CLASS_MAP[pref.strip('_')] = ftclass
+        if pref.startswith('ftkmf_pct'):
+            FEAT_CLASS_MAP[pref.strip('_k')] = ftclass
+
 
 def _format_malformed_region(reg):
     """ Remove unnecessary information from
@@ -122,16 +136,38 @@ def get_prefix_list(features):
     :param features:
     :return:
     """
-    feat_prefix_map = {'len': [FEAT_LENGTH, FEAT_RELLENGTH], 'prm': [FEAT_COREPROM_PREFIX],
-                       'gc': [FEAT_GC], 'cpg': [FEAT_CPG], 'oecpg': [FEAT_OECPG],
-                       'rep': [FEAT_REPCONT], 'kmf': [FEAT_KMERFREQ_PREFIX], 'tfm': [FEAT_TFMOTIF_PREFIX],
-                       'msig': [FEAT_MAPSIG_PREFIX], 'roi': [FEAT_ROI_PREFIX],
-                       'dnm': [FEAT_DNASE_MEDPROB, FEAT_DNASE_MAXPROB, FEAT_DNASE_MEDAD]}
     relevant_prefixes = []
-    for k, v in feat_prefix_map.items():
+    for k, v in FEAT_PREFIX_MAP.items():
         if k in features:
             relevant_prefixes.extend(v)
     return relevant_prefixes
+
+
+def get_classes_from_names(featnames):
+    """
+    :param featnames:
+    :return:
+    """
+    q1 = col.deque(featnames)
+    q1.append('SENTINEL')
+    q2 = col.deque()
+    splits = 0
+    ftclasses = set()
+    while 1:
+        for ft in iter(q1.popleft, 'SENTINEL'):
+            prefix = ft.rsplit('_', splits)[0]
+            if prefix in FEAT_CLASS_MAP:
+                ftclasses.add(FEAT_CLASS_MAP[prefix])
+            else:
+                if splits > ft.count('_'):
+                    raise AssertionError('Cannot find feature class for feature name: {} (splits: {})'.format(ft, splits))
+                q2.append(ft)
+        splits += 1
+        q2.append('SENTINEL')
+        if len(q2) <= 1:
+            break
+        q1, q2 = q2, q1
+    return sorted(ftclasses)
 
 
 def check_online_available(reqfeat):

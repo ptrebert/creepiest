@@ -11,7 +11,8 @@ import multiprocessing as mp
 from crplib.auxiliary.hdf_ops import get_default_group, get_chrom_list, load_data_group
 from crplib.auxiliary.file_ops import create_filepath
 
-from crplib.metadata.md_regions import MD_REGION_COLDEFS, gen_obj_and_md
+from crplib.metadata.md_regions import MD_REGION_COLDEFS
+from crplib.metadata.md_regions import gen_obj_and_md as region_generate
 
 
 def assemble_worker_params(args):
@@ -174,7 +175,7 @@ def run_merge_datasets(args):
                 resit = pool.imap_unordered(merge_extend_datasets, arglist, chunksize=1)
                 for chrom, dataobj in resit:
                     logger.debug('Received data for chromosome {}'.format(chrom))
-                    grp, dataobj, metadata = gen_obj_and_md(metadata, args.outputgroup, chrom, [args.inputfile, args.valfile], dataobj)
+                    grp, dataobj, metadata = region_generate(metadata, args.outputgroup, chrom, [args.inputfile, args.valfile], dataobj)
                     hdf.put(grp, dataobj, format='fixed')
                     hdf.flush()
                     logger.debug('Flushed data to file')
