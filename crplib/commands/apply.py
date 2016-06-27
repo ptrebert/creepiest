@@ -8,6 +8,8 @@ for a specific cell type in a different species
 import os as os
 import pandas as pd
 import numpy as np
+import collections as col
+import numpy.random as rng
 import operator as op
 import multiprocessing as mp
 import json as json
@@ -180,8 +182,13 @@ def load_region_data(fpath, groups, features, labelcol, labeltype='class'):
             classlabels = full_dataset.loc[:, labelcol].astype(coltype, copy=False)
         else:
             classlabels = None
+        region_names = [cn for cn in full_dataset.columns if cn in ['name', 'source']]
+        if len(region_names) > 0:
+            region_names = full_dataset.loc[:, region_names[0]].values
+        else:
+            region_names = np.array([])
         dataset = full_dataset.loc[:, features]
-    return dataset, classlabels
+    return dataset, region_names, classlabels
 
 
 def run_classify_regions(logger, args):
@@ -197,11 +204,12 @@ def run_classify_regions(logger, args):
     feat_order = model_md['feature_order']
     load_groups = get_valid_hdf5_groups(args.inputfile, args.inputgroup)
     logger.debug('Loading region dataset')
-    dataset, class_true = load_region_data(args.inputfile, load_groups, feat_order, args.classlabels, args.labeltype)
+    dataset, names, class_true = load_region_data(args.inputfile, load_groups, feat_order, args.classlabels, args.labeltype)
     logger.debug('Loaded dataset of size {}'.format(dataset.shape))
     y_pred = model.predict(dataset)
     y_prob = model.predict_proba(dataset)
     class_order = list(map(int, model.classes_))
+    names = list(map(str, names.tolist()))
     if class_true is not None:
         # to serialize this to JSON, need to cast
         # all numeric values to Python types (from numpy)
@@ -211,10 +219,32 @@ def run_classify_regions(logger, args):
             acc = accuracy_score(class_true, y_pred)
             scores = {'f1': float(f1), 'accuracy': float(acc), 'roc_auc': float(auc)}
         else:  # multiclass classification
-            acc = -1
             auc = -1
+            acc = accuracy_score(class_true, y_pred)
             f1 = f1_score(class_true, y_pred, average='weighted', pos_label=None)
-            scores = {'f1': float(f1), 'accuracy': acc, 'roc_auc': auc}
+            scores = {'f1': float(f1), 'accuracy': float(acc), 'roc_auc': auc}
+        priors = col.Counter(class_true)
+        asc_classes = sorted(class_order)
+        num_samples = len(class_true)
+        priors = np.array([priors[cnt] / num_samples for cnt in asc_classes], dtype=np.float64)
+        runif_f1 = []
+        runif_acc = []
+        rprior_f1 = []
+        rprior_acc = []
+        for _ in range(1000):
+            runif_f1.append(f1_score(class_true, rng.choice(asc_classes, num_samples), average='weighted', pos_label=None))
+            runif_acc.append(accuracy_score(class_true, rng.choice(asc_classes, num_samples)))
+            rprior_f1.append(f1_score(class_true, rng.choice(asc_classes, num_samples, p=priors), average='weighted', pos_label=None))
+            rprior_acc.append(accuracy_score(class_true, rng.choice(asc_classes, num_samples, p=priors)))
+        rand_scores = {'f1_runif_mean': float(np.mean(runif_f1)), 'f1_runif_max': float(np.max(runif_f1)),
+                       'f1_runif_95pct': float(np.percentile(runif_f1, 95)),
+                       'f1_rprior_mean': float(np.mean(rprior_f1)), 'f1_rprior_max': float(np.max(rprior_f1)),
+                       'f1_rprior_95pct': float(np.percentile(rprior_f1, 95)),
+                       'acc_runif_mean': float(np.mean(runif_acc)), 'acc_runif_max': float(np.max(runif_acc)),
+                       'acc_runif_95pct': float(np.percentile(runif_acc, 95)),
+                       'acc_rprior_mean': float(np.mean(rprior_acc)), 'acc_rprior_max': float(np.max(rprior_acc)),
+                       'acc_rprior_95pct': float(np.percentile(rprior_acc, 95))}
+        scores.update(rand_scores)
         true_labels = list(map(int, class_true))
     else:
         scores = {'f1': -1, 'accuracy': -1, 'roc_auc': -1}
@@ -224,7 +254,8 @@ def run_classify_regions(logger, args):
     dump = {'scores': scores, 'class_true': true_labels, 'class_pred': class_pred,
             'class_probs': class_probs, 'class_order': class_order,
             'inputfile': os.path.basename(args.inputfile), 'modelfile': os.path.basename(args.modelfile),
-            'n_samples': dataset.shape[0], 'n_features': dataset.shape[1]}
+            'n_samples': dataset.shape[0], 'n_features': dataset.shape[1],
+            'names': names}
     logger.debug('Dumping prediction to output file')
     with open(args.outputfile, 'w') as outfile:
         _ = json.dump(dump, outfile, indent=1)

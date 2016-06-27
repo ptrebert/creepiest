@@ -1,0 +1,26 @@
+{
+"module_path": "sklearn.ensemble",
+"model_name": "RandomForestClassifier",
+"default": {
+"n_estimators": 500,
+"bootstrap": true,
+"oob_score": false
+},
+"cvtune": {
+"scoring": "accuracy_score",
+"min_samples_split": [
+2,
+4,
+8,
+16
+],
+"n_estimators": [
+250,
+500,
+750,
+1000
+],
+"bootstrap": [true],
+"oob_score": [false]
+}
+}
