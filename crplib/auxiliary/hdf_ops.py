@@ -98,7 +98,7 @@ def get_trgindex_groups(fpath, grproot):
     return infos
 
 
-def load_data_group(filepath, group, chrom=''):
+def load_data_group(filepath, group, chrom='', allow_none=False):
     """
     :param filepath:
     :param group:
@@ -109,7 +109,13 @@ def load_data_group(filepath, group, chrom=''):
         if not group.endswith(chrom):
             group = os.path.join(group, chrom)
     with pd.HDFStore(filepath, 'r') as hdf:
-        data_group = hdf[group]
+        try:
+            data_group = hdf[group]
+        except KeyError as ke:
+            if allow_none:
+                data_group = None
+            else:
+                raise ke
     return data_group
 
 
