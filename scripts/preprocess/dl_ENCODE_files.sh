@@ -6,7 +6,7 @@ LISTING=/TL/deep/fhgfs/projects/pebert/thesis/biodata/dlfolder/listing_encode.tx
 
 cd ${TARGET_DIR}
 
-CMD="xargs -n 1 -a ${LISTING} curl -L -O -s -S"
+CMD="xargs -n 1 -a ${LISTING} curl -L -O -k -s -S"
 
 ${CMD}
 
