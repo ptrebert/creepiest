@@ -4,7 +4,7 @@ ENCODE_LAB_LST = ['Bradley Bernstein, Broad', 'Michael Snyder, Stanford', 'Peggy
                   'Kevin White, UChicago', 'John Stamatoyannopoulos, UW', 'Ross Hardison, PennState',
                   'Richard Myers, HAIB', 'Gregory Crawford, Duke', 'Bing Ren, UCSD',
                   'Vishwanath Iyer, UTA', 'Kevin Struhl, HMS', 'Sherman Weissman, Yale',
-                  'Barbara Wold, Caltech', 'Thomas Gingeras, CSHL']
+                  'Barbara Wold, Caltech', 'Thomas Gingeras, CSHL', 'Sheng Zhong UCSD', 'EWHA']
 
 ENCODE_LAB_MAP = {}
 for idx, lab in enumerate(ENCODE_LAB_LST):
