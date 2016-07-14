@@ -47,3 +47,8 @@ Note 2016-05-25
 
 * The expression data for hg19 (SE libraries) are missing quantifications beyond the exon level; downloaded
  additional metadata/files (PE libraries) to get expression estimates on gene level
+ 
+Note 2016-07-13
+ 
+ * changed approach since gene-level expression quantification is anyway required; downloaded all ENCODE
+ file metadata and created normalized annotation file from that (encode_metadata_ro.tsv)
