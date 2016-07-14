@@ -35,7 +35,7 @@ NORMALIZE = {'Biosample term name': {'CH12.LX': 'CH12', 'ES-Bruce4': 'ESB4', 'ES
                                      'GM12878': 'GM12878', 'H1-hESC': 'H1hESC', 'HepG2': 'HepG2',
                                      'K562': 'K562', 'MEL cell line': 'MEL', 'liver': 'liver', 'kidney': 'kidney'},
              'Biosample life stage': {'adult': 'ad', 'embryonic': 'em', 'unknown': 'un', 'default': 'un', 'child': 'ch'},
-             'Biosample organism': {'Homo sapiens': 'hsa', 'Mus musculus': 'mus'},
+             'Biosample organism': {'Homo sapiens': 'hsa', 'Mus musculus': 'mmu'},
              'Lab': {'Barbara Wold, Caltech': 'BWCALT', 'Ross Hardison, PennState': 'RHPSU',
                      'Bradley Bernstein, Broad': 'BBBRD', 'Bing Ren, UCSD': 'BRUCSD'},
              'Run type': {'paired-ended': 'pe', 'single-ended': 'se'},
@@ -116,7 +116,7 @@ if __name__ == '__main__':
                 writer = csv.DictWriter(mdout, fieldnames=USE_MD_FIELDS, extrasaction='ignore', delimiter='\t')
                 writer.writeheader()
                 writer.writerows(md_out)
-            print('Metadata written to file')
+                print('Metadata written to file')
 
     except Exception as err:
         trb.print_exc()
