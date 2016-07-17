@@ -12,6 +12,8 @@ import csv as csv
 import traceback as trb
 import configparser as cfgp
 import functools as funct
+import subprocess as sp
+import tempfile as tmpf
 import operator as op
 import collections as col
 
@@ -72,6 +74,31 @@ def check_entry(selectors, rowdata):
     return rowdata
 
 
+def get_md5(fp):
+    """
+    :param fp:
+    :return:
+    """
+    out = sp.check_output('md5sum {}'.format(fp), shell=True, executable='/bin/bash')
+    md5, fn = out.decode('ascii').split()
+    return md5
+
+
+def get_updated_md5(metadata):
+    """
+    :param metadata:
+    :return:
+    """
+    mdtmp = tmpf.NamedTemporaryFile('w', encoding='ascii', delete=True)
+    with open(mdtmp.name, 'w') as out:
+        writer = csv.DictWriter(out, fieldnames=USE_MD_FIELDS, extrasaction='ignore', delimiter='\t')
+        writer.writeheader()
+        writer.writerows(metadata)
+        out.flush()
+        tmp_md5 = get_md5(mdtmp.name)
+    return tmp_md5
+
+
 if __name__ == '__main__':
     try:
         existing_files = os.listdir(DL_FOLDER)
@@ -106,17 +133,26 @@ if __name__ == '__main__':
                             else:
                                 norm[k.strip()] = v.strip()
                         md_out.append(norm)
+        md_out = sorted(md_out, key=lambda d: d['File accession'])
         if dlfiles:
             with open(LISTFILE, 'w') as listing:
                 _ = listing.write('\n'.join(dlfiles))
             print('Listing written to file')
+        else:
+            try:
+                os.unlink(LISTFILE)
+            except (OSError, IOError):
+                pass
 
-            auto_md = os.path.join(os.path.dirname(MDFILE), 'encode_metadata_ro.tsv')
+        auto_md = os.path.join(os.path.dirname(MDFILE), 'encode_metadata_ro.tsv')
+        auto_md_md5 = get_md5(auto_md)
+        tmp_md5 = get_updated_md5(md_out)
+        if auto_md_md5 != tmp_md5:
             with open(auto_md, 'w') as mdout:
                 writer = csv.DictWriter(mdout, fieldnames=USE_MD_FIELDS, extrasaction='ignore', delimiter='\t')
                 writer.writeheader()
                 writer.writerows(md_out)
-                print('Metadata written to file')
+                print('Metadata file updated')
 
     except Exception as err:
         trb.print_exc()
