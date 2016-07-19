@@ -330,9 +330,6 @@ def salmon_to_bed(inputfile, outputfile, genemodel, datadir, expid):
     return outputfile
 
 
-# the following functions may be outdated
-
-
 def dump_gene_regions(inputfile, outputfile, regtype):
     """
     :param inputfile:
@@ -340,68 +337,28 @@ def dump_gene_regions(inputfile, outputfile, regtype):
     :param regtype:
     :return:
     """
+    regtypes = {'core': {'+': {'refpoint': 'start', 'from': -250, 'to': 250},
+                         '-': {'refpoint': 'end', 'from': -250, 'to': 250}},
+                'uprr': {'+': {'refpoint': 'start', 'from': -500, 'to': -5500},
+                         '-': {'refpoint': 'end', 'from': 500, 'to': 5500}}}
+    fieldnames = ['chrom', 'start', 'end', 'id', 'symbol']
     with open(inputfile, 'r') as infile:
         genes = js.load(infile)
-    outbuf = io.StringIO()
-    _ = outbuf.write('\t'.join(['#chrom', 'start', 'end', 'ensemblID', 'symbol']) + '\n')
-    # NB: by construction, genes are sorted
-    # by genomic coordinate
+    outbuf = []
     for gene in genes:
-        start, end = gene[regtype]
-        _ = outbuf.write('\t'.join([gene['chrom'], str(start), str(end), gene['ensemblID'], gene['symbol']]) + '\n')
-    with open(outputfile, 'w') as outfile:
-        _ = outfile.write(outbuf.getvalue())
+        select = {k: gene[k] for k in fieldnames}
+        if regtype == 'body':
+            pass
+        else:
+            adapt = regtypes[regtype][gene['strand']]
+            select['start'] = gene[adapt['refpoint']] + adapt['from']
+            select['end'] = gene[adapt['refpoint']] + adapt['to']
+        outbuf.append(select)
+    with open(outputfile, 'w') as out:
+        writer = csv.DictWriter(out, delimiter='\t', fieldnames=fieldnames, extrasaction='ignore')
+        writer.writeheader()
+        writer.writerows(outbuf)
     return outputfile
-
-
-def make_convbed_params(quantdir, fastqdir, outdir, gencodefile):
-    """
-    :param quantdir:
-    :param fastqdir:
-    :param outdir:
-    :param gencodefile:
-    :return:
-    """
-    gencver = gencodefile.split('_')[1]
-    assembly = gencodefile.split('.')[0].split('_')[2]
-    all_files = os.listdir(fastqdir)
-    all_fastq = fnm.filter(all_files, '*.fastq.gz')
-    arglist = []
-    for root, dirs, files in os.walk(quantdir):
-        if files:
-            for f in files:
-                if f == 'quant.sf':
-                    _, encexp = os.path.split(root)
-                    expfiles = fnm.filter(all_fastq, '*' + encexp + '*')
-                    assert len(expfiles) >= 2, 'Missing files for ENCODE experiment: {} ({})'.format(encexp, expfiles)
-                    if encexp.startswith('ENCSR'):
-                        expfile = expfiles[0]
-                        components = expfile.split('.')[0].split('_')
-                        if components[2] != assembly:
-                            continue
-                        new_name = '_'.join([encexp, components[2], components[3], 'mRNA', components[5]]) + '.genc-' + gencver + '.bed'
-                        new_path = os.path.join(outdir, new_name)
-                        arglist.append([os.path.join(root, f), new_path, gencodefile])
-                    elif encexp.startswith(assembly):
-                        components = expfiles[0].split('_')
-                        cell, lab = components[2], components[4]
-                        all_sra_ids = set([(expf.split('_')[0]) for expf in expfiles])
-                        all_sra_ids = list(map(list, all_sra_ids))
-                        joined_id = ''
-                        for chars in zip(*all_sra_ids):
-                            if len(set(chars)) == 1:
-                                joined_id += chars[0]
-                            elif 'u' in joined_id:
-                                joined_id += ''.join(sorted(set(chars)))
-                            else:
-                                joined_id += 'u' + ''.join(sorted(set(chars)))
-                        new_name = '_'.join([joined_id, assembly, cell, 'mRNA', lab]) + '.genc-' + gencver + '.bed'
-                        new_path = os.path.join(outdir, new_name)
-                        arglist.append([os.path.join(root, f), new_path, gencodefile])
-                    else:
-                        # assembly does not match
-                        pass
-    return arglist
 
 
 def _read_fasta_header(line):
@@ -455,6 +412,9 @@ def filter_gencode(annotation, outpath, transcriptome):
     with open(outpath, 'w') as outf:
         _ = js.dump(genes, outf, indent=1)
     return outpath
+
+
+# the following functions may be outdated
 
 
 def convert_hcop_table(inputfile, outputfile):
@@ -715,6 +675,32 @@ def build_pipeline(args, config, sci_obj):
                                       tempdir, '{EXPID[0]}']).follows(qsscpe).jobs_limit(2)
 
 
+    # dump various gene regions to BED for conversion
+
+    all_models = collect_full_paths(refdir, '*pc_transcripts.json')
+
+    dumpbody = pipe.transform(task_func=dump_gene_regions,
+                              name='dumpbody',
+                              input=all_models,
+                              filter=suffix('.pc_transcripts.json'),
+                              output='.body.bed',
+                              extras=['body']).follows(mkgenemap)
+
+    dumpcore = pipe.transform(task_func=dump_gene_regions,
+                              name='dumpcore',
+                              input=all_models,
+                              filter=suffix('.pc_transcripts.json'),
+                              output='.core.bed',
+                              extras=['core']).follows(mkgenemap)
+
+    dumpuprr = pipe.transform(task_func=dump_gene_regions,
+                              name='dumpuprr',
+                              input=all_models,
+                              filter=suffix('.pc_transcripts.json'),
+                              output='.uprr.bed',
+                              extras=['uprr']).follows(mkgenemap)
+
+
     cmd = config.get('Pipeline', 'runall')
     runall = pipe.merge(task_func=sci_obj.get_jobf('ins_out'),
                         name='runall',
@@ -724,7 +710,8 @@ def build_pipeline(args, config, sci_obj):
                                           mkhsamap, mkmmumap, mkgenemap,
                                           hsaidx31, mmuidx13, mmuidx19, genidx19,
                                           qmmuse, qhsape, qmmupe, qsscpe, qbtape,
-                                          cvbedhsa, cvbedmmu, cvbedbta, cvbedssc),
+                                          cvbedhsa, cvbedmmu, cvbedbta, cvbedssc,
+                                          dumpbody, dumpcore, dumpuprr),
                         output=os.path.join(tempdir, 'runall_encexp.chk'),
                         extras=[cmd, jobcall])
 
