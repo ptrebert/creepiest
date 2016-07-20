@@ -45,7 +45,6 @@ def process_signal(params):
     :return:
     """
     all_data = tuple()
-    mypid = mp.current_process().pid
     chrom = params['chrom']
     for fp in params['inputfile']:
         opn, mode = text_file_mode(fp)
@@ -67,7 +66,7 @@ def process_signal(params):
         retvals = merge_1d_datasets(*all_data, mergestat=params['mergestat'], qnorm=False)
     else:
         retvals = all_data[0]
-    return mypid, chrom, retvals
+    return chrom, retvals
 
 
 def run_bedgraph_conversion(args, logger):
