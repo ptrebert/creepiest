@@ -33,7 +33,7 @@ def gen_obj_and_md(mdframe, group, chrom, srcfiles, datavals):
     else:
         raise TypeError('Cannot handle source file information: {}'.format(srcfiles))
     mtime = dt.datetime.now()
-    dataobj = pd.Series(datavals, dtype='float64')
+    dataobj = pd.Series(datavals, dtype=np.float64)
     size_mem = dataobj.nbytes / DIV_B_TO_MB
     datalen = dataobj.size
     entries = [group, chrom, mtime, int(size_mem), int(datalen), tmpsrc]
