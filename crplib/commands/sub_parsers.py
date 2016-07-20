@@ -24,6 +24,7 @@ def add_sub_parsers(main_parser):
     subparsers = _add_correlation_command(subparsers)
     subparsers = _add_match_command(subparsers)
     subparsers = _add_merge_command(subparsers)
+    subparsers = _add_eval_command(subparsers)
     return main_parser
 
 
@@ -413,6 +414,36 @@ def _correlation_execute(args):
     """
     corr = implib.import_module('crplib.commands.correlation')
     retval = corr.run_compute_correlation(args)
+    return retval
+
+
+def _add_eval_command(subparsers):
+    """
+    :param subparsers:
+    :return:
+    """
+    parser_eval = subparsers.add_parser('eval',
+                                        help='Evaluate stuff',
+                                        description='...to be updated...')
+    comgroup = parser_eval.add_argument_group('Evaluate things')
+    comgroup.add_argument('--task', '-t', type=str, choices=['overlap'], dest='task',
+                          help='Specify task')
+    comgroup.add_argument('--input', '-i', type=str, nargs='+', dest='inputfile')
+    comgroup.add_argument('--roi-file', '-roi', type=str, default='', dest='roifile')
+
+    comgroup.add_argument('--output', '-o', type=str, dest='outputfile')
+
+    parser_eval.set_defaults(execute=_eval_execute)
+    return subparsers
+
+
+def _eval_execute(args):
+    """
+    :param args:
+    :return:
+    """
+    eval = implib.import_module('crplib.commands.eval')
+    retval = eval.run_evaluation(args)
     return retval
 
 
