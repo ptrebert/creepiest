@@ -9,9 +9,10 @@ import multiprocessing as mp
 import numpy as np
 import psutil as psu
 import scipy.stats as stats
+import itertools as itt
 
 from crplib.auxiliary.text_parsers import read_chromosome_sizes
-from crplib.auxiliary.file_ops import text_file_mode
+from crplib.auxiliary.file_ops import text_file_mode, create_filepath
 from crplib.metadata.md_signal import gen_obj_and_md, MD_SIGNAL_COLDEFS
 from crplib.numalg.normalization import merge_1d_datasets
 
@@ -40,7 +41,7 @@ def assemble_worker_args(chroms, args):
 
 def process_signal(params):
     """
-    :param kwargs:
+    :param params:
     :return:
     """
     all_data = tuple()
@@ -50,17 +51,12 @@ def process_signal(params):
         opn, mode = text_file_mode(fp)
         values = np.zeros(params['size'], dtype='float64')
         with opn(fp, mode=mode, encoding='ascii') as infile:
-            # TODO use itertools.dropwhile
-            start_found = False
-            for line in infile:
-                if line.startswith(chrom):
-                    start_found = True
-                    _, start, end, val = line.split()
-                    values[int(start):int(end)] = float(val)
-                elif start_found:
+            it = itt.dropwhile(lambda x: x.split()[0] != chrom, infile)
+            for line in it:
+                c, s, e, v = line.split()
+                if c != chrom:
                     break
-                else:
-                    continue
+                values[int(s):int(e)] = float(v)
         if params['clip'] < 100.:
             new_max = stats.scoreatpercentile(values, params['clip'])
             values = np.clip(values, 0., new_max)
@@ -85,16 +81,17 @@ def run_bedgraph_conversion(args, logger):
     arglist = assemble_worker_args(csizes, args)
     meminfo = round(psu.virtual_memory().available / DIV_B_TO_GB, 2)
     logger.debug('Start processing, available memory: {}GB'.format(meminfo))
-    with pd.HDFStore(args.outputfile, 'a', complevel=9, complib='blosc') as hdfout:
+    create_filepath(args.outputfile, logger)
+    with pd.HDFStore(args.outputfile, args.filemode, complevel=9, complib='blosc') as hdfout:
         with mp.Pool(args.workers) as pool:
             if 'metadata' in hdfout:
                 metadata = hdfout['metadata']
             else:
                 metadata = pd.DataFrame(columns=MD_SIGNAL_COLDEFS)
-            mapres = pool.map_async(process_signal, arglist, chunksize=1)
+            resit = pool.imap_unordered(process_signal, arglist, chunksize=1)
             logger.debug('Start processing chromosomes...')
-            for pid, chrom, valobj in mapres.get():
-                logger.debug('Worker (PID {}) completed chromosome {}'.format(pid, chrom))
+            for chrom, valobj in resit:
+                logger.debug('Chromosome {} completed'.format(chrom))
                 grp, valobj, metadata = gen_obj_and_md(metadata, args.outputgroup, chrom, args.inputfile, valobj)
                 hdfout.put(grp, valobj, format='fixed')
                 hdfout.flush()
