@@ -54,11 +54,7 @@ def get_corr_fun(measure, masked):
         module = imp.import_module('scipy.stats')
     funcs = {'pearson': module.pearsonr,
              'spearman': module.spearmanr}
-    try:
-        corrfun = funcs[measure]
-    except KeyError:
-        module = imp.import_module('sklearn.metrics')
-        corrfun = module.r2_score
+    corrfun = funcs[measure]
     return corrfun
 
 

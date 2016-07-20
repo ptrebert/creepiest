@@ -390,7 +390,7 @@ def _add_correlation_command(subparsers):
     comgroup = parser_corr.add_argument_group('Compute correlation')
     comgroup.add_argument('--task', '-t', type=str, choices=['cons', 'active', 'full', 'roi'], dest='task',
                           help='Specify task...')
-    comgroup.add_argument('--measure', '-ms', type=str, choices=['pearson', 'spearman', 'r2'], nargs='+',
+    comgroup.add_argument('--measure', '-ms', type=str, choices=['pearson', 'spearman'], nargs='+',
                           required=True, dest='measure', help='Specify statistic(s) to compute')
     comgroup.add_argument('--roi-file', '-roi', type=str, dest='roifile')
     comgroup.add_argument('--target-index', '-idx', type=str, default='', dest='targetindex',
