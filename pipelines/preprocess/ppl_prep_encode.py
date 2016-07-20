@@ -2,96 +2,72 @@
 
 import os as os
 import csv as csv
+import fnmatch as fnm
+import operator as op
 import collections as col
 import json as js
 
 from ruffus import *
 
 
-def link_encode_files(mdfile, jsfile, indir, trgdir):
-    """ One of those magic functions one needs to deal with metadata...
-    :param mdfile:
-    :param indir:
-    :param trgdir:
+def collect_full_paths(rootdir, pattern):
+    """
+    :param rootdir:
+    :param pattern:
     :return:
     """
-    from preprocess.__init__ import ENCODE_BIOSAMPLES_MAP as SAMPLE_MAP
-    from preprocess.__init__ import ENCODE_LAB_MAP as LAB_MAP
-    # map: ENCODE experiment ids (ENCSR...) mapped to custom made
-    # ENCODE dataset ids (ENCDS...); see Jupyter Notebook make_ENCODE_ids.ipynb
-    map_encsr_encds = js.load(open(jsfile, 'r'))
+    all_files = []
+    for root, dirs, files in os.walk(rootdir):
+        if files:
+            filt = fnm.filter(files, pattern)
+            for f in filt:
+                all_files.append(os.path.join(root, f))
+    return all_files
 
-    dlfiles = os.listdir(indir)
-    accnums = set([f.split('.')[0] for f in dlfiles])
-    linked_files = []
-    dscounter = col.Counter()
-    with open(mdfile, 'r') as infile:
-        rows = csv.DictReader(infile, delimiter='\t')
+
+def link_encode_files(metadata, indir, outdir, ffmt):
+    """
+    :param indir:
+    :param outdir:
+    :param metadata:
+    :return:
+    """
+    encode_files = collect_full_paths(indir, '*.' + ffmt)
+    fp_map = dict((os.path.basename(fp.split('.')[0]), fp) for fp in encode_files)
+
+    linked = []
+    getvals = op.itemgetter(*('Experiment accession', 'File accession', 'Assembly',
+                              'Biosample term name', 'Experiment target', 'Lab'))
+    with open(metadata, 'r', newline='') as mdfile:
+        rows = csv.DictReader(mdfile, delimiter='\t')
         for r in rows:
-            facc = r['File accession']
-            ffmt = r['File format']
-            if facc in accnums and ffmt in ['bigWig', 'bigBed narrowPeak', 'bigBed broadPeak']:
-                if ffmt == 'bigWig':
-                    new_ext = '.bigWig'
-                    old_ext = '.bigWig'
-                elif ffmt == 'bigBed narrowPeak':
-                    new_ext = '.narrow.bigBed'
-                    old_ext = '.bigBed'
-                elif ffmt == 'bigBed broadPeak':
-                    new_ext = '.broad.bigBed'
-                    old_ext = '.bigBed'
-                else:
+            if r['File format'] != ffmt:
+                continue
+            if r['File accession'] in fp_map:
+                if r['Biosample term name'] == 'liver' and r['Biosample life stage'] == 'em':
+                    # manual filtering here since there is not a full epigenome available
+                    # for that combination
                     continue
-                sample = SAMPLE_MAP[r['Biosample term name']]
-                mark = r['Experiment target'].rsplit('-', 1)[0]
-                if 'IgG' in mark:
-                    mark = 'IgGControl'
-                elif mark == 'Control':
-                    mark = 'InpControl'
-                elif mark.startswith('H3K'):
-                    pass
-                elif not mark.strip() and r['Assay'] == 'DNase-seq':
-                    mark = 'DNaseI'
-                    continue  # 2016-04-29: ignore DNase for now; problem with selecting appropriate
-                    # peak sizes; for histone data, filter < 200bp
+                target_name = '_'.join(list(getvals(r)))
+                rep = r['Biological replicate(s)']
+                if rep == 'n/a':
+                    rep = '0'
                 else:
-                    continue  # ignore others for now
-                expid = r['Experiment accession']
-                asmbl = r['Assembly']
-                labid = LAB_MAP[r['Lab']]
-                try:
-                    dsid = map_encsr_encds[expid]
-                except KeyError:
-                    if r['Assay'] == 'ChIP-seq':
-                        # this should not happen for histone samples
-                        if mark.startswith('H3K'):
-                            print('Error?!')
+                    try:
+                        rep = str(int(rep))
+                    except ValueError:
+                        if rep == '1, 2':  # some weird info for a mouse ChIP
+                            rep = '0'
+                        else:
                             print(r)
-                        continue
-                    dsid = 'ENCDS000CRP'
-                dscounter[dsid] += 1
-                repnum = 'R0' if not r['Biological replicate(s)'] else 'R' + r['Biological replicate(s)']
-                fname = '_'.join([dsid, facc, asmbl, sample, mark, labid, repnum]) + new_ext
-                tpath = os.path.join(trgdir, fname)
-                if os.path.islink(tpath):
-                    linked_files.append(tpath)
-                    continue
-                else:
-                    fpath = os.path.join(indir, facc + old_ext)
-                    os.link(fpath, tpath)
-                    linked_files.append(tpath)
-    # remove controls for non-histone ChIPseq etc and datasets with only
-    # single file [exception: DNaseI]; apparently, a problem with matching
-    # controls to experiments
-    filtered_files = []
-    for lf in linked_files:
-        dsid = os.path.basename(lf).split('_')[0]
-        if dscounter[dsid] > 1:
-            filtered_files.append(lf)
-        else:
-            os.unlink(lf)
-
-    return filtered_files
+                            raise
+                target_name += '_' + 'b' + rep + '.bw'
+                target_path = os.path.join(outdir, target_name)
+                if not os.path.islink(target_path):
+                    srcpath = fp_map[r['File accession']]
+                    os.symlink(srcpath, target_path)
+                linked.append(target_path)
+    return linked
 
 
 def build_pipeline(args, config, sci_obj):
@@ -104,35 +80,34 @@ def build_pipeline(args, config, sci_obj):
 
     pipe = Pipeline(name=config.get('Pipeline', 'name'))
 
-    sci_obj.set_config_env(dict(config.items('JobConfig')), dict(config.items('EnvConfig')))
-    if args.gridmode:
-        jobcall = sci_obj.ruffus_gridjob()
-    else:
-        jobcall = sci_obj.ruffus_localjob()
-
     tempdir = config.get('Pipeline', 'tempdir')
     outdir = config.get('Pipeline', 'outdir')
     refdir = config.get('Pipeline', 'refdir')
     datadir = config.get('Pipeline', 'datadir')
 
     enc_mdfile = config.get('Pipeline', 'encmd')
-    enc_dsets = config.get('Pipeline', 'encds')
 
     inputfiles = []
     tmpf = os.listdir(refdir)
     inputfiles.extend([os.path.join(refdir, tf) for tf in tmpf])
-    tmpf = link_encode_files(enc_mdfile, enc_dsets, datadir, tempdir)
+    tmpf = link_encode_files(enc_mdfile, datadir, tempdir, 'bigWig')
     inputfiles.extend(tmpf)
 
+    sci_obj.set_config_env(dict(config.items('JobConfig')), dict(config.items('EnvConfig')))
+    if args.gridmode:
+        jobcall = sci_obj.ruffus_gridjob()
+    else:
+        jobcall = sci_obj.ruffus_localjob()
+
     # step 0: initiate pipeline with input files
-    init = pipe.originate(task_func=lambda x: x, output=inputfiles)
+    init = pipe.originate(task_func=lambda x: x, output=inputfiles, name='init')
 
     cmd = config.get('Pipeline', 'convbw')
-    # step 1: select only autosomes from chrom sizes file
+    # convert bigWig signal to bedGraph, select only autosomes
     convbw = pipe.transform(task_func=sci_obj.get_jobf('in_out'),
                             name='convbw',
                             input=output_from(init),
-                            filter=suffix('.bigWig'),
+                            filter=suffix('.bw'),
                             output='.bg.gz',
                             output_dir=tempdir,
                             extras=[cmd, jobcall]).mkdir(tempdir)
@@ -152,17 +127,20 @@ def build_pipeline(args, config, sci_obj):
     else:
         jobcall = sci_obj.ruffus_localjob()
 
-    # ENCDS062CRP_ENCFF001MLR_mm9_CH12_InpControl_L05_R1.bg.gz
-    regexp = '(?P<DSID>ENCDS[0-9]+CRP)_(?P<FFID>ENCFF[0-9A-Z]+)_(?P<ASSEMBLY>[a-zA-Z0-9]+)_' \
-             '(?P<CELL>[0-9A-Za-z]+)_(?P<DTYPE>[0-9A-Za-z]+)_(?P<LAB>L[0-9]+)_(?P<REP>R[0-9])\.bg\.gz'
-    # step 2: convert fasta files into HDF5 files
+    # ENCSR857MYS_ENCFF001ZHE_mm9_ESE14_H3K9me3_RHPSU_b1.bg.gz
+    regexp = '(?P<EXPID>[A-Z0-9]+)_(?P<FFID>[0-9A-Z]+)_(?P<ASSEMBLY>[a-zA-Z0-9]+)_' \
+             '(?P<CELL>[0-9A-Za-z]+)_(?P<LIB>[0-9A-Za-z]+)_(?P<LAB>[A-Z]+)_(?P<REP>b[0-9])\.bg\.gz'
     cmd = config.get('Pipeline', 'convbg')
     convbg = pipe.collate(task_func=sci_obj.get_jobf('ins_out_ref'),
                           name='convbg',
                           input=output_from(convbw),
                           filter=formatter(regexp),
-                          output=os.path.join(outdir, '{DSID[0]}_{ASSEMBLY[0]}_{CELL[0]}_{DTYPE[0]}_{LAB[0]}.srcsig.h5'),
+                          output=os.path.join(outdir, '{EXPID[0]}_{ASSEMBLY[0]}_{CELL[0]}_{LIB[0]}_{LAB[0]}.srcsig.h5'),
                           extras=[os.path.join(refdir, '{ASSEMBLY[0]}.chrom.sizes'), cmd, jobcall]).mkdir(outdir)
+
+    # ====
+    # last update changed behavior up to here; everything below is potentially outdated
+    # ====
 
     sci_obj.set_config_env(dict(config.items('JobConfig')), dict(config.items('EnvConfig')))
     if args.gridmode:
