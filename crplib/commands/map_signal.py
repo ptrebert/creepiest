@@ -21,7 +21,7 @@ def allocate_chrom_arrays(chroms):
     """
     ret = dict()
     for name, size in chroms:
-        ret[name] = np.zeros(size, dtype='float64')
+        ret[name] = np.zeros(size, dtype=np.float64)
     return ret
 
 
@@ -44,7 +44,7 @@ def get_alignment_blocks(chainfile, chroms, chromre, logger):
     read_targets = set()
     read_queries = set()
     with opn(chainfile, mode=mode, encoding='ascii') as cf:
-        # TODO eventually
+        # TODO ... at some point...
         # right now, chain iterator can only filter for one or all targets
         # not for several... could be changed
         for alnblock in get_chain_iterator(cf, qcheck=query_re):
@@ -97,7 +97,7 @@ def run_map_signal(args):
     step = args.allocate
     _ = create_filepath(args.outputfile, logger)
     logger.debug('Processing {} chromosomes at a time'.format(step))
-    with pd.HDFStore(args.outputfile, 'w', complib='blosc', complevel=9, encoding='utf-8') as hdfout:
+    with pd.HDFStore(args.outputfile, args.filemode, complib='blosc', complevel=9, encoding='utf-8') as hdfout:
         metadata = pd.DataFrame(columns=MD_SIGNAL_COLDEFS)
         for idx in range(0, len(csizes), step):
             try:
