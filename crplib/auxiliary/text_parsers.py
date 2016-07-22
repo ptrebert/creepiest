@@ -9,6 +9,7 @@ import os as os
 import re as re
 import csv as csv
 import collections as col
+import functools as fnt
 
 from crplib.auxiliary.file_ops import text_file_mode
 from crplib.auxiliary.constants import VALID_DELIMITERS, DELIMITER_NAMES
@@ -52,7 +53,21 @@ def _read_block_end(line):
     return int(size)
 
 
-def get_chain_iterator(fobj, tselect='all', qcheck=None):
+def _check_skip(selector, chrom):
+    """
+    :param selector:
+    :param chrom:
+    :return:
+    """
+    if selector is None:
+        return False
+    elif selector.match(chrom) is None:
+        return True
+    else:
+        return False
+
+
+def get_chain_iterator(fobj, tselect=None, qselect=None):
     """ Returns an iterator over chain files as used by
     UCSC liftOver tool. The design assumes a simple parallelization, i.e.
     many processes can read the same chain file, each one filtering
@@ -61,9 +76,9 @@ def get_chain_iterator(fobj, tselect='all', qcheck=None):
 
     :param fobj: object supporting line iteration/read
      :type: file-like object opened in text mode
-    :param tselect: exact name match for allowed target chromosome
-     :type: str
-    :param qcheck: compiled regex object to check for allowed query chromosomes
+    :param tselect: compiled regex object to check for allowed target chromosomes
+     :type: None or re.regex object
+    :param qselect: compiled regex object to check for allowed query chromosomes
      :type: None or re.regex object
     :return:
     """
@@ -78,6 +93,8 @@ def get_chain_iterator(fobj, tselect='all', qcheck=None):
     read_head = _read_chain_header
     read_aln = _read_aln_dataline
     read_end = _read_block_end
+    tskip = fnt.partial(_check_skip, *(tselect,))
+    qskip = fnt.partial(_check_skip, *(qselect,))
     skip = False
     bc = 0
     for line in fobj:
@@ -88,15 +105,13 @@ def get_chain_iterator(fobj, tselect='all', qcheck=None):
                 parts = read_head(line)
                 assert parts[2] == '+', 'Reverse target chain is unexpected: {}'.format(line)
                 tchrom = parts[0]
-                if not (tchrom == tselect or tselect == 'all'):
-                    skip = True
+                skip = tskip(tchrom)
+                if skip:
                     continue
                 qchrom = parts[5]
-                if qcheck is not None:
-                    mobj = qcheck.match(qchrom)
-                    if mobj is None:
-                        skip = True
-                        continue
+                skip = qskip(qchrom)
+                if skip:
+                    continue
                 skip = False
                 trun = parts[3]
                 exp_tend = parts[4]
@@ -124,7 +139,11 @@ def get_chain_iterator(fobj, tselect='all', qcheck=None):
                     bc += 1
                     trun += size
                     qrun += size
-    assert bc > 0, 'No aln. blocks read from chain file for target select {}'.format(tselect)
+    try:
+        pat = tselect.pattern
+    except AttributeError:
+        pat = 'all'
+    assert bc > 0, 'No aln. blocks read from chain file for target selector: {}'.format(pat)
     return
 
 

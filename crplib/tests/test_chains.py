@@ -15,6 +15,7 @@ class TestChainHandling(unittest.TestCase):
         self.target_sizes = {'chr16': 1000, 'chr21': 1000, 'chr14': 1000, 'chrX': 155270560}
         self.query_sizes = {'chr8': 2500, 'chr10': 1000, 'chr14': 4050, 'chr2': 10000, 'chrX_random': 1785075}
         self.qcheck = re.compile('(chr)?[0-9]+(\s|$)')
+
         self.splits = {'chr16': [581, 582, 756, 765, 862, 863, 948, 949],
                        'chr21': [826, 831, 844, 845, 875, 878, 884, 886, 914, 916],
                        'chr14': [845, 848, 890, 892, 893, 895, 912, 915, 218, 219, 259, 260, 397, 398, 498, 508]}
@@ -24,7 +25,7 @@ class TestChainHandling(unittest.TestCase):
 
     def test_target_missing(self):
 
-        chainit = get_chain_iterator(self.chainfile, tselect='chr1')
+        chainit = get_chain_iterator(self.chainfile, tselect=re.compile('chr1$'))
         with self.assertRaises(AssertionError):
             for block in chainit:
                 pass
@@ -53,7 +54,7 @@ class TestChainHandling(unittest.TestCase):
                 # this is checked in test_target_missing
                 continue
             csize = self.target_sizes[chrom]
-            chainit = get_chain_iterator(self.chainfile, tselect=chrom, qcheck=self.qcheck)
+            chainit = get_chain_iterator(self.chainfile, tselect=re.compile(chrom + '$'), qselect=self.qcheck)
             mask, splits, select = build_index_structures(chainit, csize)
             self.assertListEqual(sorted(splits), sorted(self.splits[chrom]), 'Splits mismatch for chrom {}'.format(chrom))
             self.assertEqual(0, select[0], 'Select not 0 at beginning')
