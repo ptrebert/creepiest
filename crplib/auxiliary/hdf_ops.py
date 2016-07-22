@@ -60,6 +60,36 @@ def get_default_group(filepath):
     return group_root.pop()
 
 
+def check_path_infos(filepath, arggroup=None):
+    """
+    :param filepath:
+    :return:
+    """
+    parts = filepath.split(':')
+    label, group, fp = '', '', ''
+    if len(parts) == 2:
+        label = None
+        group = parts[0].strip()
+        fp = parts[1].strip()
+    elif len(parts) == 3:
+        label = parts[0].strip()
+        group = parts[1].strip()
+        fp = parts[2].strip()
+    else:
+        assert filepath.count(':') < 3, 'Cannot decode information prepended to file path: {}'.format(filepath)
+    # clearly distinguish between no information and a file path that
+    # erroneously still contains a colon, e.g., :/path/to/file
+    lab = label if label else None
+    grp = group if group else None
+    fp = fp if fp else filepath
+    if arggroup is not None:
+        assert grp == arggroup or not grp or not arggroup,\
+            'Group mismatch between argument ({}) and path ({})'.format(arggroup, grp)
+        if arggroup and not grp:
+            grp = arggroup
+    return lab, grp, fp
+
+
 def get_chrom_list(filepath, verify=False):
     """
     :param filepath:
@@ -70,6 +100,8 @@ def get_chrom_list(filepath, verify=False):
         chroms = hdf['metadata'].chrom.tolist()
         if verify:
             for grp in hdf.keys():
+                if grp == '/metadata':
+                    continue
                 root, chrom = os.path.split(grp)
                 assert chrom.strip('/') in chroms, \
                     'Could not find data group for chrom {} in file {}'.format(chrom, os.path.basename(filepath))
