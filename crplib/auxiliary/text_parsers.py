@@ -5,6 +5,8 @@ Some helper functions to parse text-based files
 with more or less no well-defined format
 """
 
+import sys as sys
+
 import os as os
 import re as re
 import csv as csv
@@ -67,7 +69,7 @@ def _check_skip(selector, chrom):
         return False
 
 
-def get_chain_iterator(fobj, tselect=None, qselect=None):
+def get_chain_iterator(fobj, tselect=None, qselect=None, read_num=0):
     """ Returns an iterator over chain files as used by
     UCSC liftOver tool. The design assumes a simple parallelization, i.e.
     many processes can read the same chain file, each one filtering
@@ -80,6 +82,8 @@ def get_chain_iterator(fobj, tselect=None, qselect=None):
      :type: None or re.regex object
     :param qselect: compiled regex object to check for allowed query chromosomes
      :type: None or re.regex object
+    :param read_num: read only this many chains
+     :type: int, default 0
     :return:
     """
     tchrom = None
@@ -97,11 +101,14 @@ def get_chain_iterator(fobj, tselect=None, qselect=None):
     qskip = fnt.partial(_check_skip, *(qselect,))
     skip = False
     bc = 0
+    cc = 0
     for line in fobj:
         if line.strip():
             if line.startswith('chain'):
                 assert trun == exp_tend or exp_tend == -1, 'Missed expected block end: {} vs {}'.format(trun, exp_tend)
                 assert qrun == exp_qend or exp_qend == -1, 'Missed expected block end: {} vs {}'.format(qrun, exp_qend)
+                if 0 < read_num <= cc:
+                    break
                 parts = read_head(line)
                 assert parts[2] == '+', 'Reverse target chain is unexpected: {}'.format(line)
                 tchrom = parts[0]
@@ -113,6 +120,7 @@ def get_chain_iterator(fobj, tselect=None, qselect=None):
                 if skip:
                     continue
                 skip = False
+                cc += 1
                 trun = parts[3]
                 exp_tend = parts[4]
                 qstrand = parts[7]
@@ -144,7 +152,51 @@ def get_chain_iterator(fobj, tselect=None, qselect=None):
     except AttributeError:
         pat = 'all'
     assert bc > 0, 'No aln. blocks read from chain file for target selector: {}'.format(pat)
+    assert cc > 0, 'No chain read from file for target selector: {}'.format(pat)
     return
+
+
+def get_chain_positions(chainfile, tselect=None, qselect=None, tref=True):
+    """
+    :param chainfile:
+    :param tselect:
+    :param qselect:
+    :param tref:
+    :return:
+    """
+    if tselect is None:
+        tselect = re.compile('.+')
+    if qselect is None:
+        qselect = re.compile('.+')
+    opn, mode = text_file_mode(chainfile)
+    newline = True
+    pos = 0
+    chain_positions = col.defaultdict(dict)
+    with opn(chainfile, mode) as chains:
+        while 1:
+            line = chains.readline()
+            if not line:
+                break
+            elif line.startswith('chain'):
+                assert newline, 'No newline detected before new chain: {} (last pos. {})'.format(line, pos)
+                parts = _read_chain_header(line)
+                if tselect.match(parts[0]) is not None and qselect.match(parts[5]) is not None:
+                    if tref:
+                        tchrom, qchrom = parts[0], parts[5]
+                    else:
+                        tchrom, qchrom = parts[5], parts[0]
+                    try:
+                        chain_positions[tchrom][qchrom].append(pos)
+                    except KeyError:
+                        chain_positions[tchrom][qchrom] = [pos]
+            elif not line.strip():
+                # newline in file
+                newline = True
+                pos = chains.tell()
+            else:
+                newline = False
+                continue
+    return chain_positions
 
 
 def chromsize_from_chain(chainfile, chrom):
