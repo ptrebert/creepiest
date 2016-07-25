@@ -135,7 +135,7 @@ def normalize_btau_annotation(inpath, outpath):
     :return:
     """
     entries = []
-    chrom = re.compile('^chr[0-9XY]$')
+    chrom = re.compile('^chr[0-9XY]+$')
     with gz.open(inpath, 'rb') as gff:
         for line in gff:
             line = line.decode('ascii').strip()
@@ -339,7 +339,7 @@ def dump_gene_regions(inputfile, outputfile, regtype):
     """
     regtypes = {'core': {'+': {'refpoint': 'start', 'from': -250, 'to': 250},
                          '-': {'refpoint': 'end', 'from': -250, 'to': 250}},
-                'uprr': {'+': {'refpoint': 'start', 'from': -500, 'to': -5500},
+                'uprr': {'+': {'refpoint': 'start', 'to': -500, 'from': -5500},
                          '-': {'refpoint': 'end', 'from': 500, 'to': 5500}}}
     fieldnames = ['chrom', 'start', 'end', 'id', 'symbol']
     with open(inputfile, 'r') as infile:
@@ -353,6 +353,7 @@ def dump_gene_regions(inputfile, outputfile, regtype):
             adapt = regtypes[regtype][gene['strand']]
             select['start'] = gene[adapt['refpoint']] + adapt['from']
             select['end'] = gene[adapt['refpoint']] + adapt['to']
+            assert select['start'] < select['end'], 'Malformed region: {} ({} - {})'.format(select, regtype, adapt)
         outbuf.append(select)
     with open(outputfile, 'w') as out:
         writer = csv.DictWriter(out, delimiter='\t', fieldnames=fieldnames, extrasaction='ignore')
@@ -700,6 +701,23 @@ def build_pipeline(args, config, sci_obj):
                               output='.uprr.bed',
                               extras=['uprr']).follows(mkgenemap)
 
+    sci_obj.set_config_env(dict(config.items('JobConfig')), dict(config.items('EnvConfig')))
+    if args.gridmode:
+        jobcall = sci_obj.ruffus_gridjob()
+    else:
+        jobcall = sci_obj.ruffus_localjob()
+
+    cmd = config.get('Pipeline', 'convreg').replace('\n', ' ')
+    convreg = pipe.transform(task_func=sci_obj.get_jobf('in_out'),
+                             name='convreg',
+                             input=output_from(dumpbody, dumpcore, dumpuprr),
+                             filter=formatter('(?P<SPEC>[a-z]+)_(?P<ASSM>\w+)_(?P<MODELAUTH>[a-z]+)_'
+                                              '(?P<MODELVER>v\w+)\.(?P<REGTYPE>[a-z]+)\.bed'),
+                             output=os.path.join(refdir, '{SPEC[0]}_{ASSM[0]}_{MODELAUTH[0]}_'
+                                                         '{MODELVER[0]}.{REGTYPE[0]}.h5'),
+                             extras=[cmd, jobcall])
+
+
 
     cmd = config.get('Pipeline', 'runall')
     runall = pipe.merge(task_func=sci_obj.get_jobf('ins_out'),
@@ -711,7 +729,8 @@ def build_pipeline(args, config, sci_obj):
                                           hsaidx31, mmuidx13, mmuidx19, genidx19,
                                           qmmuse, qhsape, qmmupe, qsscpe, qbtape,
                                           cvbedhsa, cvbedmmu, cvbedbta, cvbedssc,
-                                          dumpbody, dumpcore, dumpuprr),
+                                          dumpbody, dumpcore, dumpuprr,
+                                          convreg),
                         output=os.path.join(tempdir, 'runall_encexp.chk'),
                         extras=[cmd, jobcall])
 
