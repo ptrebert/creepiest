@@ -148,7 +148,7 @@ def process_regions(params):
     opn, mode = text_file_mode(fpath)
     with opn(fpath, mode=mode, encoding='ascii') as infile:
         regions = pd.read_csv(infile, sep=params['delimiter'], names=params['colnames'],
-                              index_col=False, dtype=datatypes, header=None,
+                              index_col=False, dtype=datatypes, header=0,
                               skipinitialspace=True, skiprows=params['skip'], skip_blank_lines=True,
                               encoding='utf-8', comment='#', usecols=params['colnames'])
     chroms_in_file = regions.chrom.drop_duplicates().tolist()
