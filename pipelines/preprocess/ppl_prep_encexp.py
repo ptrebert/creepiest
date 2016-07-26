@@ -717,6 +717,15 @@ def build_pipeline(args, config, sci_obj):
                                                          '{MODELVER[0]}.{REGTYPE[0]}.h5'),
                              extras=[cmd, jobcall])
 
+    # ENCSR077AZT_hg19_GM12878_mRNA_BWCALT.gencode-v19.bed
+    cmd = config.get('Pipeline', 'convexpr').replace('\n', ' ')
+    convexpr = pipe.transform(task_func=sci_obj.get_jobf('in_out'),
+                              name='convexpr',
+                              input=output_from(cvbedhsa, cvbedbta, cvbedssc, cvbedmmu),
+                              filter=suffix('.bed'),
+                              output='.h5',
+                              output_dir=hdfout,
+                              extras=[cmd, jobcall]).mkdir(hdfout)
 
 
     cmd = config.get('Pipeline', 'runall')
@@ -730,7 +739,7 @@ def build_pipeline(args, config, sci_obj):
                                           qmmuse, qhsape, qmmupe, qsscpe, qbtape,
                                           cvbedhsa, cvbedmmu, cvbedbta, cvbedssc,
                                           dumpbody, dumpcore, dumpuprr,
-                                          convreg),
+                                          convreg, convexpr),
                         output=os.path.join(tempdir, 'runall_encexp.chk'),
                         extras=[cmd, jobcall])
 
