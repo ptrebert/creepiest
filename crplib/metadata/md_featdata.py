@@ -7,8 +7,8 @@ import pandas as pd
 from crplib.auxiliary.constants import DIV_B_TO_MB
 from crplib.metadata.md_helpers import normalize_group_path, update_metadata_index, flaterator
 
-MD_TRAINDATA_COLDEFS = ['group', 'chrom', 'mtime', 'size_mb', 'numsamples',
-                        'resolution', 'features', 'kmers', 'srcfile', 'indexfile']
+MD_FEATDATA_COLDEFS = ['group', 'chrom', 'mtime', 'size_mb', 'numsamples',
+                       'resolution', 'features', 'kmers', 'srcfile', 'indexfile']
 
 
 def gen_obj_and_md(mdframe, group, chrom, args, datavals):
@@ -38,7 +38,10 @@ def gen_obj_and_md(mdframe, group, chrom, args, datavals):
     features = ','.join(args.features)
     kmers = ','.join(map(str, args.kmers))
     size_mem = (dataobj.values.nbytes + dataobj.index.nbytes) / DIV_B_TO_MB
-    srcfiles = ','.join(list(flaterator(args.inputfile)))
+    srcfiles = []
+    for item in flaterator(args.inputfile):
+        srcfiles.append(item)
+    srcfiles = ','.join(srcfiles)
     if 'msig' in args.features:
         srcfiles += ',' + ','.join([os.path.basename(sf) for sf in args.sigfile])
     if 'roi' in args.features:
@@ -51,6 +54,6 @@ def gen_obj_and_md(mdframe, group, chrom, args, datavals):
     if upd_idx is not None:
         mdframe.iloc[upd_idx, ] = entries
     else:
-        tmp = pd.DataFrame([entries, ], columns=MD_TRAINDATA_COLDEFS)
+        tmp = pd.DataFrame([entries, ], columns=MD_FEATDATA_COLDEFS)
         mdframe = mdframe.append(tmp, ignore_index=True)
     return group, dataobj, mdframe

@@ -27,7 +27,7 @@ FEAT_REPCONT = 'ftrep_pct_repcon'
 # to just the kmer: ftkm_pct_NA --> NA
 FEAT_KMERFREQ_PREFIX = 'ftkmf_pct_k'
 
-FEAT_COREPROM_PREFIX = 'ftprm_pct_'
+FEAT_COREPROM_PREFIX = 'ftprm_'
 
 FEAT_TFMOTIF_PREFIX = 'fttfm_pct_'
 
@@ -376,8 +376,10 @@ def feat_coreprom_motifs(region):
     tmpseq = region['seq'].upper()
     reglen = len(tmpseq)
     for name, motifre in core_motifs:
-        bpcov = sum(len(m) for m in re.findall(motifre, tmpseq))
-        region[FEAT_COREPROM_PREFIX + name] = (bpcov / reglen) * 100
+        occurrences = re.findall(motifre, tmpseq)
+        bpcov = sum(len(m) for m in occurrences)
+        region[FEAT_COREPROM_PREFIX + 'pct_' + name] = (bpcov / reglen) * 100
+        region[FEAT_COREPROM_PREFIX + 'abs_' + name] = len(occurrences)
     return region
 
 

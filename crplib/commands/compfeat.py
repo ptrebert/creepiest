@@ -12,7 +12,7 @@ import re as re
 import multiprocessing as mp
 import pandas as pd
 
-from crplib.metadata.md_traindata import gen_obj_and_md, MD_TRAINDATA_COLDEFS
+from crplib.metadata.md_featdata import gen_obj_and_md, MD_FEATDATA_COLDEFS
 from crplib.auxiliary.hdf_ops import load_masked_sigtrack, get_valid_hdf5_groups, \
     get_trgindex_groups, get_valid_chrom_group, get_default_group
 from crplib.auxiliary.file_ops import create_filepath, check_array_serializable, load_mmap_array
@@ -271,7 +271,6 @@ def build_featurefile_info(files):
 
 def assemble_regsig_args(chromlim, args):
     """
-    :param chroms:
     :param chromlim:
     :param args:
     :return:
@@ -306,20 +305,20 @@ def assemble_regsig_args(chromlim, args):
     return arglist
 
 
-def collect_regsig_trainsamples(args, chromlim, logger):
+def prepare_regsig_samples(args, chromlim, logger):
     """
     :param args:
-    :param csizes:
     :param chromlim:
     :param logger:
     :return:
     """
     arglist = assemble_regsig_args(chromlim, args)
     logger.debug('Collecting training data')
-    with pd.HDFStore(args.outputfile, 'w', complevel=9, complib='blosc', encoding='utf-8') as hdfout:
+    _ = create_filepath(args.outputfile, logger)
+    with pd.HDFStore(args.outputfile, args.filemode, complevel=9, complib='blosc', encoding='utf-8') as hdfout:
         with mp.Pool(args.workers) as pool:
             resit = pool.imap_unordered(sample_signal_traindata, arglist)
-            metadata = pd.DataFrame(columns=MD_TRAINDATA_COLDEFS)
+            metadata = pd.DataFrame(columns=MD_FEATDATA_COLDEFS)
             for chrom, samples in resit:
                 logger.debug('Processed chromosome {}'.format(chrom))
                 grp, dataobj, metadata = gen_obj_and_md(metadata, args.outputgroup, chrom, args, samples)
@@ -413,7 +412,7 @@ def assemble_scnreg_args(args, logger):
     return arglist
 
 
-def collect_clsreg_trainsamples(args, logger):
+def prepare_clsreg_samples(args, logger):
     """
     :param args:
     :param logger:
@@ -421,8 +420,9 @@ def collect_clsreg_trainsamples(args, logger):
     """
     arglist = assemble_clsreg_args(args, logger)
     logger.debug('Argument list of size {} to process'.format(len(arglist)))
-    with pd.HDFStore(args.outputfile, 'w', complib='blosc', complevel=9, encoding='utf-8') as hdfout:
-        metadata = pd.DataFrame(columns=MD_TRAINDATA_COLDEFS)
+    _ = create_filepath(args.outputfile, logger)
+    with pd.HDFStore(args.outputfile, args.filemode, complib='blosc', complevel=9, encoding='utf-8') as hdfout:
+        metadata = pd.DataFrame(columns=MD_FEATDATA_COLDEFS)
         with mp.Pool(args.workers) as pool:
             resit = pool.imap_unordered(get_region_traindata, arglist, chunksize=1)
             for chrom, pos_samples, posgrp, neg_samples, neggrp in resit:
@@ -438,7 +438,7 @@ def collect_clsreg_trainsamples(args, logger):
     return 0
 
 
-def collect_scnreg_samples(args, logger):
+def prepare_scnreg_samples(args, logger):
     """
     :param args:
     :param logger:
@@ -446,8 +446,9 @@ def collect_scnreg_samples(args, logger):
     """
     arglist = assemble_scnreg_args(args, logger)
     logger.debug('Argument list of size {} to process'.format(len(arglist)))
-    with pd.HDFStore(args.outputfile, 'w', complib='blosc', complevel=9, encoding='utf-8') as hdfout:
-        metadata = pd.DataFrame(columns=MD_TRAINDATA_COLDEFS)
+    _ = create_filepath(args.outputfile, logger)
+    with pd.HDFStore(args.outputfile, args.filemode, complib='blosc', complevel=9, encoding='utf-8') as hdfout:
+        metadata = pd.DataFrame(columns=MD_FEATDATA_COLDEFS)
         with mp.Pool(args.workers) as pool:
             resit = pool.imap_unordered(prep_scan_regions, arglist, chunksize=1)
             for chrom, samples, group in resit:
@@ -468,7 +469,7 @@ def collect_scnreg_samples(args, logger):
     return 0
 
 
-def run_collect_traindata(args):
+def run_compute_features(args):
     """
     :param args:
     :return:
@@ -478,17 +479,17 @@ def run_collect_traindata(args):
     _ = create_filepath(args.outputfile, logger)
     logger.debug('Chromosome select pattern: {}'.format(args.keepchroms))
     if args.task == 'regsig':
-        logger.debug('Collecting training data for task {}'.format(args.task))
+        logger.debug('Computing features/sampling data for task {}'.format(args.task))
         # "magic number" following common limits, e.g., in ChromImpute
         chromlim = CHROMOSOME_BOUNDARY
-        _ = collect_regsig_trainsamples(args, chromlim, logger)
+        _ = prepare_regsig_samples(args, chromlim, logger)
     elif args.task == 'clsreg':
-        logger.debug('Collecting training data for task {}'.format(args.task))
+        logger.debug('Computing features for task {}'.format(args.task))
         assert args.posingroup and args.negingroup, 'Need to specify HDF groups for positive and negative class'
-        _ = collect_clsreg_trainsamples(args, logger)
+        _ = prepare_clsreg_samples(args, logger)
     elif args.task == 'scnreg':
         logger.debug('Computing region features for task: {}'.format(args.task))
-        _ = collect_scnreg_samples(args, logger)
+        _ = prepare_scnreg_samples(args, logger)
     else:
         raise NotImplementedError('Task unknown: {}'.format(args.task))
     return 0

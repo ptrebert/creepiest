@@ -21,7 +21,8 @@ def gen_obj_and_md(mdframe, group, chrom, srcfiles, datavals):
     :return:
     """
     group = normalize_group_path(group, chrom)
-    srcfiles = ','.join(list(flaterator(srcfiles)))
+    srcfiles = list(flaterator(srcfiles))
+    srcfiles = ','.join([os.path.basename(fp) for fp in srcfiles])
     if isinstance(datavals, list):
         numreg = len(datavals)
         datavals = [(reg[1], reg[2], reg[3]) for reg in datavals]
@@ -30,7 +31,9 @@ def gen_obj_and_md(mdframe, group, chrom, srcfiles, datavals):
         dataobj = datavals  # assume it is already a DataFrame
         numreg = dataobj.shape[0]
     mtime = dt.datetime.now()
-    covbp = (dataobj.end - dataobj.start).sum()
+    covbp = (dataobj.end - dataobj.start)
+    assert (covbp > 0).all(), 'Some regions malformed; region length smaller than 1'
+    covbp = covbp.sum()
     size_mem = (dataobj.values.nbytes + dataobj.index.nbytes) / DIV_B_TO_MB
     entries = [group, chrom, mtime, int(size_mem), numreg, covbp, srcfiles]
     upd_idx = update_metadata_index(mdframe, group)

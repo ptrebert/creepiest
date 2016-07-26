@@ -17,7 +17,7 @@ def add_sub_parsers(main_parser):
     subparsers = _add_tests_command(subparsers)
     subparsers = _add_info_command(subparsers)
     subparsers = _add_convert_command(subparsers)
-    subparsers = _add_traindata_command(subparsers)
+    subparsers = _add_compfeat_command(subparsers)
     subparsers = _add_train_command(subparsers)
     subparsers = _add_mapsig_command(subparsers)
     subparsers = _add_apply_command(subparsers)
@@ -151,16 +151,16 @@ def _convert_execute(args):
     return retval
 
 
-def _add_traindata_command(subparsers):
+def _add_compfeat_command(subparsers):
     """
     :param subparsers:
     :return:
     """
-    parser_traindata = subparsers.add_parser('traindata',
-                                             help='Generate training data',
-                                             description='...to be updated...')
-    parser_traindata.add_argument('--task', '-tk', type=str, choices=['regsig', 'clsreg', 'scnreg'], dest='task')
-    comgroup = parser_traindata.add_argument_group('General parameters')
+    parser_compfeat = subparsers.add_parser('compfeat',
+                                            help='Compute features for dataset',
+                                            description='...to be updated...')
+    parser_compfeat.add_argument('--task', '-tk', type=str, choices=['regsig', 'clsreg', 'scnreg'], dest='task')
+    comgroup = parser_compfeat.add_argument_group('General parameters')
     comgroup.add_argument('--input', '-i', type=str, required=True, dest='inputfile')
     comgroup.add_argument('--output', '-o', type=str, dest='outputfile')
     comgroup.add_argument('--target-index', '-idx', type=str, default='', dest='targetindex',
@@ -179,7 +179,7 @@ def _add_traindata_command(subparsers):
     comgroup.add_argument('--roi-quant', '-roiq', type=str, default=['all'], nargs='+',
                           choices=['all', 'binary', 'counts', 'coverage'], dest='roiquant')
 
-    comgroup = parser_traindata.add_argument_group('Parameter for signal regression (regsig)')
+    comgroup = parser_compfeat.add_argument_group('Parameter for signal regression (regsig)')
     comgroup.add_argument('--num-samples', '-smp', type=int, default=20000, dest='numsamples',
                           help='Number of training samples to collect')
     comgroup.add_argument('--resolution', '-res', type=int, default=25, dest='resolution')
@@ -187,7 +187,7 @@ def _add_traindata_command(subparsers):
     comgroup.add_argument('--output-group', '-og', type=str, default='', dest='outputgroup',
                           help='Specify a root path to store the individual chromosomes in the HDF5. Default: <empty>')
 
-    comgroup = parser_traindata.add_argument_group('Parameter for region classification (clsreg)')
+    comgroup = parser_compfeat.add_argument_group('Parameter for region classification (clsreg)')
     comgroup.add_argument('--pos-ingroup', '-pig', type=str, default='', dest='posingroup')
     comgroup.add_argument('--neg-ingroup', '-nig', type=str, default='', dest='negingroup')
     comgroup.add_argument('--add-seq', '-ads', action='store_true', default=False, dest='addseq')
@@ -197,17 +197,17 @@ def _add_traindata_command(subparsers):
     comgroup.add_argument('--window', '-win', type=int, default=0, dest='window')
     comgroup.add_argument('--stepsize', '-stp', type=int, default=0, dest='stepsize')
 
-    parser_traindata.set_defaults(execute=_traindata_execute)
+    parser_compfeat.set_defaults(execute=_compfeat_execute)
     return subparsers
 
 
-def _traindata_execute(args):
+def _compfeat_execute(args):
     """
     :param args:
     :return:
     """
-    traindata = implib.import_module('crplib.commands.traindata')
-    retval = traindata.run_collect_traindata(args)
+    compfeat = implib.import_module('crplib.commands.compfeat')
+    retval = compfeat.run_compute_features(args)
     return retval
 
 
@@ -262,6 +262,9 @@ def _add_train_command(subparsers):
     comgroup.add_argument('--no-tuning', '-nt', action='store_true', default=False, dest='notuning',
                           help='Do not search for better model parameters via cross validation. Default: False')
     comgroup.add_argument('--only-features', '-oft', type=str, nargs='+', default=[], dest='onlyfeatures')
+    comgroup.add_argument('--depvar-name', '-dep', type=str, default='y_depvar', dest='depvar',
+                          help='Name of the dependant variable (labels/output) column in the dataset.'
+                               ' Default: y_depvar')
     comgroup.add_argument('--cv-folds', '-fld', type=int, default=10, dest='cvfolds',
                           help='Number of folds in cross validation. Default: 10')
     comgroup.add_argument('--model-output', '-mo', type=str, dest='modelout',
