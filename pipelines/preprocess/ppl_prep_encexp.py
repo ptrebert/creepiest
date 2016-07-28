@@ -330,7 +330,7 @@ def salmon_to_bed(inputfile, outputfile, genemodel, datadir, expid):
     return outputfile
 
 
-def dump_gene_regions(inputfile, outputfile, regtype):
+def dump_gene_regions(inputfile, outputfile, regtype, csizes):
     """
     :param inputfile:
     :param outputfile:
@@ -342,18 +342,34 @@ def dump_gene_regions(inputfile, outputfile, regtype):
                 'uprr': {'+': {'refpoint': 'start', 'to': -500, 'from': -5500},
                          '-': {'refpoint': 'end', 'from': 500, 'to': 5500}}}
     fieldnames = ['chrom', 'start', 'end', 'id', 'symbol']
+    assm = os.path.basename(inputfile).split('_')[1]
+    sizefile = os.path.join(csizes, '{}.chrom.sizes'.format(assm))
+    chrom_sizes = dict()
+    with open(sizefile) as inf:
+        for line in inf:
+            if not line.strip():
+                continue
+            cols = line.strip().split()
+            chrom_sizes[cols[0]] = int(cols[1])
     with open(inputfile, 'r') as infile:
         genes = js.load(infile)
     outbuf = []
     for gene in genes:
         select = {k: gene[k] for k in fieldnames}
+        boundary = chrom_sizes[gene['chrom']]
         if regtype == 'body':
             pass
         else:
+            out_of_bounds = False
             adapt = regtypes[regtype][gene['strand']]
             select['start'] = gene[adapt['refpoint']] + adapt['from']
             select['end'] = gene[adapt['refpoint']] + adapt['to']
-            assert select['start'] < select['end'], 'Malformed region: {} ({} - {})'.format(select, regtype, adapt)
+            if select['end'] > boundary:
+                out_of_bounds = True
+                select['end'] = boundary
+            if select['start'] > boundary or select['start'] >= select['end']:
+                select['start'] = gene[adapt['refpoint']]
+            assert select['start'] < select['end'], 'Malformed region: {} ({} - {}; was oob? {})'.format(select, regtype, adapt, out_of_bounds)
         outbuf.append(select)
     with open(outputfile, 'w') as out:
         writer = csv.DictWriter(out, delimiter='\t', fieldnames=fieldnames, extrasaction='ignore')
@@ -468,6 +484,7 @@ def build_pipeline(args, config, sci_obj):
     tmpquant = config.get('Pipeline', 'tmpquant')
     hdfout = config.get('Pipeline', 'hdfout')
     datadir = config.get('Pipeline', 'datadir')
+    csizesdir = config.get('Pipeline', 'sizedir')
 
     encode_mdfile = config.get('Pipeline', 'encmd')
     sra_mdfile = config.get('Pipeline', 'sramd')
@@ -685,21 +702,21 @@ def build_pipeline(args, config, sci_obj):
                               input=all_models,
                               filter=suffix('.pc_transcripts.json'),
                               output='.body.bed',
-                              extras=['body']).follows(mkgenemap)
+                              extras=['body', csizesdir]).follows(mkgenemap)
 
     dumpcore = pipe.transform(task_func=dump_gene_regions,
                               name='dumpcore',
                               input=all_models,
                               filter=suffix('.pc_transcripts.json'),
                               output='.core.bed',
-                              extras=['core']).follows(mkgenemap)
+                              extras=['core', csizesdir]).follows(mkgenemap)
 
     dumpuprr = pipe.transform(task_func=dump_gene_regions,
                               name='dumpuprr',
                               input=all_models,
                               filter=suffix('.pc_transcripts.json'),
                               output='.uprr.bed',
-                              extras=['uprr']).follows(mkgenemap)
+                              extras=['uprr', csizesdir]).follows(mkgenemap)
 
     sci_obj.set_config_env(dict(config.items('JobConfig')), dict(config.items('EnvConfig')))
     if args.gridmode:
