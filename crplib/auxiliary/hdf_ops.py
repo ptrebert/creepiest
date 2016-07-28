@@ -87,6 +87,8 @@ def check_path_infos(filepath, arggroup=None):
             'Group mismatch between argument ({}) and path ({})'.format(arggroup, grp)
         if arggroup and not grp:
             grp = arggroup
+    if grp is None or grp.lower() in ['default', 'auto']:
+        grp = get_default_group(fp)
     return lab, grp, fp
 
 
