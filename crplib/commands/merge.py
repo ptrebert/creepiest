@@ -7,8 +7,10 @@ Small command module to merge existing datasets or extend them with additional d
 import os as os
 import pandas as pd
 import multiprocessing as mp
+from string import ascii_uppercase as asciiup
 
-from crplib.auxiliary.hdf_ops import get_default_group, get_chrom_list, load_data_group
+from crplib.auxiliary.hdf_ops import get_default_group, get_chrom_list,\
+    load_data_group, check_path_infos
 from crplib.auxiliary.file_ops import create_filepath
 
 from crplib.metadata.md_regions import MD_REGION_COLDEFS
@@ -24,47 +26,30 @@ def assemble_worker_params(args):
     del commons['module_logger']
     del commons['execute']
     commons['inputfile'] = []
-    inputlabels, inputgroups = dict(), dict()
+    inputlabels, inputgroups = [], []
     # Note for zip:
     # "The iterator stops when the shortest input iterable is exhausted"
     # no problem when there is only one file
-    for deflab, ipf in zip(['A', 'B'], args.inputfile):
-        if os.path.isfile(ipf):
-            label, group, fp = deflab, get_default_group(ipf), ipf
-        else:
-            assert ipf.count(':') == 2, 'Please specify the input as LABEL:GROUP:FILEPATH' \
-                                        ' (LABEL or GROUP may be empty, but exactly two ":" are needed)' \
-                                        ' You specified as: {}'.format(ipf)
-            label, group, fp = ipf.split(':')
-            assert os.path.isfile(fp), 'Invalid path to file: {}'.format(fp)
-            if not label:
-                label = deflab
-            if not group or group in ['auto', 'default']:
-                group = get_default_group(fp)
+    for deflab, ipf in zip(list(asciiup), args.inputfile):
+        lab, grp, fp = check_path_infos(ipf)
+        if lab is None:
+            lab = deflab
         commons['inputfile'].append(fp)
-        inputlabels[fp] = label
-        inputgroups[fp] = group
+        inputlabels.append(lab)
+        inputgroups.append(grp)
     commons['inputlabel'] = inputlabels
     commons['inputgroup'] = inputgroups
     req_label = len(args.valfile) > 1
     commons['valfile'] = []
-    commons['vallabel'] = dict()
-    commons['valgroup'] = dict()
-    for vfp in args.valfile:
-        if req_label or not os.path.isfile(vfp):
-            assert vfp.count(':') == 2, 'Please specify the value inputs as LABEL:GROUP:FILEPATH' \
-                                        ' (GROUP may be empty, but exactly two ":" are needed)' \
-                                        ' You specified as: {}'.format(vfp)
-        if os.path.isfile(vfp):
-            label, group, fp = '', get_default_group(vfp), vfp
-        else:
-            label, group, fp = vfp.split(':')
-            assert os.path.isfile(fp), 'Invalid path to file: {}'.format(fp)
-            if not group or group in ['auto', 'default']:
-                group = get_default_group(fp)
+    commons['vallabel'] = []
+    commons['valgroup'] = []
+    for deflab, vfp in zip(['V' + c for c in list(asciiup)], args.valfile):
+        lab, grp, fp = check_path_infos(vfp)
+        if lab is None and req_label:
+            lab = deflab
         commons['valfile'].append(fp)
-        commons['vallabel'][fp] = label
-        commons['valgroup'][fp] = group
+        commons['vallabel'].append(lab)
+        commons['valgroup'].append(grp)
     arglist = []
     for chrom in get_chrom_list(commons['inputfile'][0]):
         tmp = dict(commons)
@@ -79,26 +64,48 @@ def merge_datasets(params):
     :return:
     """
     chrom = params['chrom']
-    fp_a = params['inputfile'][0]
-    data_a = load_data_group(fp_a, params['inputgroup'][fp_a], chrom)
-    fp_b = params['inputfile'][1]
-    data_b = load_data_group(fp_b, params['inputgroup'][fp_b], chrom)
+    fp_1, grp_1, lab_1 = params['inputfile'][0], params['inputgroup'][0], params['inputlabel'][0]
     merge_cols = params['mergeon']
-    for colname in merge_cols:
-        shape_a, shape_b = data_a[colname].shape, data_b[colname].shape
-        assert shape_a == shape_b,\
-            'Different number of data entries ({} vs {}) for column {}'.format(shape_a, shape_b, colname)
-        assert data_a[colname].isin(data_b[colname]).all(),\
-            'Some entries are not shared between datasets' \
-            ' ({} and {}) for column {}'.format(os.path.basename(fp_a), os.path.basename(fp_b), colname)
-    label_a = params['inputlabel'][fp_a]
-    suffix_a = '_' + label_a
-    label_b = params['inputlabel'][fp_b]
-    suffix_b = '_' + label_b
-    merged_data = data_a.merge(data_b, how='outer', on=merge_cols, suffixes=(suffix_a, suffix_b))
-    merged_data = merged_data.assign(start=lambda x: x[['start' + suffix_a, 'start' + suffix_b]].min(axis=1))
-    merged_data = merged_data.assign(end=lambda x: x[['end' + suffix_a, 'end' + suffix_b]].max(axis=1))
-    return merged_data
+    data_labels = params['inputlabel']
+    merged = load_data_group(fp_1, grp_1, chrom)
+    for fp, grp, lab in zip(params['inputfile'][1:],
+                            params['inputgroup'][1:],
+                            params['inputlabel'][1:]):
+        right_df = load_data_group(fp, grp, chrom)
+        for colname in merge_cols:
+            shape_left, shape_right = merged[colname].shape, right_df[colname].shape
+            assert shape_left == shape_right,\
+                'Different number of data entries ({} vs {}) for column {}'.format(shape_left, shape_right, colname)
+            assert merged[colname].isin(right_df[colname]).all(),\
+                'Some entries are not shared between datasets' \
+                ' ({} and {}) for column {}'.format(os.path.basename(fp_1), os.path.basename(fp), colname)
+        if not lab_1:
+            suffix_left = ''
+        else:
+            suffix_left = '_' + lab_1
+        suffix_right = '_' + lab
+        merged = merged.merge(right_df, how='outer', on=merge_cols, suffixes=(suffix_left, suffix_right), copy=False)
+        new_columns = []
+        for col in merged.columns:
+            try:
+                if col in merge_cols:
+                    new_columns.append(col)
+                elif col.rsplit('_', 1)[1] in data_labels:
+                    new_columns.append(col)
+                else:
+                    ncol = col + suffix_right
+                    new_columns.append(ncol)
+            except IndexError:
+                ncol = col + suffix_right
+                new_columns.append(ncol)
+                continue
+        merged.columns = new_columns
+        lab_1 = ''
+    start_cols = [c for c in merged.columns if c.startswith('start')]
+    end_cols = [c for c in merged.columns if c.startswith('end')]
+    merged = merged.assign(start=lambda x: x[start_cols].min(axis=1))
+    merged = merged.assign(end=lambda x: x[end_cols].max(axis=1))
+    return merged
 
 
 def extend_datasets(dataset, params):
@@ -109,12 +116,10 @@ def extend_datasets(dataset, params):
     """
     chrom = params['chrom']
     merge_cols = params['mergeon']
-    select_cols = params['mergeon'] + params['valcolumns']
-    for valfile in params['valfile']:
-        label_val = params['vallabel'][valfile]
-        suffix_val = '_' + label_val if label_val else ''
-        group_val = params['valgroup'][valfile]
-        data_val = load_data_group(valfile, group_val, chrom)
+    select_cols = params['mergeon'] + params['valcolumn']
+    for valfile, group, label in zip(params['valfile'], params['valgroup'], params['vallabel']):
+        suffix_val = '_' + label if label else ''
+        data_val = load_data_group(valfile, group, chrom)
         for colname in merge_cols:
             shape_a, shape_b = dataset[colname].shape, data_val[colname].shape
             assert shape_a == shape_b,\
@@ -137,11 +142,10 @@ def merge_extend_datasets(params):
         chrom_data = merge_datasets(params)
     else:
         fp = params['inputfile'][0]
-        chrom_data = load_data_group(fp, params['inputgroup'][fp], chrom)
+        chrom_data = load_data_group(fp, params['inputgroup'][0], chrom)
     if len(params['valfile']) > 0:
         chrom_data = extend_datasets(chrom_data, params)
     assert not chrom_data.empty, 'Merged and extended dataset is empty'
-
     return chrom, chrom_data
 
 
@@ -152,13 +156,12 @@ def run_merge_datasets(args):
     """
     logger = args.module_logger
     if len(args.inputfile) > 1:
-        assert len(args.inputfile) == 2,\
-            'Merging more than two datasets in a single run not supported: {} != 2'.format(len(args.inputfile))
+        assert len(args.inputfile) < 27, 'Merging of more than 26 datasets not supported at the moment'
         logger.debug('Preparing merge of datasets...')
     if len(args.valfile) > 0:
         logger.debug('Extending the final dataset with infos'
                      ' from {} additional file(s)'.format(len(args.valfile)))
-    if len(args.inputfile) < 2 and len(args.valfiles) == 0:
+    if len(args.inputfile) < 2 and len(args.valfile) == 0:
         logger.warning('No merging possible and no additional datasets specified.'
                        ' What do you want me to do, human?')
     else:
