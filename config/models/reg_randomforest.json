@@ -1,6 +1,10 @@
 {
 "module_path": "sklearn.ensemble",
 "model_name": "RandomForestRegressor",
+"model_type": "regressor",
+"store_attributes": [
+"feature_importances_"
+],
 "default": {
 "n_estimators": 50,
 "bootstrap": true,
@@ -16,7 +20,8 @@
 "n_estimators": [
 50,
 100,
-150
+150,
+200
 ],
 "bootstrap": [true],
 "oob_score": [false]

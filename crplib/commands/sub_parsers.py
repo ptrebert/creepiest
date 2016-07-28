@@ -228,7 +228,7 @@ def _add_merge_command(subparsers):
                           help='Group root path for output. Default: <empty>')
     comgroup.add_argument('--merge-on', '-mrg', type=str, default=['name'], nargs='+', dest='mergeon')
     comgroup.add_argument('--add-values', '-val', type=str, nargs='*', default=[], dest='valfile')
-    comgroup.add_argument('--from-columns', '-col', type=str, nargs='*', default=[], dest='valcolumns')
+    comgroup.add_argument('--from-column', '-col', type=str, nargs='*', default=[], dest='valcolumn')
 
     parser_apply.set_defaults(execute=_merge_execute)
     return subparsers

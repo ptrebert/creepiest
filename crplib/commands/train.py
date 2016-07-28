@@ -42,7 +42,7 @@ def train_gridcv(model, params, traindata, outputs, folds, njobs):
     :param njobs:
     :return:
     """
-    scorer = sklmet.make_scorer(sklmet.__dict__[params['scoring']])
+    scorer = sklmet.make_scorer(sklmet.__dict__[params['scoring']], average='weighted')
     param_grid = dict(params)
     del param_grid['scoring']
     tune_model = GridSearchCV(model, param_grid, scoring=scorer, pre_dispatch=njobs,
@@ -51,7 +51,7 @@ def train_gridcv(model, params, traindata, outputs, folds, njobs):
     return tune_model
 
 
-def load_training_data(filepath, prefix, onlyfeatures):
+def load_training_data(filepath, prefix, onlyfeatures, depvar):
     """
     :param filepath:
     :param prefix:
@@ -77,14 +77,17 @@ def load_training_data(filepath, prefix, onlyfeatures):
             ft_classes = get_classes_from_names(feat_order)
             ft_kmers = []
             res = 0
-    outputs = pd.Series(full_dset.loc[:, 'y_depvar'])
+    outputs = pd.Series(full_dset.loc[:, depvar])
+    names = full_dset.loc[:, 'name'].tolist()
     if onlyfeatures:
         prefixes = get_prefix_list(onlyfeatures)
         feat_order = list(filter(lambda x: any([x.startswith(p) for p in prefixes]), feat_order))
         assert feat_order, 'No features left after filtering for: {}'.format(onlyfeatures)
         ft_classes = onlyfeatures
     traindata = full_dset.loc[:, feat_order]
-    return ft_classes, ft_kmers, res, feat_order, traindata, outputs
+    md_info = {'features': ft_classes, 'kmers': ft_kmers, 'feat_order': feat_order,
+               'resolution': res, 'names': names}
+    return md_info, traindata, outputs
 
 
 def load_model(modname, modpath):
@@ -120,6 +123,20 @@ def simplify_cv_scores(cvfolds):
     return grid
 
 
+def get_class_probs(model, traindata, outputs):
+    """
+    :param model:
+    :param traindata:
+    :param outputs:
+    :return:
+    """
+    y_probs = pd.DataFrame(model.predict_proba(traindata), columns=list(model.classes_))
+    y_pred = model.predict(traindata)
+    true_class_prob = y_probs.lookup(y_probs.index, outputs)
+    pred_class_prob = y_probs.lookup(y_probs.index, y_pred)
+    return true_class_prob.tolist(), y_pred, pred_class_prob.tolist()
+
+
 def run_train_model(args):
     """
     :param args:
@@ -131,7 +148,7 @@ def run_train_model(args):
     model_params = json.load(open(args.modelspec))
     model = load_model(model_params['model_name'], model_params['module_path'])
     logger.debug('Loading training data')
-    ft_classes, ft_kmers, res, feat_order, traindata, outputs = load_training_data(args.traindata, args.traingroup, args.onlyfeatures)
+    md_info, traindata, outputs = load_training_data(args.traindata, args.traingroup, args.onlyfeatures, args.depvar)
     logger.debug('Training model')
     if args.notuning:
         params = model_params['default']
@@ -145,6 +162,22 @@ def run_train_model(args):
         metadata['grid_scores'] = simplify_cv_scores(tune_info.grid_scores_)
         metadata['best_score'] = tune_info.best_score_
         metadata['scoring'] = params['scoring']
+    logger.debug('Training finished')
+    if 'store_attributes' in model_params:
+        logger.debug('Storing user requested model attributes')
+        for attr in model_params['store_attributes']:
+            if hasattr(model, attr):
+                metadata[attr] = list(getattr(model, attr))
+            else:
+                logger.debug('Skipping attribute {} - does not exist'.format(attr))
+    if model_params['model_type'] == 'classifier':
+        true_class_prob, pred_class, pred_class_prob = get_class_probs(model, traindata, outputs)
+        metadata['true_class'] = list(map(int, outputs))
+        metadata['pred_class'] = list(map(int, pred_class))
+        metadata['true_class_prob'] = true_class_prob
+        metadata['pred_class_prob'] = pred_class_prob
+    else:
+        raise NotImplementedError('Handling model type {} not properly implemented'.format(model_params['model_type']))
     logger.debug('Saving model and metadata')
     metadata['model_spec'] = os.path.basename(args.modelspec)
     metadata['init_params'] = params
@@ -152,12 +185,11 @@ def run_train_model(args):
     metadata['traindata'] = os.path.basename(args.traindata)
     metadata['traingroup'] = args.traingroup
     metadata['traindata_size'] = list(traindata.shape)
-    metadata['features'] = ft_classes
-    metadata['kmers'] = ft_kmers
-    metadata['feature_order'] = feat_order
-    metadata['resolution'] = res
     metadata['modelfile'] = os.path.basename(args.modelout)
+    metadata['depvar'] = args.depvar
+    metadata.update(md_info)
 
+    logger.debug('Writing model file...')
     with open(args.modelout, 'wb') as outfile:
         pck.dump(model, outfile)
 
@@ -166,6 +198,7 @@ def run_train_model(args):
     else:
         mdout = args.metadataout
     _ = create_filepath(mdout, logger)
+    logger.debug('Writing model metadata...')
     with open(mdout, 'w') as outfile:
         _ = json.dump(metadata, outfile, indent=0)
 
