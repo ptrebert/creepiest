@@ -13,13 +13,15 @@ import pandas as pd
 
 from sklearn.grid_search import GridSearchCV
 from sklearn import metrics as sklmet
+from sklearn.base import clone
+from sklearn.cross_validation import StratifiedKFold
 
 from crplib.auxiliary.hdf_ops import get_valid_hdf5_groups
-from crplib.auxiliary.file_ops import create_filepath
+from crplib.auxiliary.file_ops import create_filepath, text_file_mode
 from crplib.mlfeat.featdef import get_prefix_list, get_classes_from_names
 
 
-def train_nocv(model, params, traindata, outputs):
+def train_nocv(model, params, traindata, outputs, sampleweights):
     """
     :param model:
     :param params:
@@ -28,11 +30,16 @@ def train_nocv(model, params, traindata, outputs):
     :return:
     """
     model = model.set_params(**params)
-    model = model.fit(traindata, outputs)
+    if sampleweights is not None:
+        if isinstance(sampleweights, list) and len(sampleweights) == 0:
+            sampleweights = None
+        model = model.fit(traindata, outputs, sample_weight=sampleweights)
+    else:
+        model = model.fit(traindata, outputs, sample_weight=None)
     return model
 
 
-def train_gridcv(model, params, traindata, outputs, folds, njobs):
+def train_gridcv(model, params, traindata, outputs, folds, njobs, sampleweights):
     """
     :param model:
     :param params:
@@ -45,16 +52,26 @@ def train_gridcv(model, params, traindata, outputs, folds, njobs):
     scorer = sklmet.make_scorer(sklmet.__dict__[params['scoring']], average='weighted')
     param_grid = dict(params)
     del param_grid['scoring']
+    fit_params = None
+    # TODO this needs to be simplified
+    if sampleweights is not None:
+        if isinstance(sampleweights, list) and len(sampleweights) == 0:
+            fit_params = None
+        else:
+            fit_params = {'sample_weight': sampleweights}
     tune_model = GridSearchCV(model, param_grid, scoring=scorer, pre_dispatch=njobs,
-                              cv=folds, n_jobs=njobs, refit=True)
+                              cv=folds, n_jobs=njobs, refit=True, fit_params=fit_params)
     tune_model = tune_model.fit(traindata, outputs)
     return tune_model
 
 
-def load_training_data(filepath, prefix, onlyfeatures, depvar):
+def load_training_data(filepath, prefix, onlyfeatures, depvar, sampleweights):
     """
     :param filepath:
     :param prefix:
+    :param onlyfeatures:
+    :param depvar:
+    :param weights:
     :return:
     """
     all_groups = get_valid_hdf5_groups(filepath, prefix)
@@ -77,8 +94,16 @@ def load_training_data(filepath, prefix, onlyfeatures, depvar):
             ft_classes = get_classes_from_names(feat_order)
             ft_kmers = []
             res = 0
+    weights = []
     outputs = pd.Series(full_dset.loc[:, depvar])
     names = full_dset.loc[:, 'name'].tolist()
+    if sampleweights is not None:
+        if 'weight' in full_dset.columns:
+            full_dset.drop('weight', axis='columns', inplace=True)
+        # this merge ensures that no matter the sorting of the sample weights in the
+        # annotation file, all samples are assigned the correct weight
+        full_dset = full_dset.merge(sampleweights, how='outer', on='name', suffixes=('', ''), copy=False)
+        weights = pd.Series(full_dset.loc[:, 'weight']).values
     if onlyfeatures:
         prefixes = get_prefix_list(onlyfeatures)
         feat_order = list(filter(lambda x: any([x.startswith(p) for p in prefixes]), feat_order))
@@ -86,8 +111,8 @@ def load_training_data(filepath, prefix, onlyfeatures, depvar):
         ft_classes = onlyfeatures
     traindata = full_dset.loc[:, feat_order]
     md_info = {'features': ft_classes, 'kmers': ft_kmers, 'feat_order': feat_order,
-               'resolution': res, 'names': names}
-    return md_info, traindata, outputs
+               'resolution': res, 'names': names, 'weights': list(map(float, weights))}
+    return md_info, traindata, outputs, weights
 
 
 def load_model(modname, modpath):
@@ -123,18 +148,38 @@ def simplify_cv_scores(cvfolds):
     return grid
 
 
-def get_class_probs(model, traindata, outputs):
+def calc_sample_weights(model, traindata, outputs, names, k):
     """
     :param model:
     :param traindata:
     :param outputs:
     :return:
     """
-    y_probs = pd.DataFrame(model.predict_proba(traindata), columns=list(model.classes_))
-    y_pred = model.predict(traindata)
-    true_class_prob = y_probs.lookup(y_probs.index, outputs)
-    pred_class_prob = y_probs.lookup(y_probs.index, y_pred)
-    return true_class_prob.tolist(), y_pred, pred_class_prob.tolist()
+    cv_indices = StratifiedKFold(outputs, n_folds=k)
+    ra_names = pd.Series(names)
+    # clone model since fit returns self
+    partial_model = clone(model)
+    weights = []
+    for train_index, test_index in cv_indices:
+        partial_model = partial_model.fit(traindata.iloc[train_index, :], outputs.iloc[train_index])
+        y_probs = pd.DataFrame(partial_model.predict_proba(traindata.iloc[test_index, :]), columns=list(model.classes_))
+        true_class_prob = y_probs.lookup(y_probs.index, outputs.iloc[test_index])
+        for n, p in zip(ra_names.iloc[test_index], true_class_prob):
+            weights.append([n, 1 - p])
+    return weights
+
+
+def load_sample_weights(fpath):
+    """
+    :param fpath:
+    :return:
+    """
+    opn, mode = text_file_mode(fpath)
+    with opn(fpath, mode) as mdfile:
+        annotation = json.load(mdfile)
+        smpwt = pd.DataFrame(annotation['sample_weights'], columns=['name', 'weight'])
+        assert not smpwt.empty, 'Entry sample_weights in annotation file {} is empty'.format(fpath)
+    return smpwt
 
 
 def run_train_model(args):
@@ -147,16 +192,20 @@ def run_train_model(args):
     logger.debug('Loading model specification from {}'.format(args.modelspec))
     model_params = json.load(open(args.modelspec))
     model = load_model(model_params['model_name'], model_params['module_path'])
+    sample_weights = None
+    if args.sampleweights:
+        logger.debug('Loading user requested sample weights from file {}'.format(args.sampleweights))
+        sample_weights = load_sample_weights(args.sampleweights)
     logger.debug('Loading training data')
-    md_info, traindata, outputs = load_training_data(args.traindata, args.traingroup, args.onlyfeatures, args.depvar)
+    md_info, traindata, outputs, weights = load_training_data(args.traindata, args.traingroup, args.onlyfeatures, args.depvar, sample_weights)
     logger.debug('Training model')
     if args.notuning:
         params = model_params['default']
-        model = train_nocv(model, params, traindata, outputs)
+        model = train_nocv(model, params, traindata, outputs, weights)
         metadata = {'final_params': params}
     else:
         params = model_params['cvtune']
-        tune_info = train_gridcv(model, params, traindata, outputs, args.cvfolds, args.workers)
+        tune_info = train_gridcv(model, params, traindata, outputs, args.cvfolds, args.workers, weights)
         model = tune_info.best_estimator_
         metadata = {'final_params': tune_info.best_params_}
         metadata['grid_scores'] = simplify_cv_scores(tune_info.grid_scores_)
@@ -170,14 +219,13 @@ def run_train_model(args):
                 metadata[attr] = list(getattr(model, attr))
             else:
                 logger.debug('Skipping attribute {} - does not exist'.format(attr))
-    if model_params['model_type'] == 'classifier':
-        true_class_prob, pred_class, pred_class_prob = get_class_probs(model, traindata, outputs)
-        metadata['true_class'] = list(map(int, outputs))
-        metadata['pred_class'] = list(map(int, pred_class))
-        metadata['true_class_prob'] = true_class_prob
-        metadata['pred_class_prob'] = pred_class_prob
-    else:
-        raise NotImplementedError('Handling model type {} not properly implemented'.format(model_params['model_type']))
+    if args.calcweights:
+        logger.debug('Calculating sample weights...')
+        assert model_params['model_type'] == 'classifier',\
+            'Calculating sample weights not implemented for regression models'
+        wt = calc_sample_weights(model, traindata, outputs, md_info['names'], args.cvfolds)
+        metadata['sample_weights'] = wt
+        logger.debug('Sample weights calculated')
     logger.debug('Saving model and metadata')
     metadata['model_spec'] = os.path.basename(args.modelspec)
     metadata['init_params'] = params

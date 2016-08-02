@@ -263,9 +263,9 @@ def _add_train_command(subparsers):
                           help='Do not search for better model parameters via cross validation. Default: False')
     comgroup.add_argument('--only-features', '-oft', type=str, nargs='+', default=[], dest='onlyfeatures')
     comgroup.add_argument('--depvar-name', '-dep', type=str, default='y_depvar', dest='depvar',
-                          help='Name of the dependant variable (labels/output) column in the dataset.'
+                          help='Name of the dependant variable (labels/output/target) column in the dataset.'
                                ' Default: y_depvar')
-    comgroup.add_argument('--cv-folds', '-fld', type=int, default=10, dest='cvfolds',
+    comgroup.add_argument('--cv-folds', '-cv', type=int, default=10, dest='cvfolds',
                           help='Number of folds in cross validation. Default: 10')
     comgroup.add_argument('--model-output', '-mo', type=str, dest='modelout',
                           help='Specify file path to store the serialized representation of the trained model.')
@@ -273,6 +273,8 @@ def _add_train_command(subparsers):
                           help='Specify file path to store the metadata of the trained model. If not specified,'
                                ' the model output path will be used and the file extension replaced with ".json".'
                                ' Default: <empty>')
+    comgroup.add_argument('--calc-weights', '-cwt', action='store_true', default=False, dest='calcweights')
+    comgroup.add_argument('--sample-weights', '-swt', type=str, default='', dest='sampleweights')
     parser_train.set_defaults(execute=_train_execute)
     return subparsers
 
