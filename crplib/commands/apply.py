@@ -201,18 +201,20 @@ def run_classify_regions(logger, args):
     model_md = load_model_metadata(args)
     logger.debug('Loading model')
     model = pck.load(open(args.modelfile, 'rb'))
-    feat_order = model_md['feature_order']
+    feat_order = model_md['feat_order']
     load_groups = get_valid_hdf5_groups(args.inputfile, args.inputgroup)
     logger.debug('Loading region dataset')
     dataset, names, class_true = load_region_data(args.inputfile, load_groups, feat_order, args.classlabels, args.labeltype)
     logger.debug('Loaded dataset of size {}'.format(dataset.shape))
     y_pred = model.predict(dataset)
-    y_prob = model.predict_proba(dataset)
     class_order = list(map(int, model.classes_))
+    y_prob = pd.DataFrame(model.predict_proba(dataset), columns=class_order)
+    pred_class_prob = list(map(float, y_prob.lookup(np.arange(y_prob.shape[0]), y_pred)))
     names = list(map(str, names.tolist()))
     if class_true is not None:
         # to serialize this to JSON, need to cast
         # all numeric values to Python types (from numpy)
+        true_class_prob = list(map(float, y_prob.lookup(np.arange(y_prob.shape[0]), class_true)))
         if len(class_order) == 2:  # binary classification
             auc = roc_auc_score(class_true, y_prob[:, 1])
             f1 = f1_score(class_true, y_pred)
@@ -249,13 +251,14 @@ def run_classify_regions(logger, args):
     else:
         scores = {'f1': -1, 'accuracy': -1, 'roc_auc': -1}
         true_labels = []
+        true_class_prob = []
     class_pred = list(map(int, y_pred))
-    class_probs = [list(map(float, entry)) for entry in y_prob]
+    class_probs = [list(map(float, row)) for row in y_prob.as_matrix().tolist()]
     dump = {'scores': scores, 'class_true': true_labels, 'class_pred': class_pred,
             'class_probs': class_probs, 'class_order': class_order,
             'inputfile': os.path.basename(args.inputfile), 'modelfile': os.path.basename(args.modelfile),
             'n_samples': dataset.shape[0], 'n_features': dataset.shape[1],
-            'names': names}
+            'names': names, 'class_pred_prob': pred_class_prob, 'class_true_prob': true_class_prob}
     logger.debug('Dumping prediction to output file')
     with open(args.outputfile, 'w') as outfile:
         _ = json.dump(dump, outfile, indent=1)
@@ -320,7 +323,7 @@ def model_scan_regions(params):
     model_md = json.load(open(params['modelmetadata'], 'r'))
     model = pck.load(open(params['modelfile'], 'rb'))
     feat_order = model_md['feature_order']
-    featdata, _ = load_region_data(params['inputfile'], params['inputgroup'], feat_order, params['classlabels'])
+    featdata, _, _ = load_region_data(params['inputfile'], params['inputgroup'], feat_order, params['classlabels'])
     y_pred = model.predict(featdata)
     y_prob = model.predict_proba(featdata)
     class_order = model.classes_
