@@ -298,12 +298,16 @@ def salmon_to_bed(inputfile, outputfile, genemodel, datadir, expid):
             this_gene = ra_genemodel[r['Name']]
             tpm = float(r['TPM'])
             lvl = 0
+            stat = 0
+            if tpm > 0:
+                stat = 1
             if 1 <= tpm < 10:
                 lvl = 1
             if 10 <= tpm:
                 lvl = 2
             this_gene['tpm'] = tpm
             this_gene['level'] = lvl
+            this_gene['status'] = stat
 
     fp, fn = os.path.split(genemodel)
     parts = fn.split('_')
@@ -323,7 +327,8 @@ def salmon_to_bed(inputfile, outputfile, genemodel, datadir, expid):
     outpath = os.path.join(datadir, 'tmp', common_name + '.' + auth + '-' + ver + '.bed')
     genes = sorted(ra_genemodel.values(), key=lambda d: (d['chrom'], d['start'], d['end'], d['id']))
     with open(outpath, 'w') as out:
-        writer = csv.DictWriter(out, fieldnames=['chrom', 'start', 'end', 'id', 'tpm', 'strand', 'symbol', 'level'],
+        writer = csv.DictWriter(out, fieldnames=['chrom', 'start', 'end', 'id', 'tpm', 'strand',
+                                                 'symbol', 'status', 'level'],
                                 extrasaction='ignore', delimiter='\t')
         writer.writeheader()
         writer.writerows(genes)
@@ -339,8 +344,10 @@ def dump_gene_regions(inputfile, outputfile, regtype, csizes):
     """
     regtypes = {'core': {'+': {'refpoint': 'start', 'from': -250, 'to': 250},
                          '-': {'refpoint': 'end', 'from': -250, 'to': 250}},
-                'uprr': {'+': {'refpoint': 'start', 'to': -500, 'from': -5500},
-                         '-': {'refpoint': 'end', 'from': 500, 'to': 5500}}}
+                'uprr': {'+': {'refpoint': 'start', 'to': -250, 'from': -1250},
+                         '-': {'refpoint': 'end', 'from': 250, 'to': 1250}},
+                'end': {'+': {'refpoint': 'end', 'from': -250, 'to': 250},
+                        '-': {'refpoint': 'start', 'from': -250, 'to': 250}}}
     fieldnames = ['chrom', 'start', 'end', 'id', 'symbol']
     assm = os.path.basename(inputfile).split('_')[1]
     sizefile = os.path.join(csizes, '{}.chrom.sizes'.format(assm))
@@ -718,6 +725,13 @@ def build_pipeline(args, config, sci_obj):
                               output='.uprr.bed',
                               extras=['uprr', csizesdir]).follows(mkgenemap)
 
+    dumpend = pipe.transform(task_func=dump_gene_regions,
+                             name='dumpend',
+                             input=all_models,
+                             filter=suffix('.pc_transcripts.json'),
+                             output='.end.bed',
+                             extras=['end', csizesdir]).follows(mkgenemap)
+
     sci_obj.set_config_env(dict(config.items('JobConfig')), dict(config.items('EnvConfig')))
     if args.gridmode:
         jobcall = sci_obj.ruffus_gridjob()
@@ -755,7 +769,7 @@ def build_pipeline(args, config, sci_obj):
                                           hsaidx31, mmuidx13, mmuidx19, genidx19,
                                           qmmuse, qhsape, qmmupe, qsscpe, qbtape,
                                           cvbedhsa, cvbedmmu, cvbedbta, cvbedssc,
-                                          dumpbody, dumpcore, dumpuprr,
+                                          dumpbody, dumpcore, dumpuprr, dumpend,
                                           convreg, convexpr),
                         output=os.path.join(tempdir, 'runall_encexp.chk'),
                         extras=[cmd, jobcall])
