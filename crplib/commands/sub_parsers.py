@@ -275,6 +275,7 @@ def _add_train_command(subparsers):
                                ' Default: <empty>')
     comgroup.add_argument('--calc-weights', '-cwt', action='store_true', default=False, dest='calcweights')
     comgroup.add_argument('--sample-weights', '-swt', type=str, default='', dest='sampleweights')
+    comgroup.add_argument('--subset', '-sub', type=str, default='', dest='subset')
     parser_train.set_defaults(execute=_train_execute)
     return subparsers
 
@@ -338,7 +339,7 @@ def _add_apply_command(subparsers):
     parser_apply = subparsers.add_parser('apply',
                                          help='Apply a trained model to a dataset',
                                          description='... to be updated ...')
-    parser_apply.add_argument('--task', '-t', type=str, choices=['estsig', 'clsreg', 'scnreg'], dest='task',
+    parser_apply.add_argument('--task', '-t', type=str, choices=['test', 'est'], dest='task',
                               help='Specify task')
     comgroup = parser_apply.add_argument_group('General parameters')
     comgroup.add_argument('--input', '-i', type=str, required=True, dest='inputfile',
@@ -355,13 +356,9 @@ def _add_apply_command(subparsers):
                           help='Path to JSON file with model metadata. If left empty, use the same'
                                ' path as for the model file and replace extension with ".json".'
                                ' Default: <empty>')
-
-    comgroup = parser_apply.add_argument_group('Classify regions parameters')
-    comgroup.add_argument('--class-labels', '-cll', type=str, default='', dest='classlabels')
-    comgroup.add_argument('--label-type', '-lty', type=str, default='class', choices=['class', 'value'], dest='labeltype')
-    comgroup.add_argument('--reduce-labels', '-red', type=list, nargs='*', default=[1], dest='reduce')
-
-    comgroup = parser_apply.add_argument_group('Estimate signal parameters')
+    comgroup.add_argument('--sample-output', '-spo', type=str, default='', dest='sampleoutput')
+    comgroup.add_argument('--reduce-classes', '-red', type=list, nargs='*', default=[], dest='reduce')
+    comgroup.add_argument('--subset', '-sub', type=str, default='', dest='subset')
     comgroup.add_argument('--seq-file', '-seq', type=str, dest='seqfile',
                           help='Full path to genomic sequence file in 2bit format.')
     comgroup.add_argument('--target-index', '-idx', type=str, default='', dest='targetindex',
