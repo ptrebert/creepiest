@@ -21,13 +21,95 @@ from sklearn.metrics import accuracy_score, f1_score, roc_auc_score
 
 from crplib.auxiliary.seq_parsers import get_twobit_seq
 from crplib.auxiliary.hdf_ops import load_masked_sigtrack, get_valid_hdf5_groups, get_trgindex_groups
-from crplib.auxiliary.file_ops import create_filepath
+from crplib.auxiliary.file_ops import create_filepath, text_file_mode
 from crplib.mlfeat.featdef import feat_mapsig, get_online_version
 from crplib.auxiliary.constants import CHROMOSOME_BOUNDARY
 from crplib.metadata.md_signal import MD_SIGNAL_COLDEFS
 from crplib.metadata.md_signal import gen_obj_and_md as gen_sigobj
 from crplib.metadata.md_regions import MD_REGION_COLDEFS
 from crplib.metadata.md_regions import gen_obj_and_md as genregobj
+
+
+def load_model_metadata(args):
+    """
+    :param args:
+    :return:
+    """
+    if not args.modelmetadata:
+        fpath_md = args.modelfile.rsplit('.', 1)[0] + '.json'
+    else:
+        fpath_md = args.modelmetadata
+    model_md = json.load(open(fpath_md, 'r'))
+    return model_md
+
+
+def load_subset_names(fpath):
+    """
+    :param fpath:
+    :return:
+    """
+    opn, mode = text_file_mode(fpath)
+    with opn(fpath, mode) as infile:
+        try:
+            content = json.load(infile)['subset']
+        except json.JSONDecodeError:
+            content = infile.read().split()
+    content = set(content)
+    assert len(content) > 1, 'Subset selecting names list loaded from file {} has length <1: {}'.format(fpath, content)
+    return content
+
+
+def select_dataset_subset(dataset, subset):
+    """
+    :param dataset:
+    :param subset:
+    :return:
+    """
+    rows, cols = dataset.shape
+    if not subset:
+        pass
+    elif os.path.isfile(subset):
+        subset_names = load_subset_names(subset)
+        dataset = dataset[dataset.name.isin(subset_names)]
+    else:
+        subset = subset.strip('"')
+        dataset = dataset.query(subset)
+    assert not dataset.empty, 'Dataset empty after subsetting with {}; initial size {} x {}'.format(subset, rows, cols)
+    return dataset
+
+
+def load_dataset(fpath, groups, features, subset='', ycol='', ytype=None):
+    """
+    :param fpath:
+    :param groups:
+    :param features:
+    :param subset:
+    :param ycol:
+    :param ytype:
+    :return:
+    """
+    with pd.HDFStore(fpath, 'r') as hdf:
+        if isinstance(groups, (list, tuple)):
+            dataset = pd.concat([hdf[grp] for grp in sorted(groups)], ignore_index=True)
+        else:
+            dataset = hdf[groups]
+        dataset = select_dataset_subset(dataset, subset)
+        y_depvar = None
+        if ytype is not None:
+            y_depvar = dataset.loc[:, ycol].astype(ytype, copy=True)
+        name_col = [cn for cn in dataset.columns if cn in ['name', 'source']]
+        sample_names = []
+        if name_col:
+            sample_names = dataset.loc[:, name_col[0]].tolist()
+        predictors = dataset.loc[:, features]
+    return predictors, sample_names, y_depvar
+
+
+def run_permutation_tests(data, labels, model):
+
+    perm_labels = np.array(labels, copy=True)
+
+    return
 
 
 def smooth_signal_estimate(signal, res):
@@ -144,51 +226,6 @@ def run_estimate_signal(logger, args):
         hdfout.flush()
     logger.debug('All chromosomes processed')
     return 0
-
-
-def load_model_metadata(args):
-    """
-    :param args:
-    :return:
-    """
-    if not args.modelmetadata:
-        fpath_md = args.modelfile.rsplit('.', 1)[0] + '.json'
-    else:
-        fpath_md = args.modelmetadata
-    model_md = json.load(open(fpath_md, 'r'))
-    return model_md
-
-
-def load_region_data(fpath, groups, features, labelcol, labeltype='class'):
-    """
-    :param fpath:
-    :param groups:
-    :param features:
-    :param labelcol:
-    :return:
-    """
-    if labeltype == 'class':
-        coltype = np.int32
-    elif labeltype == 'value':
-        coltype = np.float64
-    else:
-        raise ValueError('Unknown label type: {}'.format(labeltype))
-    with pd.HDFStore(fpath, 'r') as hdf:
-        if isinstance(groups, (list, tuple)):
-            full_dataset = pd.concat([hdf[grp] for grp in sorted(groups)], ignore_index=True)
-        else:
-            full_dataset = hdf[groups]
-        if labelcol in full_dataset.columns:
-            classlabels = full_dataset.loc[:, labelcol].astype(coltype, copy=False)
-        else:
-            classlabels = None
-        region_names = [cn for cn in full_dataset.columns if cn in ['name', 'source']]
-        if len(region_names) > 0:
-            region_names = full_dataset.loc[:, region_names[0]].values
-        else:
-            region_names = np.array([])
-        dataset = full_dataset.loc[:, features]
-    return dataset, region_names, classlabels
 
 
 def run_classify_regions(logger, args):
@@ -386,14 +423,37 @@ def run_scan_regions(logger, args):
     return 0
 
 
+def run_classification(args, modelmd, logger):
+    """
+    :param args:
+    :param modelmd:
+    :param logger:
+    :return:
+    """
+
+    return 0
+
+
 def run_apply_model(args):
     """
     :param args:
     :return:
     """
     logger = args.module_logger
-    rv = 0
+    logger.debug('Loading model metadata...')
+    model_md = load_model_metadata(args)
+    model_type = model_md['model_type']
     _ = create_filepath(args.outputfile, logger)
+    if model_type == 'classifier':
+        logger.debug('Applying classification model {} on task {}'.format(model_md['model'], args.task))
+        _ = run_classification(args, model_md, logger)
+    elif model_type == 'regressor':
+        logger.debug('Applying regression model {} on task {}'.format(model_md['model'], args.task))
+        _ = run_regression()
+    else:
+        raise NotImplementedError('No support for model of type: {} '
+                                  '(just classifier or regressor are supported)'.format(model_type))
+    return 0
     if args.task == 'estsig':
         logger.debug('Running task: estimate signal')
         rv = run_estimate_signal(logger, args)

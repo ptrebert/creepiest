@@ -230,6 +230,7 @@ def run_train_model(args):
     metadata['model_spec'] = os.path.basename(args.modelspec)
     metadata['init_params'] = params
     metadata['model'] = model_params['model_name']
+    metadata['model_type'] = model_params['model_type']
     metadata['traindata'] = os.path.basename(args.traindata)
     metadata['traingroup'] = args.traingroup
     metadata['traindata_size'] = list(traindata.shape)
