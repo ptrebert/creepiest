@@ -741,7 +741,7 @@ def build_pipeline(args, config, sci_obj):
     cmd = config.get('Pipeline', 'convreg').replace('\n', ' ')
     convreg = pipe.transform(task_func=sci_obj.get_jobf('in_out'),
                              name='convreg',
-                             input=output_from(dumpbody, dumpcore, dumpuprr),
+                             input=output_from(dumpbody, dumpcore, dumpuprr, dumpend),
                              filter=formatter('(?P<SPEC>[a-z]+)_(?P<ASSM>\w+)_(?P<MODELAUTH>[a-z]+)_'
                                               '(?P<MODELVER>v\w+)\.(?P<REGTYPE>[a-z]+)\.bed'),
                              output=os.path.join(refdir, '{SPEC[0]}_{ASSM[0]}_{MODELAUTH[0]}_'
