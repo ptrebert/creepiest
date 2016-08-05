@@ -44,30 +44,15 @@ def build_index_structures(chainit, csize):
     # Default: all positions masked (1), all positions not conserved
     # Set position to 0 (unmask) if the position is conserved
     consmask = np.ones(csize, dtype=np.bool)
-    splits = []
-    last_end = 0
     for block in chainit:
         consmask[block[1]:block[2]] = 0
-        # chainSort sorts according to number, not genomic coordinate
-        # but chains are disjunct, so should not be a problem not to check
-        if block[1] == 0:
-            last_end = block[2]
-        else:
-            if last_end == block[1]:
-                # we have a continuous block
-                last_end = block[2]
-            else:
-                if last_end == 0:
-                    splits.append(block[1])
-                else:
-                    splits.extend([last_end, block[1]])
-                last_end = block[2]
-    splits.append(last_end)
     # this creates a boolean select pattern to select
     # all conserved regions after splitting a signal track
     # using the split indices based on the alignment blocks
+    pos = np.arange(consmask.size)
+    pos = np.ma.array(pos, mask=consmask)
+    splits = np.array(list(itt.chain.from_iterable((item.start, item.stop) for item in np.ma.clump_unmasked(pos))), dtype=np.int32)
     select = np.array([k for k, g in itt.groupby(~consmask)], dtype=np.bool)
-    splits = np.array(sorted(splits), dtype=np.int64)
     return consmask, splits, select
 
 
