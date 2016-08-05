@@ -397,6 +397,7 @@ def _add_correlation_command(subparsers):
                           help='Specify task...')
     comgroup.add_argument('--measure', '-ms', type=str, choices=['pearson', 'spearman'], nargs='+',
                           required=True, dest='measure', help='Specify statistic(s) to compute')
+    comgroup.add_argument('--limit-to-roi', action='store_true', default=False, dest='roilimit')
     comgroup.add_argument('--roi-file', '-roi', type=str, dest='roifile')
     comgroup.add_argument('--target-index', '-idx', type=str, default='', dest='targetindex',
                           help='Full path to target index created with "convert" command.'
@@ -405,7 +406,6 @@ def _add_correlation_command(subparsers):
     comgroup.add_argument('--input-group-a', '-iga', type=str, default='', dest='inputgroupa')
     comgroup.add_argument('--input-b', '-ib', type=str, required=True, dest='inputfileb')
     comgroup.add_argument('--input-group-b', '-igb', type=str, default='', dest='inputgroupb')
-
     comgroup.add_argument('--output', '-o', type=str, required=True, dest='outputfile',
                           help='Full path to output file in JSON format.')
     parser_corr.set_defaults(execute=_correlation_execute)
