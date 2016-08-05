@@ -356,9 +356,12 @@ def _add_apply_command(subparsers):
                           help='Path to JSON file with model metadata. If left empty, use the same'
                                ' path as for the model file and replace extension with ".json".'
                                ' Default: <empty>')
-    comgroup.add_argument('--sample-output', '-spo', type=str, default='', dest='sampleoutput')
+    comgroup.add_argument('--out-variable', '-var', type=str, default='', dest='outvariable')
     comgroup.add_argument('--reduce-classes', '-red', type=list, nargs='*', default=[], dest='reduce')
     comgroup.add_argument('--subset', '-sub', type=str, default='', dest='subset')
+    comgroup.add_argument('--no-perm', '-nop', action='store_true', default=False, dest='noperm')
+    comgroup.add_argument('--num-perm', '-nump', type=int, default=100, dest='numperm')
+    comgroup.add_argument('--cv-perm', '-cvp', type=int, default=10, dest='cvperm')
     comgroup.add_argument('--seq-file', '-seq', type=str, dest='seqfile',
                           help='Full path to genomic sequence file in 2bit format.')
     comgroup.add_argument('--target-index', '-idx', type=str, default='', dest='targetindex',

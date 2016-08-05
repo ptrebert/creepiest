@@ -6,16 +6,15 @@ Command to train models on predefined training datasets
 
 import os as os
 import json as json
-import importlib as imp
 import numpy as np
 import pickle as pck
 import pandas as pd
 
 from sklearn.grid_search import GridSearchCV
-from sklearn import metrics as sklmet
 from sklearn.base import clone
 from sklearn.cross_validation import StratifiedKFold
 
+from crplib.auxiliary.modeling import load_model, get_scorer
 from crplib.auxiliary.hdf_ops import get_valid_hdf5_groups
 from crplib.auxiliary.file_ops import create_filepath, text_file_mode
 from crplib.mlfeat.featdef import get_prefix_list, get_classes_from_names
@@ -49,7 +48,7 @@ def train_gridcv(model, params, traindata, outputs, folds, njobs, sampleweights)
     :param njobs:
     :return:
     """
-    scorer = sklmet.make_scorer(sklmet.__dict__[params['scoring']], average='weighted')
+    scorer = get_scorer(params['scoring'])
     param_grid = dict(params)
     del param_grid['scoring']
     fit_params = None
@@ -113,17 +112,6 @@ def load_training_data(filepath, prefix, onlyfeatures, depvar, sampleweights):
     md_info = {'features': ft_classes, 'kmers': ft_kmers, 'feat_order': feat_order,
                'resolution': res, 'names': names, 'weights': list(map(float, weights))}
     return md_info, traindata, outputs, weights
-
-
-def load_model(modname, modpath):
-    """
-    :param modname:
-    :param modpath:
-    :return:
-    """
-    module = imp.import_module(modpath)
-    model = module.__dict__[modname]()
-    return model
 
 
 def simplify_cv_scores(cvfolds):
@@ -191,7 +179,7 @@ def run_train_model(args):
     _ = create_filepath(args.modelout, logger)
     logger.debug('Loading model specification from {}'.format(args.modelspec))
     model_params = json.load(open(args.modelspec))
-    model = load_model(model_params['model_name'], model_params['module_path'])
+    model = load_model(model_params['module_path'], model_params['model_name'])
     sample_weights = None
     if args.sampleweights:
         logger.debug('Loading user requested sample weights from file {}'.format(args.sampleweights))
@@ -231,6 +219,7 @@ def run_train_model(args):
     metadata['init_params'] = params
     metadata['model'] = model_params['model_name']
     metadata['model_type'] = model_params['model_type']
+    metadata['model_name'] = model_params['model_name']
     metadata['traindata'] = os.path.basename(args.traindata)
     metadata['traingroup'] = args.traingroup
     metadata['traindata_size'] = list(traindata.shape)
