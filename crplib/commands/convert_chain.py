@@ -41,6 +41,8 @@ def build_index_structures(chainit, csize):
     :param csize:
     :return:
     """
+    # Default: all positions masked (1), all positions not conserved
+    # Set position to 0 (unmask) if the position is conserved
     consmask = np.ones(csize, dtype=np.bool)
     splits = []
     last_end = 0

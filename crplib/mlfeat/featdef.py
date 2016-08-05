@@ -458,6 +458,12 @@ def feat_mapsig(sample, infix=''):
     """
     if infix and not infix.endswith('_'):
         infix += '_'
+    # numpy.ma.MaskedArray.count
+    # => count the non-masked elements
+    # Usage: mask out positions in signal track
+    # that are not conserved
+    # is masked = is not conserved
+    # is not masked = is conserved
     conserved = np.ma.count(sample)
     reglen = sample.size
     ret = dict()
