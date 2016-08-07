@@ -23,7 +23,7 @@ def get_scorer(name, smpwt=None):
     elif name == 'roc_auc_score' or name == 'roc_auc':
         scorer = sklmet.make_scorer(sklmet.roc_auc_score, average='weighted', sample_weight=smpwt)
     elif name == 'mse' or name == 'mean_squared_error':
-        scorer = sklmet.make_scorer(sklmet.mean_squared_error, sample_weight=smpwt)
+        scorer = sklmet.make_scorer(sklmet.mean_squared_error, sample_weight=smpwt, greater_is_better=False)
     elif name == 'r2_score' or name == 'r2':
         scorer = sklmet.make_scorer(sklmet.r2_score, sample_weight=smpwt, multioutput='uniform_average')
     else:
