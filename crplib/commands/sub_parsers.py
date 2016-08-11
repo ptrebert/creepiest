@@ -253,18 +253,18 @@ def _add_train_command(subparsers):
                                          help='Train a model on a given training dataset',
                                          description='...to be updated...')
     comgroup = parser_train.add_argument_group('Train model')
-    comgroup.add_argument('--train-data', '-td', type=str, required=True, dest='traindata',
+    comgroup.add_argument('--input', '-i', type=str, required=True, dest='inputfile',
                           help='Full path to training data file')
-    comgroup.add_argument('--train-group', '-tg', type=str, default='', dest='traingroup',
+    comgroup.add_argument('--input-group', '-ig', type=str, default='', dest='inputgroup',
                           help='Specify group root in training data file to be loaded.')
     comgroup.add_argument('--model-spec', '-ms', type=str, required=True, dest='modelspec',
                           help='Full path to model specification in JSON format.')
     comgroup.add_argument('--no-tuning', '-nt', action='store_true', default=False, dest='notuning',
                           help='Do not search for better model parameters via cross validation. Default: False')
-    comgroup.add_argument('--only-features', '-oft', type=str, nargs='+', default=[], dest='onlyfeatures')
-    comgroup.add_argument('--depvar-name', '-dep', type=str, default='y_depvar', dest='depvar',
-                          help='Name of the dependant variable (labels/output/target) column in the dataset.'
-                               ' Default: y_depvar')
+    comgroup.add_argument('--use-features', '-uft', type=str, nargs='+', default=[], dest='usefeatures')
+    comgroup.add_argument('--target-var', '-var', type=str, dest='targetvar',
+                          help='Name of the dependant variable (labels/output/target) column in the dataset.')
+    comgroup.add_argument('--derive-target', '-drv', type=str, dest='derivetarget')
     comgroup.add_argument('--cv-folds', '-cv', type=int, default=10, dest='cvfolds',
                           help='Number of folds in cross validation. Default: 10')
     comgroup.add_argument('--model-output', '-mo', type=str, dest='modelout',
@@ -274,7 +274,7 @@ def _add_train_command(subparsers):
                                ' the model output path will be used and the file extension replaced with ".json".'
                                ' Default: <empty>')
     comgroup.add_argument('--calc-weights', '-cwt', action='store_true', default=False, dest='calcweights')
-    comgroup.add_argument('--sample-weights', '-swt', type=str, default='', dest='sampleweights')
+    comgroup.add_argument('--load-weights', '-swt', type=str, default='', dest='loadweights')
     comgroup.add_argument('--subset', '-sub', type=str, default='', dest='subset')
     parser_train.set_defaults(execute=_train_execute)
     return subparsers
@@ -340,7 +340,7 @@ def _add_apply_command(subparsers):
                                          help='Apply a trained model to a dataset',
                                          description='... to be updated ...')
     parser_apply.add_argument('--task', '-t', type=str, choices=['test', 'est'], dest='task',
-                              help='Specify task')
+                              help='Specify task', required=True)
     comgroup = parser_apply.add_argument_group('General parameters')
     comgroup.add_argument('--input', '-i', type=str, required=True, dest='inputfile',
                           help='Full path to input file in HDF5 format.')
@@ -356,12 +356,14 @@ def _add_apply_command(subparsers):
                           help='Path to JSON file with model metadata. If left empty, use the same'
                                ' path as for the model file and replace extension with ".json".'
                                ' Default: <empty>')
-    comgroup.add_argument('--out-variable', '-var', type=str, default='', dest='outvariable')
+    comgroup.add_argument('--target-var', '-var', type=str, default='', dest='targetvar')
+    comgroup.add_argument('--derive-target', '-drv', type=str, default='', dest='derivetarget')
     comgroup.add_argument('--reduce-classes', '-red', type=list, nargs='*', default=[], dest='reduce')
     comgroup.add_argument('--subset', '-sub', type=str, default='', dest='subset')
     comgroup.add_argument('--no-perm', '-nop', action='store_true', default=False, dest='noperm')
     comgroup.add_argument('--num-perm', '-nump', type=int, default=100, dest='numperm')
     comgroup.add_argument('--cv-perm', '-cvp', type=int, default=10, dest='cvperm')
+    comgroup.add_argument('--scoring', '-sc', type=str, default='', dest='scoring')
     comgroup.add_argument('--seq-file', '-seq', type=str, dest='seqfile',
                           help='Full path to genomic sequence file in 2bit format.')
     comgroup.add_argument('--target-index', '-idx', type=str, default='', dest='targetindex',
