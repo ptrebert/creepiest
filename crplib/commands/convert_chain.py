@@ -63,11 +63,12 @@ def process_chains(params):
     """
     fpath = params['inputfile']
     chrom = params['chrom']
+    re_chrom = re.compile(chrom + '$')
     csize = params['size']
     qchroms = re.compile(params['qcheck'])
     opn, mode = text_file_mode(fpath)
     with opn(fpath, mode=mode, encoding='ascii') as infile:
-        chainit = get_chain_iterator(infile, tselect=chrom, qcheck=qchroms)
+        chainit = get_chain_iterator(infile, tselect=re_chrom, qselect=qchroms)
         mask, splits, select = build_index_structures(chainit, csize)
     return chrom, mask, splits, select
 
