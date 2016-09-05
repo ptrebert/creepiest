@@ -297,17 +297,7 @@ def salmon_to_bed(inputfile, outputfile, genemodel, datadir, expid):
         for r in rows:
             this_gene = ra_genemodel[r['Name']]
             tpm = float(r['TPM'])
-            lvl = 0
-            stat = 0
-            if tpm > 0:
-                stat = 1
-            if 1 <= tpm < 10:
-                lvl = 1
-            if 10 <= tpm:
-                lvl = 2
             this_gene['tpm'] = tpm
-            this_gene['level'] = lvl
-            this_gene['status'] = stat
 
     fp, fn = os.path.split(genemodel)
     parts = fn.split('_')
@@ -327,8 +317,7 @@ def salmon_to_bed(inputfile, outputfile, genemodel, datadir, expid):
     outpath = os.path.join(datadir, 'tmp', common_name + '.' + auth + '-' + ver + '.bed')
     genes = sorted(ra_genemodel.values(), key=lambda d: (d['chrom'], d['start'], d['end'], d['id']))
     with open(outpath, 'w') as out:
-        writer = csv.DictWriter(out, fieldnames=['chrom', 'start', 'end', 'id', 'tpm', 'strand',
-                                                 'symbol', 'status', 'level'],
+        writer = csv.DictWriter(out, fieldnames=['chrom', 'start', 'end', 'id', 'tpm', 'strand', 'symbol'],
                                 extrasaction='ignore', delimiter='\t')
         writer.writeheader()
         writer.writerows(genes)
@@ -548,8 +537,8 @@ def build_pipeline(args, config, sci_obj):
     mrgens = pipe.transform(task_func=sci_obj.get_jobf('in_out'),
                             name='mrgens',
                             input=output_from(init),
-                            filter=formatter('ensGene_UCSC_(?P<SPECIES>[a-z]+)_(?P<ASSEMBLY>[A-Za-z0-9]+)\.txt\.gz'),
-                            output=os.path.join(refdir, '{SPECIES[0]}_{ASSEMBLY[0]}_ensembl_vN.pc_transcripts.gff.gz'),
+                            filter=formatter('ensGene_(?P<VERSION>v[0-9]+)_UCSC_(?P<SPECIES>[a-z]+)_(?P<ASSEMBLY>[A-Za-z0-9]+)\.txt\.gz'),
+                            output=os.path.join(refdir, '{SPECIES[0]}_{ASSEMBLY[0]}_ensembl_{VERSION[0]}.pc_transcripts.gff.gz'),
                             extras=[cmd, jobcall])
 
     normbtau = pipe.transform(task_func=normalize_btau_annotation,
@@ -632,7 +621,7 @@ def build_pipeline(args, config, sci_obj):
                           input=output_from(init),
                           filter=formatter('(?P<EXPID>\w+)_(?P<RUNID>\w+)_mmu_(?P<CELL>\w+)_mRNA_(?P<LAB>\w+)\.se.+'),
                           output=os.path.join(tmpquant, '{EXPID[0]}', 'quant.genes.sf'),
-                          extras=[cmd, jobcall]).mkdir(tmpquant)
+                          extras=[cmd, jobcall]).mkdir(tmpquant).follows(mmuidx13)
 
     cmd = config.get('Pipeline', 'qallpe').replace('\n', ' ')
     qhsape_params = make_pe_quant(tempdir, tmpquant, 'hsa',
@@ -648,23 +637,23 @@ def build_pipeline(args, config, sci_obj):
                         name='qmmupe').follows(mmuidx19)
 
     qsscpe_params = make_pe_quant(tempdir, tmpquant, 'ssc',
-                                  os.path.join(refdir, 'ssc_susScr2_ensembl_vN.pctr_norm.k19.idx'), cmd, jobcall)
+                                  os.path.join(refdir, 'ssc_susScr2_ensembl_v63.pctr_norm.k19.idx'), cmd, jobcall)
     qsscpe = pipe.files(sci_obj.get_jobf('ins_out'),
                         qsscpe_params,
                         name='qsscpe').follows(genidx19)
 
     qbtape_params = make_pe_quant(tempdir, tmpquant, 'bta',
-                                   os.path.join(refdir, 'bta_bosTau7_ensembl_v75.pctr_norm.k19.idx'), cmd, jobcall)
+                                  os.path.join(refdir, 'bta_bosTau7_ensembl_v75.pctr_norm.k19.idx'), cmd, jobcall)
     qbtape = pipe.files(sci_obj.get_jobf('ins_out'),
                         qbtape_params,
                         name='qbtape').follows(genidx19)
 
     # Salmon segfaults here
-    #qcfape_params = make_pe_quant(tempdir, tmpquant, 'cfa',
-    #                              os.path.join(refdir, 'cfa_canFam3_ensembl_vN.pctr_norm.k19.idx'), cmd, jobcall)
-    #qcfape = pipe.files(sci_obj.get_jobf('ins_out'),
-    #                    qcfape_params,
-    #                    name='qcfape').follows(genidx19)
+    qcfape_params = make_pe_quant(tempdir, tmpquant, 'cfa',
+                                  os.path.join(refdir, 'cfa_canFam3_ensembl_v81.pctr_norm.k19.idx'), cmd, jobcall)
+    qcfape = pipe.files(sci_obj.get_jobf('ins_out'),
+                        qcfape_params,
+                        name='qcfape').follows(genidx19)
 
     # conversion to BED
     cvbedhsa = pipe.subdivide(task_func=salmon_to_bed,
@@ -696,7 +685,15 @@ def build_pipeline(args, config, sci_obj):
                               input=output_from(qsscpe),
                               filter=formatter('.+/(?P<EXPID>[A-Z0-9]+)/quant.genes.sf'),
                               output=os.path.join(tmpquant, '{EXPID[0]}_*'),
-                              extras=[os.path.join(refdir, 'ssc_susScr2_ensembl_vN.pc_transcripts.json'),
+                              extras=[os.path.join(refdir, 'ssc_susScr2_ensembl_v63.pc_transcripts.json'),
+                                      tempdir, '{EXPID[0]}']).follows(qsscpe).jobs_limit(2)
+
+    cvbedcfa = pipe.subdivide(task_func=salmon_to_bed,
+                              name='cvbedcfa',
+                              input=output_from(qcfape),
+                              filter=formatter('.+/(?P<EXPID>[A-Z0-9]+)/quant.genes.sf'),
+                              output=os.path.join(tmpquant, '{EXPID[0]}_*'),
+                              extras=[os.path.join(refdir, 'cfa_canFam3_ensembl_v81.pc_transcripts.json'),
                                       tempdir, '{EXPID[0]}']).follows(qsscpe).jobs_limit(2)
 
 
@@ -767,10 +764,10 @@ def build_pipeline(args, config, sci_obj):
                                           mrgens, normbtau, mktrans,
                                           mkhsamap, mkmmumap, mkgenemap,
                                           hsaidx31, mmuidx13, mmuidx19, genidx19,
-                                          qmmuse, qhsape, qmmupe, qsscpe, qbtape,
-                                          cvbedhsa, cvbedmmu, cvbedbta, cvbedssc,
-                                          dumpbody, dumpcore, dumpuprr, dumpend,
-                                          convreg, convexpr),
+                                          qmmuse, qhsape, qmmupe, qsscpe, qbtape, qcfape,
+                                          cvbedhsa, cvbedmmu, cvbedbta, cvbedssc, cvbedcfa,
+                                          dumpbody, dumpcore, dumpuprr, dumpend),
+                                          #convreg, convexpr),
                         output=os.path.join(tempdir, 'runall_encexp.chk'),
                         extras=[cmd, jobcall])
 
