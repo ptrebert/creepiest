@@ -18,6 +18,7 @@ CHROMOSOME_BOUNDARY = 10000
 TRGIDX_MASK = 'cons/mask'
 TRGIDX_SPLITS = 'cons/splits'
 TRGIDX_SELECT = 'cons/select'
+TRGIDX_RELPOS = 'cons/relpos'
 
 # this is deprecated...
 FEAT_FP_PREC = 5
