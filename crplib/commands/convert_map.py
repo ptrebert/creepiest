@@ -16,7 +16,7 @@ from crplib.auxiliary.file_ops import text_file_mode
 from crplib.auxiliary.text_parsers import get_map_iterator, read_chromosome_sizes
 from crplib.metadata.md_helpers import normalize_group_path
 
-from crplib.auxiliary.constants import TRGIDX_MASK, TRGIDX_SPLITS, TRGIDX_SELECT, TRGIDX_RELPOS
+from crplib.auxiliary.constants import MAPIDX_MASK, MAPIDX_SELECT, MAPIDX_SPLITS, MAPIDX_ORDER
 
 
 def assemble_worker_args(args, csizes):
@@ -71,8 +71,8 @@ def build_index_structures(mapit, csize, swap):
     pos = np.ma.array(pos, mask=consmask)
     splits = np.array(list(itt.chain.from_iterable((item.start, item.stop) for item in np.ma.clump_unmasked(pos))), dtype=np.int32)
     select = np.array([k for k, g in itt.groupby(~consmask)], dtype=np.bool)
-    relpos = [n for s, e, n in block_buffer]
-    return consmask, splits, select, relpos
+    order = [n for s, e, n in block_buffer]
+    return consmask, splits, select, order
 
 
 def process_maps(params):
@@ -89,11 +89,11 @@ def process_maps(params):
     with opn(fpath, mode=mode, encoding='ascii') as infile:
         if params['query']:
             mapit = get_map_iterator(infile, tselect=match_chroms, qselect=selector)
-            mask, splits, select, relpos = build_index_structures(mapit, csize, True)
+            mask, splits, select, order = build_index_structures(mapit, csize, True)
         else:
             mapit = get_map_iterator(infile, tselect=selector, qselect=match_chroms)
-            mask, splits, select, relpos = build_index_structures(mapit, csize, False)
-    return select_chrom, mask, splits, select, relpos
+            mask, splits, select, order = build_index_structures(mapit, csize, False)
+    return select_chrom, mask, splits, select, order
 
 
 def run_map_conversion(args, logger):
@@ -105,10 +105,10 @@ def run_map_conversion(args, logger):
     csizes = read_chromosome_sizes(args.chromsizes, args.keepchroms)
     arglist = assemble_worker_args(args, csizes)
     logger.debug('Start processing chain file {}'.format(args.inputfile[0]))
-    og_mask = os.path.join(args.outputgroup, TRGIDX_MASK)
-    og_splits = os.path.join(args.outputgroup, TRGIDX_SPLITS)
-    og_select = os.path.join(args.outputgroup, TRGIDX_SELECT)
-    og_relpos = os.path.join(args.outputgroup, TRGIDX_RELPOS)
+    og_mask = os.path.join(args.outputgroup, MAPIDX_MASK)
+    og_splits = os.path.join(args.outputgroup, MAPIDX_SPLITS)
+    og_select = os.path.join(args.outputgroup, MAPIDX_SELECT)
+    og_order = os.path.join(args.outputgroup, MAPIDX_ORDER)
     with pd.HDFStore(args.outputfile, args.filemode, complevel=9, complib='blosc', encoding='utf-8') as hdfout:
         with mp.Pool(args.workers) as pool:
             logger.debug('Iterating results')
@@ -122,8 +122,8 @@ def run_map_conversion(args, logger):
                 hdfout.put(grp_splits, pd.Series(splits, dtype=np.int64), format='fixed')
                 grp_select = normalize_group_path(og_select, suffix=chrom)
                 hdfout.put(grp_select, pd.Series(select, dtype=np.bool), format='fixed')
-                grp_relpos = normalize_group_path(og_relpos, suffix=chrom)
-                hdfout.put(grp_relpos, pd.Series(relpos, dtype=np.int32), format='fixed')
+                grp_order = normalize_group_path(og_order, suffix=chrom)
+                hdfout.put(grp_order, pd.Series(relpos, dtype=np.int32), format='fixed')
                 hdfout.flush()
                 logger.debug('Saved chromosome {}'.format(chrom))
         hdfout.flush()
