@@ -139,6 +139,8 @@ def build_pipeline(args, config, sci_obj):
     tempdir = config.get('Pipeline', 'tempdir')
     outnet = config.get('Pipeline', 'outnet')
     outchain = config.get('Pipeline', 'outchain')
+    outmap = config.get('Pipeline', 'outmap')
+    outidx = config.get('Pipeline', 'outidx')
     refdir = config.get('Pipeline', 'refdir')
     targets = config.get('Pipeline', 'targets').split()
 
@@ -228,8 +230,9 @@ def build_pipeline(args, config, sci_obj):
                              name='sortmap',
                              input=output_from(symmext),
                              filter=suffix('mapext.tsv.gz'),
-                             output='mapsort.tsv.gz',
-                             extras=[cmd, jobcall])
+                             output='mapext.sort.tsv.gz',
+                             output_dir=outmap,
+                             extras=[cmd, jobcall]).mkdir(outmap)
 
     sci_obj.set_config_env(dict(config.items('JobConfig')), dict(config.items('EnvConfig')))
     if args.gridmode:
@@ -237,14 +240,29 @@ def build_pipeline(args, config, sci_obj):
     else:
         jobcall = sci_obj.ruffus_localjob()
 
+    map_re = '(?P<TARGET>\w+)_to_(?P<QUERY>\w+)(?P<EXT>\.[\w\.]+)'
 
     cmd = config.get('Pipeline', 'trgidx')
-    stepdir = os.path.join(tempdir, 'indices')
     trgidx = pipe.transform(task_func=sci_obj.get_jobf('in_out'),
                             name='trgidx',
-                            input=output_from(trgbchain, qrybchain),
-                            filter=formatter(chain_re),
-                            output=os.path.join(stepdir, '{TARGET[0]}_to_{QUERY[0]}.rbest.trgidx.h5'),
-                            extras=[cmd, jobcall]).mkdir(stepdir).active_if(False)
+                            input=output_from(sortmap),
+                            filter=formatter(map_re),
+                            output=os.path.join(outidx, '{TARGET[0]}_to_{QUERY[0]}.rbest.mapext.trgidx.h5'),
+                            extras=[cmd, jobcall]).mkdir(outidx)
+
+    cmd = config.get('Pipeline', 'qryidx')
+    qryidx = pipe.transform(task_func=sci_obj.get_jobf('in_out'),
+                            name='qryidx',
+                            input=output_from(sortmap),
+                            filter=formatter(map_re),
+                            output=os.path.join(outidx, '{TARGET[0]}_to_{QUERY[0]}.rbest.mapext.qryidx.h5'),
+                            extras=[cmd, jobcall]).mkdir(outidx)
+
+    cmd = config.get('Pipeline', 'runall')
+    runall = pipe.merge(task_func=sci_obj.get_jobf('ins_out'),
+                        name='runall',
+                        input=output_from(trgidx, qryidx, sortmap, trgbnet, qrybnet),
+                        output=os.path.join(tempdir, 'runall_prep_chain.chk'),
+                        extras=[cmd, jobcall])
 
     return pipe
