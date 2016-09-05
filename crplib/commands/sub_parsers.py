@@ -87,7 +87,8 @@ def _add_convert_command(subparsers):
                                            help='Convert bedGraph or BED files to HDF5 format.',
                                            description='... to be updated ...')
     comgroup = parser_convert.add_argument_group('General parameters')
-    comgroup.add_argument('--task', '-tk', type=str, required=True, choices=['signal', 'region', 'chain', 'tfmotif'], dest='task',
+    comgroup.add_argument('--task', '-tk', type=str, required=True, choices=['signal', 'region', 'chain',
+                                                                             'map', 'tfmotif'], dest='task',
                           help='Specify task to execute, convert signal (bedGraph), region (BED-like) or chain files.')
     comgroup.add_argument('--keep-chroms', '-kc', type=str, default='"(chr)?[0-9]+(\s|$)"', dest='keepchroms',
                           help='Regular expression pattern (needs to be double quoted) matching'
@@ -101,6 +102,8 @@ def _add_convert_command(subparsers):
                           help='Full path to output file to be created')
     comgroup.add_argument('--output-group', '-og', type=str, default='', dest='outputgroup',
                           help='Group prefix to store individual chromosomes. Default: <empty>')
+    comgroup.add_argument('--query', '-qry', action='store_true', default=False, dest='query',
+                          help='Build index for query')
     comgroup = parser_convert.add_argument_group('bedGraph parameters')
     comgroup.add_argument('--chrom-sizes', '-cs', type=str, default='', dest='chromsizes',
                           help='Full path to UCSC-style 2 column file with chromosome sizes')
