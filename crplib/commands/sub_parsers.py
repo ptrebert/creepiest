@@ -299,8 +299,8 @@ def _add_mapsig_command(subparsers):
                                           help='Map a signal track from one assembly to another',
                                           description='...to be updated...')
     comgroup = parser_mapsig.add_argument_group('Map signal track')
-    comgroup.add_argument('--chain-file', '-ch', type=str, required=True, dest='chainfile',
-                          help='Full path to chain file with pairwise alignment information between'
+    comgroup.add_argument('--map-file', '-mpf', type=str, required=True, dest='mapfile',
+                          help='Full path to map file with pairwise alignment information between'
                                ' reference (in liftOver parlance: target) and query.')
     comgroup.add_argument('--query-chroms', '-qch', type=str, required=True, dest='querychroms',
                           help='Full path to file with chromosome sizes of the query assembly.')

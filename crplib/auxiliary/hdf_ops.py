@@ -52,7 +52,11 @@ def get_default_group(filepath):
     """
     group_root = set()
     with pd.HDFStore(filepath, 'r') as hdf:
-        mdf = hdf['metadata']
+        try:
+            mdf = hdf['metadata']
+        except KeyError:
+            # no metadata in file, maybe it's left over from a failed run
+            return ''
         for row in mdf.itertuples(index=False):
             group_root.add(os.path.split(row.group)[0])
     assert len(group_root) == 1,\
@@ -88,7 +92,12 @@ def check_path_infos(filepath, arggroup=None):
         if arggroup and not grp:
             grp = arggroup
     if grp is None or grp.lower() in ['default', 'auto']:
-        grp = get_default_group(fp)
+        if not os.path.isfile(fp):
+            # this can happen for output files that
+            # do not yet exist
+            grp = ''
+        else:
+            grp = get_default_group(fp)
     return lab, grp, fp
 
 

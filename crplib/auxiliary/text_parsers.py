@@ -41,8 +41,13 @@ def read_chromosome_sizes(fpath, keep='.+'):
 
 
 def _read_chain_header(line):
-    _, _, tName, tSize, tStrand, tStart, tEnd, qName, qSize, qStrand, qStart, qEnd, _ = line.strip().split()
-    return tName, int(tSize), tStrand, int(tStart), int(tEnd), qName, int(qSize), qStrand, int(qStart), int(qEnd)
+    _, score, tName, tSize, tStrand, tStart, tEnd, qName, qSize, qStrand, qStart, qEnd, chainid = line.strip().split()
+    return tName, int(tSize), tStrand, int(tStart), int(tEnd), qName, int(qSize), qStrand, int(qStart), int(qEnd), chainid, int(score)
+
+
+def _read_chain_header_index(line):
+    _, score, tName, tSize, tStrand, tStart, tEnd, qName, qSize, qStrand, qStart, qEnd, chainid = line.strip().split()
+    return tName, int(tSize), qName, int(qSize), int(chainid)
 
 
 def _read_aln_dataline(line):
@@ -69,7 +74,7 @@ def _check_skip(selector, chrom):
         return False
 
 
-def get_chain_iterator(fobj, tselect=None, qselect=None, read_num=0):
+def get_chain_iterator(fobj, tselect=None, qselect=None, read_num=0, min_size=0, min_score=0):
     """ Returns an iterator over chain files as used by
     UCSC liftOver tool. The design assumes a simple parallelization, i.e.
     many processes can read the same chain file, each one filtering
@@ -84,6 +89,10 @@ def get_chain_iterator(fobj, tselect=None, qselect=None, read_num=0):
      :type: None or re.regex object
     :param read_num: read only this many chains
      :type: int, default 0
+    :param min_size: skip chains with size smaller than this number
+     :type: int, default 0
+    :param min_score, default 0
+     :type: skip chains with score lower than this number
     :return:
     """
     tchrom = None
@@ -100,8 +109,12 @@ def get_chain_iterator(fobj, tselect=None, qselect=None, read_num=0):
     tskip = fnt.partial(_check_skip, *(tselect,))
     qskip = fnt.partial(_check_skip, *(qselect,))
     skip = False
-    bc = 0
+    chain_id = ''
+    chain_score = 0
+    chain_size = 0
+    alnc = 0
     cc = 0
+    bc = 0
     for line in fobj:
         if line.strip():
             if line.startswith('chain'):
@@ -109,8 +122,17 @@ def get_chain_iterator(fobj, tselect=None, qselect=None, read_num=0):
                 assert qrun == exp_qend or exp_qend == -1, 'Missed expected block end: {} vs {}'.format(qrun, exp_qend)
                 if 0 < read_num <= cc:
                     break
+                bc = 0
                 parts = read_head(line)
                 assert parts[2] == '+', 'Reverse target chain is unexpected: {}'.format(line)
+                chain_id = parts[-2]
+                chain_score = parts[-1]
+                chain_size = parts[4] - parts[3]
+                if chain_score < min_score or chain_size < min_size:
+                    # the size check rests on the assumption that the size of a chain
+                    # is the same in both target and query
+                    skip = True
+                    continue
                 tchrom = parts[0]
                 skip = tskip(tchrom)
                 if skip:
@@ -131,27 +153,29 @@ def get_chain_iterator(fobj, tselect=None, qselect=None, read_num=0):
                     qrun = parts[6] - parts[9]
                     exp_qend = parts[6] - parts[8]
                 else:
-                    raise ValueError('Unknown qStrand specified: {}'.format(line))
+                    raise ValueError('Unknown qStrand in chain file: {}'.format(line))
             else:
                 if skip:
                     continue
                 try:
                     size, dt, dq = read_aln(line)
-                    yield tchrom, trun, trun + size, tstrand, qchrom, qrun, qrun + size, qstrand
                     bc += 1
+                    yield tchrom, trun, trun + size, tstrand, qchrom, qrun, qrun + size, qstrand, chain_id + '.' + str(bc), chain_score
+                    alnc += 1
                     trun += size + dt
                     qrun += size + dq
                 except ValueError:
                     size = read_end(line)
-                    yield tchrom, trun, trun + size, tstrand, qchrom, qrun, qrun + size, qstrand
                     bc += 1
+                    yield tchrom, trun, trun + size, tstrand, qchrom, qrun, qrun + size, qstrand, chain_id + '.' + str(bc), chain_score
+                    alnc += 1
                     trun += size
                     qrun += size
     try:
         pat = tselect.pattern
     except AttributeError:
         pat = 'all'
-    assert bc > 0, 'No aln. blocks read from chain file for target selector: {}'.format(pat)
+    assert alnc > 0, 'No aln. blocks read from chain file for target selector: {}'.format(pat)
     assert cc > 0, 'No chain read from file for target selector: {}'.format(pat)
     return
 
@@ -199,7 +223,50 @@ def get_chain_positions(chainfile, tselect=None, qselect=None, tref=True):
     return chain_positions
 
 
-def chromsize_from_chain(chainfile, chrom):
+def build_full_chain_index(chainfile, tselect=None, qselect=None):
+    """
+    :param chainfile:
+    :param tselect:
+    :param qselect:
+    :return:
+    """
+    if tselect is None:
+        tselect = re.compile('.+')
+    if qselect is None:
+        qselect = re.compile('.+')
+    opn, mode = text_file_mode(chainfile)
+    newline = True
+    pos = 0
+    tchrom_sizes = dict()
+    qchrom_sizes = dict()
+    tchrom_index = col.defaultdict(list)
+    qchrom_index = col.defaultdict(list)
+    with opn(chainfile, mode) as chains:
+        while 1:
+            line = chains.readline()
+            if not line:
+                break
+            elif line.startswith('chain'):
+                assert newline, 'No newline detected before new chain: {} (last pos. {})'.format(line, pos)
+                tName, tSize, qName, qSize, chainid = _read_chain_header_index(line)
+                if tselect.match(tName) is not None and qselect.match(qName) is not None:
+                    tchrom_sizes[tName] = tSize
+                    qchrom_sizes[qName] = qSize
+                    tchrom_index[tName].append((pos, chainid))
+                    qchrom_index[qName].append((pos, chainid))
+            elif not line.strip():
+                # newline in file
+                newline = True
+                pos = chains.tell()
+            else:
+                newline = False
+                continue
+    target_struct = {'sizes': tchrom_sizes, 'index': tchrom_index}
+    query_struct = {'sizes': qchrom_sizes, 'index': qchrom_index}
+    return target_struct, query_struct
+
+
+def chromsize_from_chain(chainfile, chrom, target=True):
     """
     :param chainfile:
     :param chrom:
@@ -212,11 +279,100 @@ def chromsize_from_chain(chainfile, chrom):
         for line in chf:
             if line.strip() and line.startswith('chain'):
                 parts = read_head(line)
-                if parts[0] == chrom:
+                if parts[0] == chrom and target:
                     chrom_size = parts[1]
+                    break
+                elif parts[5] == chrom:
+                    chrom_size = parts[6]
                     break
     assert chrom_size > 0, 'No entry in chain file {} for chromosome: {}'.format(chainfile, chrom)
     return chrom_size
+
+
+def _read_map_line(line):
+    """
+    :param line:
+    :return:
+    """
+    tchrom, tstart, tend, tstrand, chainid, qchrom, qstart, qend, qstrand, mapnum = line.strip().split()
+    return tchrom, int(tstart), int(tend), tstrand, chainid, qchrom, int(qstart), int(qend), qstrand, int(mapnum)
+
+
+def get_map_iterator(fobj, tselect=None, qselect=None, read_num=0):
+    """
+    :param fobj:
+    :param tselect:
+    :param qselect:
+    :param read_num:
+    :return:
+    """
+    curr_chain = 0
+    read_chains = 0
+    skip = False
+    tskip = fnt.partial(_check_skip, *(tselect,))
+    qskip = fnt.partial(_check_skip, *(qselect,))
+    readmap = _read_map_line
+    for line in fobj:
+        if line.strip():
+            if 0 < read_num <= read_chains:
+                break
+            parts = readmap(line)
+            if parts[4] == curr_chain and skip:
+                continue
+            elif parts[4] == curr_chain:
+                yield parts
+            elif tskip(parts[0]) or qskip(parts[5]):
+                curr_chain = parts[4]
+                skip = True
+                continue
+            else:
+                read_chains += 1
+                curr_chain = parts[4]
+                skip = False
+                yield parts
+    return
+
+
+def get_map_positions(mapfile, tselect=None, qselect=None, tref=True):
+    """
+    :param mapfile:
+    :param tselect:
+    :param qselect:
+    :param tref:
+    :return:
+    """
+    if tselect is None:
+        tselect = re.compile('.+')
+    if qselect is None:
+        qselect = re.compile('.+')
+    opn, mode = text_file_mode(mapfile)
+    readmap = _read_map_line
+    last_chain = -1
+    map_positions = col.defaultdict(dict)
+    with opn(mapfile, mode) as maps:
+        while 1:
+            line = maps.readline()
+            llen = len(line)
+            if not line:
+                break
+            elif not line.strip():
+                continue
+            else:
+                parts = readmap(line)
+                if tselect.match(parts[0]) is not None and qselect.match(parts[5]) is not None:
+                    if parts[4] != last_chain:
+                        # record start position of new map block
+                        pos = maps.tell() - llen
+                        if tref:
+                            tchrom, qchrom = parts[0], parts[5]
+                        else:
+                            tchrom, qchrom = parts[5], parts[0]
+                        try:
+                            map_positions[tchrom][qchrom].append(pos)
+                        except KeyError:
+                            map_positions[tchrom][qchrom] = [pos]
+                        last_chain = parts[4]
+    return map_positions
 
 
 def get_meme_iterator(fobj):
