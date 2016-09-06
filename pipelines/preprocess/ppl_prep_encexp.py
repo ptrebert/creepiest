@@ -766,8 +766,8 @@ def build_pipeline(args, config, sci_obj):
                                           hsaidx31, mmuidx13, mmuidx19, genidx19,
                                           qmmuse, qhsape, qmmupe, qsscpe, qbtape, qcfape,
                                           cvbedhsa, cvbedmmu, cvbedbta, cvbedssc, cvbedcfa,
-                                          dumpbody, dumpcore, dumpuprr, dumpend),
-                                          #convreg, convexpr),
+                                          dumpbody, dumpcore, dumpuprr, dumpend,
+                                          convreg, convexpr),
                         output=os.path.join(tempdir, 'runall_encexp.chk'),
                         extras=[cmd, jobcall])
 
