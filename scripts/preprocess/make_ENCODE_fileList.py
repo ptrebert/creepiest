@@ -18,13 +18,13 @@ import operator as op
 import collections as col
 
 
-DL_FOLDER = '/TL/deep/fhgfs/projects/pebert/thesis/biodata/dlfolder/encode'
+DL_FOLDER = '/TL/deep/fhgfs/projects/pebert/thesis/projects/cross_species/rawdata/downloads'
 
 #MDFILE = '/home/pebert/work/code/mpggit/creepiest/datasrc/encode/20160211_ENCODE_metadata.tsv'
 #MDFILE = '/home/pebert/work/code/mpggit/creepiest/datasrc/encode/20160524_ENCODE_metadata_merged.tsv'
 #MDFILE = '/home/pebert/work/code/mpggit/creepiest/datasrc/encode/20160525_ENCODE_metadata_merged.tsv'
 MDFILE = '/home/pebert/work/code/mpggit/creepiest/datasrc/encode/20160713_ENCODE_metadata.tsv'
-LISTFILE = '/TL/deep/fhgfs/projects/pebert/thesis/biodata/dlfolder/listing_encode.txt'
+LISTFILE = '/TL/deep/fhgfs/projects/pebert/thesis/projects/cross_species/rawdata/listing_encode.txt'
 SELECTFILE = '/home/pebert/work/code/mpggit/creepiest/scripts/preprocess/ENCODE_md_selectors.ini'
 # end of config
 
