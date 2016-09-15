@@ -211,6 +211,15 @@ def build_pipeline(args, config, sci_obj):
                               output=os.path.join('{path[0]}', '{FILEID[0]}.wg.tsv.gz'),
                               extras=[cmd, jobcall])
 
+    cmd = config.get('Pipeline', 'mapraw')
+    mapraw = pipe.transform(task_func=sci_obj.get_jobf('in_out'),
+                            name='mapraw',
+                            input=output_from(mergeqsymm),
+                            filter=suffix('rbest.qchain.wg.tsv.gz'),
+                            output='rbest.mapraw.sort.tsv.gz',
+                            output_dir=outmap,
+                            extras=[cmd, jobcall])
+
     sci_obj.set_config_env(dict(config.items('MemJobConfig')), dict(config.items('EnvConfig')))
     if args.gridmode:
         jobcall = sci_obj.ruffus_gridjob()
@@ -240,22 +249,22 @@ def build_pipeline(args, config, sci_obj):
     else:
         jobcall = sci_obj.ruffus_localjob()
 
-    map_re = '(?P<TARGET>\w+)_to_(?P<QUERY>\w+)(?P<EXT>\.[\w\.]+)'
+    map_re = '(?P<TARGET>\w+)_to_(?P<QUERY>\w+)\.rbest\.(?P<MAPTYPE>map(raw|ext))\.(?P<EXT>[\w\.]+)'
 
     cmd = config.get('Pipeline', 'trgidx')
     trgidx = pipe.transform(task_func=sci_obj.get_jobf('in_out'),
                             name='trgidx',
-                            input=output_from(sortmap),
+                            input=output_from(sortmap, mapraw),
                             filter=formatter(map_re),
-                            output=os.path.join(outidx, '{TARGET[0]}_to_{QUERY[0]}.rbest.mapext.trgidx.h5'),
+                            output=os.path.join(outidx, '{TARGET[0]}_to_{QUERY[0]}.rbest.{MAPTYPE[0]}.trgidx.h5'),
                             extras=[cmd, jobcall]).mkdir(outidx)
 
     cmd = config.get('Pipeline', 'qryidx')
     qryidx = pipe.transform(task_func=sci_obj.get_jobf('in_out'),
                             name='qryidx',
-                            input=output_from(sortmap),
+                            input=output_from(sortmap, mapraw),
                             filter=formatter(map_re),
-                            output=os.path.join(outidx, '{TARGET[0]}_to_{QUERY[0]}.rbest.mapext.qryidx.h5'),
+                            output=os.path.join(outidx, '{TARGET[0]}_to_{QUERY[0]}.rbest.{MAPTYPE[0]}.qryidx.h5'),
                             extras=[cmd, jobcall]).mkdir(outidx)
 
     cmd = config.get('Pipeline', 'runall')
