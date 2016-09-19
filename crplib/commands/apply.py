@@ -17,65 +17,19 @@ import pickle as pck
 
 from scipy.interpolate import LSQUnivariateSpline as kspline
 
-from sklearn.metrics import accuracy_score, f1_score, roc_auc_score
+from sklearn.cross_validation import permutation_test_score as permtest
 
 from crplib.auxiliary.seq_parsers import get_twobit_seq
 from crplib.auxiliary.hdf_ops import load_masked_sigtrack, get_valid_hdf5_groups, get_trgindex_groups
-from crplib.auxiliary.file_ops import create_filepath, text_file_mode
+from crplib.auxiliary.file_ops import create_filepath
+from crplib.auxiliary.modeling import select_dataset_subset, load_model, \
+    load_model_metadata, get_scorer, load_ml_dataset, determine_scoring_method
 from crplib.mlfeat.featdef import feat_mapsig, get_online_version
 from crplib.auxiliary.constants import CHROMOSOME_BOUNDARY
 from crplib.metadata.md_signal import MD_SIGNAL_COLDEFS
 from crplib.metadata.md_signal import gen_obj_and_md as gen_sigobj
 from crplib.metadata.md_regions import MD_REGION_COLDEFS
 from crplib.metadata.md_regions import gen_obj_and_md as genregobj
-
-
-def load_model_metadata(args):
-    """
-    :param args:
-    :return:
-    """
-    if not args.modelmetadata:
-        fpath_md = args.modelfile.rsplit('.', 1)[0] + '.json'
-    else:
-        fpath_md = args.modelmetadata
-    model_md = json.load(open(fpath_md, 'r'))
-    return model_md
-
-
-def load_subset_names(fpath):
-    """
-    :param fpath:
-    :return:
-    """
-    opn, mode = text_file_mode(fpath)
-    with opn(fpath, mode) as infile:
-        try:
-            content = json.load(infile)['subset']
-        except json.JSONDecodeError:
-            content = infile.read().split()
-    content = set(content)
-    assert len(content) > 1, 'Subset selecting names list loaded from file {} has length <1: {}'.format(fpath, content)
-    return content
-
-
-def select_dataset_subset(dataset, subset):
-    """
-    :param dataset:
-    :param subset:
-    :return:
-    """
-    rows, cols = dataset.shape
-    if not subset:
-        pass
-    elif os.path.isfile(subset):
-        subset_names = load_subset_names(subset)
-        dataset = dataset[dataset.name.isin(subset_names)]
-    else:
-        subset = subset.strip('"')
-        dataset = dataset.query(subset)
-    assert not dataset.empty, 'Dataset empty after subsetting with {}; initial size {} x {}'.format(subset, rows, cols)
-    return dataset
 
 
 def load_dataset(fpath, groups, features, subset='', ycol='', ytype=None):
@@ -105,11 +59,52 @@ def load_dataset(fpath, groups, features, subset='', ycol='', ytype=None):
     return predictors, sample_names, y_depvar
 
 
-def run_permutation_tests(data, labels, model):
+def run_permutation_test(data, output, model, cvperm, numperm, workers, scorer):
+    """
+    :param data:
+    :param output:
+    :param model:
+    :param cvperm:
+    :param numperm:
+    :param workers:
+    :param scorer:
+    :return:
+    """
+    true_score, perm_scores, pval = permtest(model, data.as_matrix(), output.values, cv=cvperm,
+                                             n_permutations=numperm, n_jobs=workers,
+                                             scoring=scorer, verbose=0)
+    # based on: Ojala et al., J. ML Res. 2010
+    # Permutation Tests for Studying Classifier Performance
+    prec = float(1 / (2 * np.sqrt(numperm)))
+    perm_params = {'perm_num': numperm, 'perm_cvfolds': cvperm, 'bound_test_prec': prec}
+    perm_stats = {'perm_mean': float(np.mean(perm_scores)), 'perm_max': float(np.max(perm_scores)),
+                  'perm_median': float(np.median(perm_scores)), 'perm_std': float(np.std(perm_scores)),
+                  'perm_pval': float(pval)}
+    perm_scores = perm_scores.tolist()  # for JSONify
+    return true_score, perm_scores, perm_stats, perm_params
 
-    perm_labels = np.array(labels, copy=True)
 
-    return
+def run_randomization_test(data, output, model, numrand, scorer):
+    """
+    :param output:
+    :param classes:
+    :param numrand:
+    :param scorer:
+    :return:
+    """
+    class_count = col.Counter(output)
+    asc_classes = sorted(model.classes_)
+    propensities = np.array([class_count[cnt] / len(output) for cnt in asc_classes], dtype=np.float64)
+    rand_scores = []
+    for _ in range(numrand):
+        rand_scores.append(scorer(model, data, rng.choice(asc_classes, len(output), p=propensities)))
+    rand_stats = {'rand_mean': float(np.mean(rand_scores)),
+                  'rand_max': float(np.max(rand_scores)), 'rand_median': float(np.median(rand_scores)),
+                  'rand_95pct': float(np.percentile(rand_scores, 95))}
+    return rand_stats
+
+
+############################
 
 
 def smooth_signal_estimate(signal, res):
@@ -225,81 +220,6 @@ def run_estimate_signal(logger, args):
         hdfout.put('metadata', metadata)
         hdfout.flush()
     logger.debug('All chromosomes processed')
-    return 0
-
-
-def run_classify_regions(logger, args):
-    """
-    :param logger:
-    :param args:
-    :return:
-    """
-    logger.debug('Loading model metadata')
-    model_md = load_model_metadata(args)
-    logger.debug('Loading model')
-    model = pck.load(open(args.modelfile, 'rb'))
-    feat_order = model_md['feat_order']
-    load_groups = get_valid_hdf5_groups(args.inputfile, args.inputgroup)
-    logger.debug('Loading region dataset')
-    dataset, names, class_true = load_region_data(args.inputfile, load_groups, feat_order, args.classlabels, args.labeltype)
-    logger.debug('Loaded dataset of size {}'.format(dataset.shape))
-    y_pred = model.predict(dataset)
-    class_order = list(map(int, model.classes_))
-    y_prob = pd.DataFrame(model.predict_proba(dataset), columns=class_order)
-    pred_class_prob = list(map(float, y_prob.lookup(np.arange(y_prob.shape[0]), y_pred)))
-    names = list(map(str, names.tolist()))
-    if class_true is not None:
-        # to serialize this to JSON, need to cast
-        # all numeric values to Python types (from numpy)
-        true_class_prob = list(map(float, y_prob.lookup(np.arange(y_prob.shape[0]), class_true)))
-        if len(class_order) == 2:  # binary classification
-            auc = roc_auc_score(class_true, y_prob[:, 1])
-            f1 = f1_score(class_true, y_pred)
-            acc = accuracy_score(class_true, y_pred)
-            scores = {'f1': float(f1), 'accuracy': float(acc), 'roc_auc': float(auc)}
-        else:  # multiclass classification
-            auc = -1
-            acc = accuracy_score(class_true, y_pred)
-            f1 = f1_score(class_true, y_pred, average='weighted', pos_label=None)
-            scores = {'f1': float(f1), 'accuracy': float(acc), 'roc_auc': auc}
-        priors = col.Counter(class_true)
-        asc_classes = sorted(class_order)
-        num_samples = len(class_true)
-        priors = np.array([priors[cnt] / num_samples for cnt in asc_classes], dtype=np.float64)
-        runif_f1 = []
-        runif_acc = []
-        rprior_f1 = []
-        rprior_acc = []
-        for _ in range(1000):
-            runif_f1.append(f1_score(class_true, rng.choice(asc_classes, num_samples), average='weighted', pos_label=None))
-            runif_acc.append(accuracy_score(class_true, rng.choice(asc_classes, num_samples)))
-            rprior_f1.append(f1_score(class_true, rng.choice(asc_classes, num_samples, p=priors), average='weighted', pos_label=None))
-            rprior_acc.append(accuracy_score(class_true, rng.choice(asc_classes, num_samples, p=priors)))
-        rand_scores = {'f1_runif_mean': float(np.mean(runif_f1)), 'f1_runif_max': float(np.max(runif_f1)),
-                       'f1_runif_95pct': float(np.percentile(runif_f1, 95)),
-                       'f1_rprior_mean': float(np.mean(rprior_f1)), 'f1_rprior_max': float(np.max(rprior_f1)),
-                       'f1_rprior_95pct': float(np.percentile(rprior_f1, 95)),
-                       'acc_runif_mean': float(np.mean(runif_acc)), 'acc_runif_max': float(np.max(runif_acc)),
-                       'acc_runif_95pct': float(np.percentile(runif_acc, 95)),
-                       'acc_rprior_mean': float(np.mean(rprior_acc)), 'acc_rprior_max': float(np.max(rprior_acc)),
-                       'acc_rprior_95pct': float(np.percentile(rprior_acc, 95))}
-        scores.update(rand_scores)
-        true_labels = list(map(int, class_true))
-    else:
-        scores = {'f1': -1, 'accuracy': -1, 'roc_auc': -1}
-        true_labels = []
-        true_class_prob = []
-    class_pred = list(map(int, y_pred))
-    class_probs = [list(map(float, row)) for row in y_prob.as_matrix().tolist()]
-    dump = {'scores': scores, 'class_true': true_labels, 'class_pred': class_pred,
-            'class_probs': class_probs, 'class_order': class_order,
-            'inputfile': os.path.basename(args.inputfile), 'modelfile': os.path.basename(args.modelfile),
-            'n_samples': dataset.shape[0], 'n_features': dataset.shape[1],
-            'names': names, 'class_pred_prob': pred_class_prob, 'class_true_prob': true_class_prob}
-    logger.debug('Dumping prediction to output file')
-    with open(args.outputfile, 'w') as outfile:
-        _ = json.dump(dump, outfile, indent=1)
-    logger.debug('Done')
     return 0
 
 
@@ -423,14 +343,178 @@ def run_scan_regions(logger, args):
     return 0
 
 
-def run_classification(args, modelmd, logger):
+def run_regression_testdata(args, model, model_md, dataset, y_true, logger):
+    """
+    :param args:
+    :param model:
+    :param model_md:
+    :param dataset:
+    :param y_true:
+    :return:
+    """
+    logger.debug('Making prediction for test dataset')
+    scorer = get_scorer(model_md['scoring'])
+    y_pred = model.predict(dataset)
+    model_perf = scorer(model, dataset, y_true)
+    out_metadata = {}
+    if not args.noperm:
+        logger.debug('Running permutation test')
+        perf_score, permscores, permstats, permparams = run_permutation_test(dataset, y_true, model, args.cvperm,
+                                                                             args.numperm, args.workers, scorer)
+        if not np.isclose(model_perf, perf_score, rtol=1e-05, atol=1e-05):
+            # turns out this happens regularly... not sure why
+            logger.warning('Performance scores not close: {} vs {}'.format(model_perf, perf_score))
+        out_metadata['permutation_test'] = {'perm_scores': permscores, 'perm_params': permparams,
+                                            'perm_stats': permstats}
+        logger.debug('Running randomization test')
+        randstats = run_randomization_test(dataset, y_true, model, args.numperm, scorer)
+        out_metadata['randomization_test'] = {'rand_num': args.numperm, 'rand_stats': randstats}
+    logger.debug('Collecting metadata')
+    out_metadata['scoring'] = model_md['scoring']
+    out_metadata['values'] = {'true': list(map(float, y_true)),
+                              'pred': list(map(float, y_pred))}
+    out_metadata['model_perf'] = float(model_perf)
+    logger.debug('Classification of test data finished')
+    return out_metadata
+
+
+def run_classification_testdata(args, model, model_md, dataset, y_true, logger):
+    """
+    :param args:
+    :param model:
+    :param model_md:
+    :param dataset:
+    :param y_true:
+    :return:
+    """
+    logger.debug('Making prediction for test dataset')
+    scoring_method = determine_scoring_method(args, model_md, logger)
+    scorer = get_scorer(scoring_method)
+    y_pred = model.predict(dataset)
+    model_perf = scorer(model, dataset, y_true)
+    class_order = list(map(int, model.classes_))
+    logger.debug('Getting class probabilities')
+    y_prob = pd.DataFrame(model.predict_proba(dataset), columns=class_order)
+    pred_class_prob = (y_prob.lookup(y_prob.index, y_pred)).tolist()
+    true_class_prob = (y_prob.lookup(y_prob.index, y_true)).tolist()
+    testing_info = dict()
+    testing_info['scoring'] = scoring_method
+    testing_info['performance'] = float(model_perf)
+    if not args.noperm:
+        logger.debug('Running permutation test')
+        perf_score, permscores, permstats, permparams = run_permutation_test(dataset, y_true, model, args.cvperm,
+                                                                             args.numperm, args.workers, scorer)
+        if not np.isclose(model_perf, perf_score, rtol=1e-05, atol=1e-05):
+            # surprisingly, this does happen... investigate as soon as time permits
+            logger.warning('Performance scores not close: {} vs {}'.format(model_perf, perf_score))
+        testing_info['permutation_test'] = {'perm_scores': permscores, 'perm_params': permparams,
+                                            'perm_stats': permstats}
+        logger.debug('Running randomization test')
+        randstats = run_randomization_test(dataset, y_true, model, args.numperm, scorer)
+        testing_info['randomization_test'] = {'rand_num': args.numperm, 'rand_stats': randstats}
+    logger.debug('Collecting metadata')
+    testing_info['targets'] = {'true': list(map(int, y_true)),
+                               'pred': list(map(int, y_pred)),
+                               'order': class_order}
+    testing_info['probabilities'] = {'true': true_class_prob,
+                                     'pred': pred_class_prob,
+                                     'all': [list(map(float, row)) for row in y_prob.as_matrix().tolist()]}
+    logger.debug('Classification of test data finished')
+    return {'testing_info': testing_info}
+
+
+def run_classification_newdata(model, dataset, logger):
+    """
+    :param model:
+    :param dataset:
+    :return:
+    """
+    y_pred = model.predict(dataset)
+    class_order = list(map(int, model.classes_))
+    y_prob = pd.DataFrame(model.predict_proba(dataset), columns=class_order)
+    pred_class_prob = list(map(float, y_prob.lookup(y_prob.index, y_pred)))
+    out_metadata = {}
+    logger.debug('Collecting metadata')
+    out_metadata['targets'] = {'pred': list(map(int, y_pred)),
+                               'order': class_order}
+    out_metadata['probabilities'] = {'pred': pred_class_prob,
+                                     'all': [list(map(float, row)) for row in y_prob.as_matrix().tolist()]}
+    logger.debug('Classification of test data finished')
+    return {'estimate_info': out_metadata}
+
+
+def run_classification(args, model, modelmd, loadgroups, logger):
     """
     :param args:
     :param modelmd:
     :param logger:
     :return:
     """
+    _ = create_filepath(args.outputfile, logger)
+    logger.debug('Loading dataset')
+    dataset, output, dtinfo, sminfo, ftinfo = load_ml_dataset(args.inputfile,
+                                                              loadgroups,
+                                                              modelmd['feature_info']['order'],
+                                                              args, logger)
+    if args.task == 'test':
+        out_md = run_classification_testdata(args, model, modelmd, dataset, output, logger)
+    elif args.task == 'est':
+        assert output is None, 'Loaded sample outputs from dataset for prediction task'
+        out_md = run_classification_newdata(model, dataset, logger)
+    else:
+        raise ValueError('Unknown task for classification: {}'.format(args.task))
 
+    runinfo = dict()
+    runinfo['task'] = args.task
+    runinfo['model_file'] = os.path.basename(args.modelfile)
+    runinfo['data_file'] = os.path.basename(args.inputfile)
+    runinfo['data_group'] = args.inputgroup
+
+    out_md['model_info'] = modelmd['model_info']
+    out_md['run_info'] = runinfo
+    out_md['sample_info'] = sminfo
+    out_md['feature_info'] = ftinfo
+    out_md['dataset_info'] = dtinfo
+    logger.debug('Writing metadata of run...')
+    with open(args.outputfile, 'w') as outfile:
+        _ = json.dump(out_md, outfile, indent=1, sort_keys=True)
+    logger.debug('Metadata saved')
+    return 0
+
+
+def run_regression(args, model, modelmd, loadgroups, logger):
+    """
+    :param args:
+    :param model:
+    :param modelmd:
+    :param loadgroups:
+    :param logger:
+    :return:
+    """
+    _ = create_filepath(args.outputfile, logger)
+    logger.debug('Loading dataset')
+    if args.task == 'test':
+        dataset, samplenames, output = load_dataset(args.inputfile, loadgroups, modelmd['feat_order'],
+                                                    subset=args.subset, ycol=args.targetvar, ytype=np.float64)
+        out_md = run_regression_testdata(args, model, modelmd, dataset, output, logger)
+    elif args.task == 'pred':
+        dataset, samplenames, output = load_dataset(args.inputfile, loadgroups, modelmd['feat_order'],
+                                                    subset=args.subset)
+        assert output is None, 'Loaded sample outputs from dataset for prediction task'
+        raise NotImplementedError
+        out_md = run_classification_newdata(model, dataset, logger)
+    else:
+        raise ValueError('Unknown task for classification: {}'.format(args.task))
+    out_md['model_task'] = args.task
+    out_md['model_name'] = modelmd['model_name']
+    out_md['model_type'] = modelmd['model_type']
+    out_md['num_samples'] = dataset.shape[0]
+    out_md['num_features'] = dataset.shape[1]
+    out_md['sample_names'] = list(map(str, samplenames))
+    logger.debug('Writing metadata of run...')
+    with open(args.outputfile, 'w') as outfile:
+        _ = json.dump(out_md, outfile, indent=1, sort_keys=True)
+    logger.debug('Metadata saved')
     return 0
 
 
@@ -440,29 +524,21 @@ def run_apply_model(args):
     :return:
     """
     logger = args.module_logger
-    logger.debug('Loading model metadata...')
+    logger.debug('Loading model and metadata...')
     model_md = load_model_metadata(args)
-    model_type = model_md['model_type']
-    _ = create_filepath(args.outputfile, logger)
+    logger.debug('Metadata successfully loaded')
+    model = load_model(args.modelfile)
+    logger.debug('Model successfully loaded')
+    model_type = model_md['model_info']['type']
+    logger.debug('Loading groups from input data file')
+    load_groups = get_valid_hdf5_groups(args.inputfile, args.inputgroup)
     if model_type == 'classifier':
-        logger.debug('Applying classification model {} on task {}'.format(model_md['model'], args.task))
-        _ = run_classification(args, model_md, logger)
+        logger.debug('Applying classification model {} on task: {}'.format(model_md['model_info']['name'], args.task))
+        _ = run_classification(args, model, model_md, load_groups, logger)
     elif model_type == 'regressor':
-        logger.debug('Applying regression model {} on task {}'.format(model_md['model'], args.task))
-        _ = run_regression()
+        logger.debug('Applying regression model {} on task: {}'.format(model_md['model'], args.task))
+        _ = run_regression(args, model, model_md, load_groups, logger)
     else:
         raise NotImplementedError('No support for model of type: {} '
                                   '(just classifier or regressor are supported)'.format(model_type))
     return 0
-    if args.task == 'estsig':
-        logger.debug('Running task: estimate signal')
-        rv = run_estimate_signal(logger, args)
-    elif args.task == 'clsreg':
-        logger.debug('Running task: classify regions')
-        rv = run_classify_regions(logger, args)
-    elif args.task == 'scnreg':
-        logger.debug('Running task: scan regions')
-        rv = run_scan_regions(logger, args)
-    else:
-        raise ValueError('Unknown task: {}'.format(args.task))
-    return rv

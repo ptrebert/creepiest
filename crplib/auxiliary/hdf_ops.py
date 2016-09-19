@@ -12,7 +12,7 @@ import collections as col
 from crplib.auxiliary.file_ops import text_file_mode
 from crplib.auxiliary.text_parsers import get_chain_iterator, chromsize_from_chain
 
-from crplib.auxiliary.constants import TRGIDX_MASK, TRGIDX_SPLITS, TRGIDX_SELECT
+from crplib.auxiliary.constants import MAPIDX_MASK, MAPIDX_SPLITS, MAPIDX_SELECT, MAPIDX_ORDER
 
 
 def get_valid_hdf5_groups(filepath, prefix, exclmd=True):
@@ -52,7 +52,11 @@ def get_default_group(filepath):
     """
     group_root = set()
     with pd.HDFStore(filepath, 'r') as hdf:
-        mdf = hdf['metadata']
+        try:
+            mdf = hdf['metadata']
+        except KeyError:
+            # no metadata in file, maybe it's left over from a failed run
+            return ''
         for row in mdf.itertuples(index=False):
             group_root.add(os.path.split(row.group)[0])
     assert len(group_root) == 1,\
@@ -88,7 +92,12 @@ def check_path_infos(filepath, arggroup=None):
         if arggroup and not grp:
             grp = arggroup
     if grp is None or grp.lower() in ['default', 'auto']:
-        grp = get_default_group(fp)
+        if not os.path.isfile(fp):
+            # this can happen for output files that
+            # do not yet exist
+            grp = ''
+        else:
+            grp = get_default_group(fp)
     return lab, grp, fp
 
 
@@ -121,12 +130,14 @@ def get_trgindex_groups(fpath, grproot):
     infos = col.defaultdict(dict)
     for g in groups:
         chrom = os.path.split(g)[1]
-        if TRGIDX_MASK in g:
+        if MAPIDX_MASK in g:
             infos[chrom]['mask'] = g
-        elif TRGIDX_SPLITS in g:
+        elif MAPIDX_SPLITS in g:
             infos[chrom]['splits'] = g
-        elif TRGIDX_SELECT in g:
+        elif MAPIDX_SELECT in g:
             infos[chrom]['select'] = g
+        elif MAPIDX_ORDER in g:
+            infos[chrom]['order'] = g
         else:
             raise ValueError('Unexpected group in target index {}: {}'.format(fpath, g))
     return infos

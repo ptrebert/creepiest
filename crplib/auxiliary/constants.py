@@ -15,9 +15,10 @@ LIMIT_SERIALIZATION = 2**31 - 1  # NB to myself: is max. size in bytes, i.e. che
 # each chromosome; this value is also used in, e.g., ChromImpute
 CHROMOSOME_BOUNDARY = 10000
 
-TRGIDX_MASK = 'cons/mask'
-TRGIDX_SPLITS = 'cons/splits'
-TRGIDX_SELECT = 'cons/select'
+MAPIDX_MASK = 'cons/mask'
+MAPIDX_SPLITS = 'cons/splits'
+MAPIDX_SELECT = 'cons/select'
+MAPIDX_ORDER = 'cons/order'
 
 # this is deprecated...
 FEAT_FP_PREC = 5

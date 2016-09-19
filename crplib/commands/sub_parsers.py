@@ -87,7 +87,8 @@ def _add_convert_command(subparsers):
                                            help='Convert bedGraph or BED files to HDF5 format.',
                                            description='... to be updated ...')
     comgroup = parser_convert.add_argument_group('General parameters')
-    comgroup.add_argument('--task', '-tk', type=str, required=True, choices=['signal', 'region', 'chain', 'tfmotif'], dest='task',
+    comgroup.add_argument('--task', '-tk', type=str, required=True, choices=['signal', 'region', 'chain',
+                                                                             'map', 'tfmotif'], dest='task',
                           help='Specify task to execute, convert signal (bedGraph), region (BED-like) or chain files.')
     comgroup.add_argument('--keep-chroms', '-kc', type=str, default='"(chr)?[0-9]+(\s|$)"', dest='keepchroms',
                           help='Regular expression pattern (needs to be double quoted) matching'
@@ -101,6 +102,8 @@ def _add_convert_command(subparsers):
                           help='Full path to output file to be created')
     comgroup.add_argument('--output-group', '-og', type=str, default='', dest='outputgroup',
                           help='Group prefix to store individual chromosomes. Default: <empty>')
+    comgroup.add_argument('--query', '-qry', action='store_true', default=False, dest='query',
+                          help='Build index for query')
     comgroup = parser_convert.add_argument_group('bedGraph parameters')
     comgroup.add_argument('--chrom-sizes', '-cs', type=str, default='', dest='chromsizes',
                           help='Full path to UCSC-style 2 column file with chromosome sizes')
@@ -253,18 +256,18 @@ def _add_train_command(subparsers):
                                          help='Train a model on a given training dataset',
                                          description='...to be updated...')
     comgroup = parser_train.add_argument_group('Train model')
-    comgroup.add_argument('--train-data', '-td', type=str, required=True, dest='traindata',
+    comgroup.add_argument('--input', '-i', type=str, required=True, dest='inputfile',
                           help='Full path to training data file')
-    comgroup.add_argument('--train-group', '-tg', type=str, default='', dest='traingroup',
+    comgroup.add_argument('--input-group', '-ig', type=str, default='', dest='inputgroup',
                           help='Specify group root in training data file to be loaded.')
     comgroup.add_argument('--model-spec', '-ms', type=str, required=True, dest='modelspec',
                           help='Full path to model specification in JSON format.')
     comgroup.add_argument('--no-tuning', '-nt', action='store_true', default=False, dest='notuning',
                           help='Do not search for better model parameters via cross validation. Default: False')
-    comgroup.add_argument('--only-features', '-oft', type=str, nargs='+', default=[], dest='onlyfeatures')
-    comgroup.add_argument('--depvar-name', '-dep', type=str, default='y_depvar', dest='depvar',
-                          help='Name of the dependant variable (labels/output/target) column in the dataset.'
-                               ' Default: y_depvar')
+    comgroup.add_argument('--use-features', '-uft', type=str, nargs='+', default=[], dest='usefeatures')
+    comgroup.add_argument('--target-var', '-var', type=str, dest='targetvar',
+                          help='Name of the dependant variable (labels/output/target) column in the dataset.')
+    comgroup.add_argument('--derive-target', '-drv', type=str, dest='derivetarget')
     comgroup.add_argument('--cv-folds', '-cv', type=int, default=10, dest='cvfolds',
                           help='Number of folds in cross validation. Default: 10')
     comgroup.add_argument('--model-output', '-mo', type=str, dest='modelout',
@@ -274,7 +277,7 @@ def _add_train_command(subparsers):
                                ' the model output path will be used and the file extension replaced with ".json".'
                                ' Default: <empty>')
     comgroup.add_argument('--calc-weights', '-cwt', action='store_true', default=False, dest='calcweights')
-    comgroup.add_argument('--sample-weights', '-swt', type=str, default='', dest='sampleweights')
+    comgroup.add_argument('--load-weights', '-swt', type=str, default='', dest='loadweights')
     comgroup.add_argument('--subset', '-sub', type=str, default='', dest='subset')
     parser_train.set_defaults(execute=_train_execute)
     return subparsers
@@ -299,8 +302,8 @@ def _add_mapsig_command(subparsers):
                                           help='Map a signal track from one assembly to another',
                                           description='...to be updated...')
     comgroup = parser_mapsig.add_argument_group('Map signal track')
-    comgroup.add_argument('--chain-file', '-ch', type=str, required=True, dest='chainfile',
-                          help='Full path to chain file with pairwise alignment information between'
+    comgroup.add_argument('--map-file', '-mpf', type=str, required=True, dest='mapfile',
+                          help='Full path to map file with pairwise alignment information between'
                                ' reference (in liftOver parlance: target) and query.')
     comgroup.add_argument('--query-chroms', '-qch', type=str, required=True, dest='querychroms',
                           help='Full path to file with chromosome sizes of the query assembly.')
@@ -340,7 +343,7 @@ def _add_apply_command(subparsers):
                                          help='Apply a trained model to a dataset',
                                          description='... to be updated ...')
     parser_apply.add_argument('--task', '-t', type=str, choices=['test', 'est'], dest='task',
-                              help='Specify task')
+                              help='Specify task', required=True)
     comgroup = parser_apply.add_argument_group('General parameters')
     comgroup.add_argument('--input', '-i', type=str, required=True, dest='inputfile',
                           help='Full path to input file in HDF5 format.')
@@ -356,9 +359,14 @@ def _add_apply_command(subparsers):
                           help='Path to JSON file with model metadata. If left empty, use the same'
                                ' path as for the model file and replace extension with ".json".'
                                ' Default: <empty>')
-    comgroup.add_argument('--sample-output', '-spo', type=str, default='', dest='sampleoutput')
+    comgroup.add_argument('--target-var', '-var', type=str, default='', dest='targetvar')
+    comgroup.add_argument('--derive-target', '-drv', type=str, default='', dest='derivetarget')
     comgroup.add_argument('--reduce-classes', '-red', type=list, nargs='*', default=[], dest='reduce')
     comgroup.add_argument('--subset', '-sub', type=str, default='', dest='subset')
+    comgroup.add_argument('--no-perm', '-nop', action='store_true', default=False, dest='noperm')
+    comgroup.add_argument('--num-perm', '-nump', type=int, default=100, dest='numperm')
+    comgroup.add_argument('--cv-perm', '-cvp', type=int, default=10, dest='cvperm')
+    comgroup.add_argument('--scoring', '-sc', type=str, default='', dest='scoring')
     comgroup.add_argument('--seq-file', '-seq', type=str, dest='seqfile',
                           help='Full path to genomic sequence file in 2bit format.')
     comgroup.add_argument('--target-index', '-idx', type=str, default='', dest='targetindex',
@@ -394,7 +402,10 @@ def _add_correlation_command(subparsers):
                           help='Specify task...')
     comgroup.add_argument('--measure', '-ms', type=str, choices=['pearson', 'spearman'], nargs='+',
                           required=True, dest='measure', help='Specify statistic(s) to compute')
-    comgroup.add_argument('--roi-file', '-roi', type=str, dest='roifile')
+    comgroup.add_argument('--limit-to-roi', action='store_true', default=False, dest='roilimit')
+    comgroup.add_argument('--skip-size', '-sks', type=int, default=0, dest='skipsize',
+                          help='Skip regions below that size. Default: 0')
+    comgroup.add_argument('--roi-file', '-roi', type=str, dest='roifile', default='')
     comgroup.add_argument('--target-index', '-idx', type=str, default='', dest='targetindex',
                           help='Full path to target index created with "convert" command.'
                                ' Only required for task "cons". Default: <empty>')
@@ -402,7 +413,6 @@ def _add_correlation_command(subparsers):
     comgroup.add_argument('--input-group-a', '-iga', type=str, default='', dest='inputgroupa')
     comgroup.add_argument('--input-b', '-ib', type=str, required=True, dest='inputfileb')
     comgroup.add_argument('--input-group-b', '-igb', type=str, default='', dest='inputgroupb')
-
     comgroup.add_argument('--output', '-o', type=str, required=True, dest='outputfile',
                           help='Full path to output file in JSON format.')
     parser_corr.set_defaults(execute=_correlation_execute)

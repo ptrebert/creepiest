@@ -67,6 +67,19 @@ def convert_motifdb_file(args, logger):
     return rv
 
 
+def convert_map_file(args, logger):
+    """
+    :param args:
+    :param logger:
+    :return:
+    """
+    assert os.path.isfile(args.inputfile[0]), 'Invalid path to input file: {}'.format(args.inputfile)
+    mod = imp.import_module('crplib.commands.convert_map')
+    rv = mod.run_map_conversion(args, logger)
+    assert os.path.isfile(args.outputfile), 'No output file created - conversion failed? {}'.format(args.outputfile)
+    return rv
+
+
 def run_conversion(args):
     """
     :param args: command line parameters
@@ -80,7 +93,8 @@ def run_conversion(args):
         convtype = {'signal': convert_bedgraph_signal,
                     'region': convert_genomic_region,
                     'chain': convert_chain_file,
-                    'tfmotif': convert_motifdb_file}
+                    'tfmotif': convert_motifdb_file,
+                    'map': convert_map_file}
         convcall = convtype[args.task]
         args.__dict__['keepchroms'] = args.keepchroms.strip('"')
         args.__dict__['qcheck'] = args.keepchroms.strip('"')

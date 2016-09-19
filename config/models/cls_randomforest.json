@@ -3,15 +3,16 @@
 "model_name": "RandomForestClassifier",
 "model_type": "classifier",
 "store_attributes": [
-"feature_importances_"
+"feature_importances_",
+"oob_score_"
 ],
 "default": {
 "n_estimators": 500,
 "bootstrap": true,
-"oob_score": false
+"oob_score": true
 },
 "cvtune": {
-"scoring": "f1_score",
+"scoring": "roc_auc",
 "min_samples_split": [
 2,
 4,
@@ -21,11 +22,10 @@
 "n_estimators": [
 250,
 500,
-750,
 1000,
 2000
 ],
 "bootstrap": [true],
-"oob_score": [false]
+"oob_score": [true]
 }
 }

@@ -3,12 +3,13 @@
 "model_name": "RandomForestRegressor",
 "model_type": "regressor",
 "store_attributes": [
-"feature_importances_"
+"feature_importances_",
+"oob_score_"
 ],
 "default": {
 "n_estimators": 50,
 "bootstrap": true,
-"oob_score": false
+"oob_score": true
 },
 "cvtune": {
 "scoring": "r2_score",
@@ -20,10 +21,9 @@
 "n_estimators": [
 50,
 100,
-150,
 200
 ],
 "bootstrap": [true],
-"oob_score": [false]
+"oob_score": [true]
 }
 }

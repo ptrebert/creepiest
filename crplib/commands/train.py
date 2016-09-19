@@ -6,19 +6,17 @@ Command to train models on predefined training datasets
 
 import os as os
 import json as json
-import importlib as imp
 import numpy as np
 import pickle as pck
 import pandas as pd
 
 from sklearn.grid_search import GridSearchCV
-from sklearn import metrics as sklmet
 from sklearn.base import clone
 from sklearn.cross_validation import StratifiedKFold
 
+from crplib.auxiliary.modeling import load_model, get_scorer, load_ml_dataset, extract_model_attributes
 from crplib.auxiliary.hdf_ops import get_valid_hdf5_groups
-from crplib.auxiliary.file_ops import create_filepath, text_file_mode
-from crplib.mlfeat.featdef import get_prefix_list, get_classes_from_names
+from crplib.auxiliary.file_ops import create_filepath
 
 
 def train_nocv(model, params, traindata, outputs, sampleweights):
@@ -30,12 +28,7 @@ def train_nocv(model, params, traindata, outputs, sampleweights):
     :return:
     """
     model = model.set_params(**params)
-    if sampleweights is not None:
-        if isinstance(sampleweights, list) and len(sampleweights) == 0:
-            sampleweights = None
-        model = model.fit(traindata, outputs, sample_weight=sampleweights)
-    else:
-        model = model.fit(traindata, outputs, sample_weight=None)
+    model = model.fit(traindata, outputs, sample_weight=sampleweights)
     return model
 
 
@@ -49,81 +42,16 @@ def train_gridcv(model, params, traindata, outputs, folds, njobs, sampleweights)
     :param njobs:
     :return:
     """
-    scorer = sklmet.make_scorer(sklmet.__dict__[params['scoring']], average='weighted')
+    scorer = get_scorer(params['scoring'], sampleweights)
     param_grid = dict(params)
     del param_grid['scoring']
     fit_params = None
-    # TODO this needs to be simplified
     if sampleweights is not None:
-        if isinstance(sampleweights, list) and len(sampleweights) == 0:
-            fit_params = None
-        else:
-            fit_params = {'sample_weight': sampleweights}
+        fit_params = {'sample_weight': sampleweights}
     tune_model = GridSearchCV(model, param_grid, scoring=scorer, pre_dispatch=njobs,
                               cv=folds, n_jobs=njobs, refit=True, fit_params=fit_params)
     tune_model = tune_model.fit(traindata, outputs)
     return tune_model
-
-
-def load_training_data(filepath, prefix, onlyfeatures, depvar, sampleweights):
-    """
-    :param filepath:
-    :param prefix:
-    :param onlyfeatures:
-    :param depvar:
-    :param weights:
-    :return:
-    """
-    all_groups = get_valid_hdf5_groups(filepath, prefix)
-    with pd.HDFStore(filepath, 'r') as hdf:
-        full_dset = pd.concat([hdf[g] for g in all_groups], ignore_index=True)
-        feat_order = sorted([ft for ft in full_dset.columns if ft.startswith('ft')])
-        assert feat_order, 'No features selected from column names: {}'.format(full_dset.columns)
-        mdf = hdf['metadata']
-        load_group = all_groups[0]
-        if 'features' in mdf.columns:
-            # regular training dataset
-            ft_classes = mdf.where(mdf.group == load_group).dropna()['features']
-            ft_classes = ft_classes.values[0].split(',')
-            ft_kmers = mdf.where(mdf.group == load_group).dropna()['kmers']
-            ft_kmers = list(map(int, ft_kmers.values[0].split(',')))
-            res = mdf.where(mdf.group == load_group).dropna()['resolution']
-            res = res.values[0]
-        else:
-            # apparently, just regions
-            ft_classes = get_classes_from_names(feat_order)
-            ft_kmers = []
-            res = 0
-    weights = []
-    outputs = pd.Series(full_dset.loc[:, depvar])
-    names = full_dset.loc[:, 'name'].tolist()
-    if sampleweights is not None:
-        if 'weight' in full_dset.columns:
-            full_dset.drop('weight', axis='columns', inplace=True)
-        # this merge ensures that no matter the sorting of the sample weights in the
-        # annotation file, all samples are assigned the correct weight
-        full_dset = full_dset.merge(sampleweights, how='outer', on='name', suffixes=('', ''), copy=False)
-        weights = pd.Series(full_dset.loc[:, 'weight']).values
-    if onlyfeatures:
-        prefixes = get_prefix_list(onlyfeatures)
-        feat_order = list(filter(lambda x: any([x.startswith(p) for p in prefixes]), feat_order))
-        assert feat_order, 'No features left after filtering for: {}'.format(onlyfeatures)
-        ft_classes = onlyfeatures
-    traindata = full_dset.loc[:, feat_order]
-    md_info = {'features': ft_classes, 'kmers': ft_kmers, 'feat_order': feat_order,
-               'resolution': res, 'names': names, 'weights': list(map(float, weights))}
-    return md_info, traindata, outputs, weights
-
-
-def load_model(modname, modpath):
-    """
-    :param modname:
-    :param modpath:
-    :return:
-    """
-    module = imp.import_module(modpath)
-    model = module.__dict__[modname]()
-    return model
 
 
 def simplify_cv_scores(cvfolds):
@@ -169,19 +97,6 @@ def calc_sample_weights(model, traindata, outputs, names, k):
     return weights
 
 
-def load_sample_weights(fpath):
-    """
-    :param fpath:
-    :return:
-    """
-    opn, mode = text_file_mode(fpath)
-    with opn(fpath, mode) as mdfile:
-        annotation = json.load(mdfile)
-        smpwt = pd.DataFrame(annotation['sample_weights'], columns=['name', 'weight'])
-        assert not smpwt.empty, 'Entry sample_weights in annotation file {} is empty'.format(fpath)
-    return smpwt
-
-
 def run_train_model(args):
     """
     :param args:
@@ -190,53 +105,48 @@ def run_train_model(args):
     logger = args.module_logger
     _ = create_filepath(args.modelout, logger)
     logger.debug('Loading model specification from {}'.format(args.modelspec))
-    model_params = json.load(open(args.modelspec))
-    model = load_model(model_params['model_name'], model_params['module_path'])
-    sample_weights = None
-    if args.sampleweights:
-        logger.debug('Loading user requested sample weights from file {}'.format(args.sampleweights))
-        sample_weights = load_sample_weights(args.sampleweights)
-    logger.debug('Loading training data')
-    md_info, traindata, outputs, weights = load_training_data(args.traindata, args.traingroup, args.onlyfeatures, args.depvar, sample_weights)
+    model_spec = json.load(open(args.modelspec))
+    model = load_model(model_spec['module_path'], model_spec['model_name'])
+    load_groups = get_valid_hdf5_groups(args.inputfile, args.inputgroup)
+    traindata, targets, dtinfo, sminfo, ftinfo = load_ml_dataset(args.inputfile, load_groups, None, args, logger)
+    assert traindata.shape[0] > 1, 'No samples (rows) in training data'
+    assert traindata.shape[1] > 1, 'No features (columns) in training data'
+    if targets is not None:
+        assert targets.size == traindata.shape[0], 'Mismatch num targets {} and num samples {}'.format(targets.size, traindata.shape[0])
+    run_metadata = {'dataset_info': dtinfo, 'sample_info': sminfo,
+                    'feature_info': ftinfo, 'model_info': dict()}
     logger.debug('Training model')
     if args.notuning:
-        params = model_params['default']
-        model = train_nocv(model, params, traindata, outputs, weights)
-        metadata = {'final_params': params}
+        params = model_spec['default']
+        model = train_nocv(model, params, traindata, targets, sminfo['weights'])
+        run_metadata['model_info']['params'] = params
+        run_metadata['model_info']['tuned'] = False
     else:
-        params = model_params['cvtune']
-        tune_info = train_gridcv(model, params, traindata, outputs, args.cvfolds, args.workers, weights)
+        params = model_spec['cvtune']
+        tune_info = train_gridcv(model, params, traindata, targets, args.cvfolds, args.workers, sminfo['weights'])
         model = tune_info.best_estimator_
-        metadata = {'final_params': tune_info.best_params_}
-        metadata['grid_scores'] = simplify_cv_scores(tune_info.grid_scores_)
-        metadata['best_score'] = tune_info.best_score_
-        metadata['scoring'] = params['scoring']
+        run_metadata['model_info']['params'] = tune_info.best_params_
+        run_metadata['model_info']['tuned'] = True
+        run_metadata['training_info'] = dict()
+        run_metadata['training_info']['cv_scores'] = simplify_cv_scores(tune_info.grid_scores_)
+        run_metadata['training_info']['best_score'] = tune_info.best_score_
+        run_metadata['training_info']['scoring'] = params['scoring']
+    run_metadata['model_info']['name'] = model_spec['model_name']
+    run_metadata['model_info']['type'] = model_spec['model_type']
     logger.debug('Training finished')
-    if 'store_attributes' in model_params:
+    if 'store_attributes' in model_spec:
         logger.debug('Storing user requested model attributes')
-        for attr in model_params['store_attributes']:
-            if hasattr(model, attr):
-                metadata[attr] = list(getattr(model, attr))
-            else:
-                logger.debug('Skipping attribute {} - does not exist'.format(attr))
+        attribs = extract_model_attributes(model, model_spec['store_attributes'], logger)
+        run_metadata['attribute_info'] = attribs
     if args.calcweights:
-        logger.debug('Calculating sample weights...')
-        assert model_params['model_type'] == 'classifier',\
-            'Calculating sample weights not implemented for regression models'
-        wt = calc_sample_weights(model, traindata, outputs, md_info['names'], args.cvfolds)
-        metadata['sample_weights'] = wt
-        logger.debug('Sample weights calculated')
+        raise NotImplementedError('Currently not functional')
+
     logger.debug('Saving model and metadata')
-    metadata['model_spec'] = os.path.basename(args.modelspec)
-    metadata['init_params'] = params
-    metadata['model'] = model_params['model_name']
-    metadata['model_type'] = model_params['model_type']
-    metadata['traindata'] = os.path.basename(args.traindata)
-    metadata['traingroup'] = args.traingroup
-    metadata['traindata_size'] = list(traindata.shape)
-    metadata['modelfile'] = os.path.basename(args.modelout)
-    metadata['depvar'] = args.depvar
-    metadata.update(md_info)
+    run_metadata['run_info'] = dict()
+    run_metadata['run_info']['model_spec'] = os.path.basename(args.modelspec)
+    run_metadata['run_info']['model_file'] = os.path.basename(args.modelout)
+    run_metadata['run_info']['train_data'] = os.path.basename(args.inputfile)
+    run_metadata['run_info']['train_group'] = args.inputgroup
 
     logger.debug('Writing model file...')
     with open(args.modelout, 'wb') as outfile:
@@ -249,6 +159,6 @@ def run_train_model(args):
     _ = create_filepath(mdout, logger)
     logger.debug('Writing model metadata...')
     with open(mdout, 'w') as outfile:
-        _ = json.dump(metadata, outfile, indent=0)
-
+        _ = json.dump(run_metadata, outfile, indent=1, sort_keys=True)
+    logger.debug('Done')
     return 0

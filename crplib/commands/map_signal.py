@@ -4,8 +4,6 @@
 Map a signal track from one species/assembly to another
 """
 
-import sys as sys
-
 import os as os
 import numpy as np
 import pandas as pd
@@ -15,7 +13,8 @@ import multiprocessing as mp
 import psutil as psu
 
 from crplib.metadata.md_signal import gen_obj_and_md, MD_SIGNAL_COLDEFS
-from crplib.auxiliary.text_parsers import read_chromosome_sizes, get_chain_iterator, get_chain_positions
+from crplib.auxiliary.text_parsers import read_chromosome_sizes, get_chain_iterator,\
+    get_chain_positions, get_map_positions, get_map_iterator
 from crplib.auxiliary.file_ops import text_file_mode, create_filepath
 from crplib.auxiliary.hdf_ops import get_chrom_list,\
     check_path_infos, get_default_group
@@ -25,14 +24,14 @@ from crplib.auxiliary.constants import DIV_B_TO_GB
 _shm_carr = dict()
 
 
-def assemble_worker_params(inputfile, inputgroup, chainfile, numalloc, chromsizes, chainpos, carrays):
+def assemble_worker_params(inputfile, inputgroup, mapfile, numalloc, chromsizes, mappos, carrays):
     """
     :param inputfile:
     :param inputgroup:
-    :param chainfile:
+    :param mapfile:
     :param numalloc:
     :param chromsizes:
-    :param allblocks:
+    :param mappos:
     :param carrays:
     :return:
     """
@@ -44,18 +43,18 @@ def assemble_worker_params(inputfile, inputgroup, chainfile, numalloc, chromsize
         # arrays happen to disjoint slices
         carrays[qchrom] = mp.Array('d', np.zeros(chromsizes[qchrom], dtype=np.float64), lock=False)
     params = []
-    commons = {'inputfile': inputfile, 'inputgroup': inputgroup, 'chainfile': chainfile}
+    commons = {'inputfile': inputfile, 'inputgroup': inputgroup, 'mapfile': mapfile}
     for qchrom in this_run:
-        for tchrom, positions in chainpos[qchrom].items():
+        for tchrom, positions in mappos[qchrom].items():
             tmp = dict(commons)
             tmp['qchrom'] = qchrom
             tmp['tchrom'] = tchrom
             tmp['start_pos'] = min(positions)
-            tmp['num_chains'] = len(positions)
+            tmp['num_blocks'] = len(positions)
             params.append(tmp)
     for qchrom in this_run:
         del chromsizes[qchrom]
-        del chainpos[qchrom]
+        del mappos[qchrom]
     return params
 
 
@@ -109,6 +108,22 @@ def build_chainfile_index(chainfile, tchroms, qchroms, logger):
     return chain_pos
 
 
+def build_mapfile_index(mapfile, tchroms, qchroms, logger):
+    """
+    :param mapfile:
+    :param tchroms:
+    :param qchroms:
+    :param logger:
+    :return:
+    """
+    tselect = re.compile('(' + '|'.join([c + '$' for c in tchroms]) + ')')
+    qselect = re.compile('(' + '|'.join([c + '$' for c in qchroms]) + ')')
+    logger.debug('Map selectors compiled')
+    map_pos = get_map_positions(mapfile, tselect, qselect, tref=False)
+    logger.debug('Map file index created')
+    return map_pos
+
+
 def map_signal_data(params):
     """
     :param params:
@@ -122,30 +137,29 @@ def map_signal_data(params):
     qchrom = params['qchrom']
     tselect = re.compile(tchrom + '$')
     qselect = re.compile(qchrom + '$')
-    opn, mode = text_file_mode(params['chainfile'])
+    opn, mode = text_file_mode(params['mapfile'])
     global _shm_carr
     carr = _shm_carr[qchrom]
-    with opn(params['chainfile'], mode) as chains:
-        chains.seek(params['start_pos'])
-        chainit = get_chain_iterator(chains, tselect, qselect, read_num=params['num_chains'])
+    with opn(params['mapfile'], mode) as maps:
+        maps.seek(params['start_pos'])
+        mapit = get_map_iterator(maps, tselect, qselect, read_num=params['num_blocks'])
         buffer = []
-        for block in chainit:
+        for block in mapit:
             assert block[0] == tchrom, 'Target chromosome mismatch: {}'.format(block)
-            assert block[4] == qchrom, 'Query chromosome mismatch: {}'.format(block)
+            assert block[5] == qchrom, 'Query chromosome mismatch: {}'.format(block)
             buffer.append(block)
             if len(buffer) >= 10000:
                 for b in buffer:
-                    if b[7] == '-':
-                        carr[b[5]:b[6]] = sig_to_map[b[1]:b[2]][::-1]
+                    if b[8] == '-':
+                        carr[b[6]:b[7]] = sig_to_map[b[1]:b[2]][::-1]
                     else:
-                        carr[b[5]:b[6]] = sig_to_map[b[1]:b[2]]
+                        carr[b[6]:b[7]] = sig_to_map[b[1]:b[2]]
                 buffer = []
-        if len(buffer) > 0:
-            for b in buffer:
-                if b[7] == '-':
-                    carr[b[5]:b[6]] = sig_to_map[b[1]:b[2]][::-1]
-                else:
-                    carr[b[5]:b[6]] = sig_to_map[b[1]:b[2]]
+        for b in buffer:
+            if b[8] == '-':
+                carr[b[6]:b[7]] = sig_to_map[b[1]:b[2]][::-1]
+            else:
+                carr[b[6]:b[7]] = sig_to_map[b[1]:b[2]]
     return True
 
 
@@ -165,10 +179,10 @@ def run_map_signal(args):
     tchroms = get_chrom_list(infile, verify=True)
     logger.debug('Chromosomes in target data file [map from]: {}'.format(tchroms))
     meminfo = round(psu.virtual_memory().active / DIV_B_TO_GB - baseline_mem, 2)
-    logger.debug('Before building chain index; approx. used memory: {}GB'.format(meminfo))
-    chainpos = build_chainfile_index(args.chainfile, tchroms, list(qchroms.keys()), logger)
+    logger.debug('Before building map index; approx. used memory: {}GB'.format(meminfo))
+    chainpos = build_mapfile_index(args.mapfile, tchroms, list(qchroms.keys()), logger)
     meminfo = round(psu.virtual_memory().active / DIV_B_TO_GB - baseline_mem, 2)
-    logger.debug('Chain index built; active memory: {}GB'.format(meminfo))
+    logger.debug('Map index built; active memory: {}GB'.format(meminfo))
     _ = create_filepath(args.outputfile, logger)
     logger.debug('Processing {} query chromosomes at a time'.format(args.allocate))
     meminfo = round(psu.virtual_memory().active / DIV_B_TO_GB - baseline_mem, 2)
@@ -181,7 +195,7 @@ def run_map_signal(args):
         while len(qchroms) > 0:
             logger.debug('Query chromosomes left: {}'.format(len(qchroms)))
             global _shm_carr
-            indexlists = assemble_worker_params(infile, ingroup, args.chainfile, args.allocate,
+            indexlists = assemble_worker_params(infile, ingroup, args.mapfile, args.allocate,
                                                 qchroms, chainpos, _shm_carr)
             logger.debug('Processing query chromosomes: {}'.format(sorted(_shm_carr.keys())))
             logger.debug('Parameter list of size {} created'.format(len(indexlists)))
