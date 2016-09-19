@@ -38,7 +38,8 @@ def assemble_worker_params(args):
     commons = {'inputfilea': args.inputfilea, 'inputfileb': args.inputfileb,
                'inputgroupa': ingrp_a, 'inputgroupb': ingrp_b,
                'targetindex': args.targetindex, 'measure': args.measure,
-               'roifile': args.roifile, 'roilimit': args.roilimit}
+               'roifile': args.roifile, 'roilimit': args.roilimit,
+               'skipsize': args.skipsize}
     index_groups = get_trgindex_groups(args.targetindex, '')
     arglist = []
     for chrom in chrom_union:
@@ -98,6 +99,7 @@ def compute_corr_cons(params):
     :return:
     """
     chrom = params['chrom']
+    skipsize = params['skipsize']
     # loading index data
     fun_avg = np.vectorize(np.average, otypes=[np.float64])
     with pd.HDFStore(params['targetindex'], 'r') as idx:
@@ -107,10 +109,12 @@ def compute_corr_cons(params):
             splits, select = adapt_mask_to_roi(idx[params['mask']].values, params['roifile'], chrom)
     with pd.HDFStore(params['inputfilea'], 'r') as hdf1:
         dataset1 = hdf1[params['loadgroupa']].values
-        data1_avg = fun_avg(np.compress(select, np.split(dataset1, splits)))
+        dataset1 = np.compress(select, np.split(dataset1, splits))
+        data1_avg = fun_avg([a for a in dataset1 if a.size >= skipsize])
     with pd.HDFStore(params['inputfileb'], 'r') as hdf2:
         dataset2 = hdf2[params['loadgroupb']].values
-        data2_avg = fun_avg(np.compress(select, np.split(dataset2, splits)))
+        dataset2 = np.compress(select, np.split(dataset2, splits))
+        data2_avg = fun_avg([a for a in dataset2 if a.size >= skipsize])
     results = dict()
     for ms in params['measure']:
         corr_fun = get_corr_fun(ms, masked=False)

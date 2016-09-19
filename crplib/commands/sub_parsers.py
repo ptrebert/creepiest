@@ -403,7 +403,9 @@ def _add_correlation_command(subparsers):
     comgroup.add_argument('--measure', '-ms', type=str, choices=['pearson', 'spearman'], nargs='+',
                           required=True, dest='measure', help='Specify statistic(s) to compute')
     comgroup.add_argument('--limit-to-roi', action='store_true', default=False, dest='roilimit')
-    comgroup.add_argument('--roi-file', '-roi', type=str, dest='roifile')
+    comgroup.add_argument('--skip-size', '-sks', type=int, default=0, dest='skipsize',
+                          help='Skip regions below that size. Default: 0')
+    comgroup.add_argument('--roi-file', '-roi', type=str, dest='roifile', default='')
     comgroup.add_argument('--target-index', '-idx', type=str, default='', dest='targetindex',
                           help='Full path to target index created with "convert" command.'
                                ' Only required for task "cons". Default: <empty>')
