@@ -27,11 +27,11 @@ def gen_obj_and_md(mdframe, group, chrom, args, datavals):
     else:
         dataobj = datavals
         numsamples = dataobj.shape[0]
-    if args.task == 'regsig':
+    if args.task == 'regress':
         resolution = args.resolution
-    elif args.task == 'clsreg':
+    elif args.task == 'groups':
         resolution = 'N/A'
-    elif args.task == 'scnreg':
+    elif args.task == 'classify':
         resolution = args.window
     else:
         raise ValueError('Cannot create metadata for unknown task: {}'.format(args.task))
