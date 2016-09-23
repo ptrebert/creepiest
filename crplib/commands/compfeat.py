@@ -478,16 +478,16 @@ def run_compute_features(args):
     args.__dict__['keepchroms'] = args.keepchroms.strip('"')
     _ = create_filepath(args.outputfile, logger)
     logger.debug('Chromosome select pattern: {}'.format(args.keepchroms))
-    if args.task == 'regsig':
+    if args.task == 'regress':
         logger.debug('Computing features/sampling data for task {}'.format(args.task))
         # "magic number" following common limits, e.g., in ChromImpute
         chromlim = CHROMOSOME_BOUNDARY
         _ = prepare_regsig_samples(args, chromlim, logger)
-    elif args.task == 'clsreg':
+    elif args.task == 'groups':
         logger.debug('Computing features for task {}'.format(args.task))
         assert args.posingroup and args.negingroup, 'Need to specify HDF groups for positive and negative class'
         _ = prepare_clsreg_samples(args, logger)
-    elif args.task == 'scnreg':
+    elif args.task == 'classify':
         logger.debug('Computing region features for task: {}'.format(args.task))
         _ = prepare_scnreg_samples(args, logger)
     else:

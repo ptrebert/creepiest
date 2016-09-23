@@ -162,7 +162,7 @@ def _add_compfeat_command(subparsers):
     parser_compfeat = subparsers.add_parser('compfeat',
                                             help='Compute features for dataset',
                                             description='...to be updated...')
-    parser_compfeat.add_argument('--task', '-tk', type=str, choices=['regsig', 'clsreg', 'scnreg'], dest='task')
+    parser_compfeat.add_argument('--task', '-tk', type=str, choices=['regress', 'classify', 'groups'], dest='task')
     comgroup = parser_compfeat.add_argument_group('General parameters')
     comgroup.add_argument('--input', '-i', type=str, required=True, dest='inputfile')
     comgroup.add_argument('--output', '-o', type=str, dest='outputfile')
