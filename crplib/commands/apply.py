@@ -353,7 +353,8 @@ def run_regression_testdata(args, model, model_md, dataset, y_true, logger):
     :return:
     """
     logger.debug('Making prediction for test dataset')
-    scorer = get_scorer(model_md['scoring'])
+    scoring_method = determine_scoring_method(args, model_md, logger)
+    scorer = get_scorer(scoring_method)
     y_pred = model.predict(dataset)
     model_perf = scorer(model, dataset, y_true)
     out_metadata = {}
@@ -370,12 +371,12 @@ def run_regression_testdata(args, model, model_md, dataset, y_true, logger):
         randstats = run_randomization_test(dataset, y_true, model, args.numperm, scorer)
         out_metadata['randomization_test'] = {'rand_num': args.numperm, 'rand_stats': randstats}
     logger.debug('Collecting metadata')
-    out_metadata['scoring'] = model_md['scoring']
-    out_metadata['values'] = {'true': list(map(float, y_true)),
-                              'pred': list(map(float, y_pred))}
-    out_metadata['model_perf'] = float(model_perf)
-    logger.debug('Classification of test data finished')
-    return out_metadata
+    out_metadata['scoring'] = scoring_method
+    out_metadata['performance'] = float(model_perf)
+    out_metadata['targets'] = {'true': list(map(float, y_true)),
+                               'pred': list(map(float, y_pred))}
+    logger.debug('Regression of test data finished')
+    return {'testing_info': out_metadata}
 
 
 def run_classification_testdata(args, model, model_md, dataset, y_true, logger):
@@ -463,7 +464,6 @@ def run_classification(args, model, modelmd, loadgroups, logger):
         out_md = run_classification_newdata(model, dataset, logger)
     else:
         raise ValueError('Unknown task for classification: {}'.format(args.task))
-
     runinfo = dict()
     runinfo['task'] = args.task
     runinfo['model_file'] = os.path.basename(args.modelfile)
@@ -493,24 +493,30 @@ def run_regression(args, model, modelmd, loadgroups, logger):
     """
     _ = create_filepath(args.outputfile, logger)
     logger.debug('Loading dataset')
+    dataset, output, dtinfo, sminfo, ftinfo = load_ml_dataset(args.inputfile,
+                                                              loadgroups,
+                                                              modelmd['feature_info']['order'],
+                                                              args, logger)
     if args.task == 'test':
-        dataset, samplenames, output = load_dataset(args.inputfile, loadgroups, modelmd['feat_order'],
-                                                    subset=args.subset, ycol=args.targetvar, ytype=np.float64)
         out_md = run_regression_testdata(args, model, modelmd, dataset, output, logger)
-    elif args.task == 'pred':
-        dataset, samplenames, output = load_dataset(args.inputfile, loadgroups, modelmd['feat_order'],
-                                                    subset=args.subset)
-        assert output is None, 'Loaded sample outputs from dataset for prediction task'
+    elif args.task == 'est':
         raise NotImplementedError
+        assert output is None, 'Loaded sample outputs from dataset for prediction task'
+
         out_md = run_classification_newdata(model, dataset, logger)
     else:
-        raise ValueError('Unknown task for classification: {}'.format(args.task))
-    out_md['model_task'] = args.task
-    out_md['model_name'] = modelmd['model_name']
-    out_md['model_type'] = modelmd['model_type']
-    out_md['num_samples'] = dataset.shape[0]
-    out_md['num_features'] = dataset.shape[1]
-    out_md['sample_names'] = list(map(str, samplenames))
+        raise ValueError('Unknown task for regression: {}'.format(args.task))
+    runinfo = dict()
+    runinfo['task'] = args.task
+    runinfo['model_file'] = os.path.basename(args.modelfile)
+    runinfo['data_file'] = os.path.basename(args.inputfile)
+    runinfo['data_group'] = args.inputgroup
+
+    out_md['model_info'] = modelmd['model_info']
+    out_md['run_info'] = runinfo
+    out_md['sample_info'] = sminfo
+    out_md['feature_info'] = ftinfo
+    out_md['dataset_info'] = dtinfo
     logger.debug('Writing metadata of run...')
     with open(args.outputfile, 'w') as outfile:
         _ = json.dump(out_md, outfile, indent=1, sort_keys=True)
@@ -536,7 +542,7 @@ def run_apply_model(args):
         logger.debug('Applying classification model {} on task: {}'.format(model_md['model_info']['name'], args.task))
         _ = run_classification(args, model, model_md, load_groups, logger)
     elif model_type == 'regressor':
-        logger.debug('Applying regression model {} on task: {}'.format(model_md['model'], args.task))
+        logger.debug('Applying regression model {} on task: {}'.format(model_md['model_info']['name'], args.task))
         _ = run_regression(args, model, model_md, load_groups, logger)
     else:
         raise NotImplementedError('No support for model of type: {} '

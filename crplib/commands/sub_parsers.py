@@ -279,6 +279,10 @@ def _add_train_command(subparsers):
     comgroup.add_argument('--calc-weights', '-cwt', action='store_true', default=False, dest='calcweights')
     comgroup.add_argument('--load-weights', '-swt', type=str, default='', dest='loadweights')
     comgroup.add_argument('--subset', '-sub', type=str, default='', dest='subset')
+    comgroup.add_argument('--crp-metadata', '-cmd', type=str, default=None, dest='crpmetadata',
+                          help='The JSON file specified for "subset" is a CREEPIEST metadata'
+                               ' file. Evaluate this expression to select the sample names'
+                               ' from the file. Default: None')
     parser_train.set_defaults(execute=_train_execute)
     return subparsers
 
@@ -363,6 +367,10 @@ def _add_apply_command(subparsers):
     comgroup.add_argument('--derive-target', '-drv', type=str, default='', dest='derivetarget')
     comgroup.add_argument('--reduce-classes', '-red', type=list, nargs='*', default=[], dest='reduce')
     comgroup.add_argument('--subset', '-sub', type=str, default='', dest='subset')
+    comgroup.add_argument('--crp-metadata', '-cmd', type=str, default=None, dest='crpmetadata',
+                          help='The JSON file specified for "subset" is a CREEPIEST metadata'
+                               ' file. Evaluate this expression to select the sample names'
+                               ' from the file. Default: None')
     comgroup.add_argument('--no-perm', '-nop', action='store_true', default=False, dest='noperm')
     comgroup.add_argument('--num-perm', '-nump', type=int, default=100, dest='numperm')
     comgroup.add_argument('--cv-perm', '-cvp', type=int, default=10, dest='cvperm')

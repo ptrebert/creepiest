@@ -81,7 +81,7 @@ def load_ml_dataset(fpath, groups, modelfeat, args, logger):
     """
     :param fpath:
     :param groups:
-    :param features:
+    :param modelfeat:
     :param args:
     :param logger:
     :return:
@@ -102,7 +102,7 @@ def load_ml_dataset(fpath, groups, modelfeat, args, logger):
             pass
         else:
             logger.debug('Determining target variable for dataset')
-            dataset, trgname = augment_with_target(dataset, args.targetvar, args.derivetarget)
+            dataset, trgname, usedtype = augment_with_target(dataset, args.targetvar, args.derivetarget)
         datrows = dataset.shape[0]
         datcols = dataset.shape[1]
         assert datrows > 1, 'No samples (rows) remain in dataset after determining the target variable'
@@ -112,7 +112,7 @@ def load_ml_dataset(fpath, groups, modelfeat, args, logger):
             dataset, wtname = augment_with_weights_file(dataset, args.loadweights)
         dataset_info['subset'] = args.subset
         logger.debug('Selecting subset of data (if applicable)')
-        dataset = select_dataset_subset(dataset, args.subset)
+        dataset = select_dataset_subset(dataset, args.subset, args.crpmetadata)
         datrows = dataset.shape[0]
         datcols = dataset.shape[1]
         assert datrows > 1, 'No samples (rows) remain in dataset after subset selection'
@@ -149,6 +149,7 @@ def load_ml_dataset(fpath, groups, modelfeat, args, logger):
     dataset_info['num_features'] = predictors.shape[1]
     dataset_info['target_var'] = trgname
     dataset_info['derive_target'] = args.derivetarget
+    dataset_info['target_type'] = usedtype
     sample_info = {'weights': weights, 'names': sample_names, 'targets': store_targets}
     logger.debug('Dataset loading done')
     return predictors, targets, dataset_info, sample_info, feat_info
@@ -193,17 +194,22 @@ def augment_with_target(data, trgname, expr):
     else:
         assert 'data' in expr, 'Could not find "data" keyword in expression to evaluate: {}'.format(expr)
         data = data.assign(target=pd.eval(expr.strip('"')))
-        if np.issubdtype(data.target.values.dtype, bool):
+        # numpy.issubdtype(arg1, arg2)
+        # Returns True if first argument is a typecode lower/equal in type hierarchy.
+        if np.issubdtype(bool, data.target.values.dtype):
             data.target = data.target.astype(np.int8, copy=False)
-        elif np.issubdtype(data.target.values.dtype, float):
+            usedtype = 'bool/int8'
+        elif np.issubdtype(float, data.target.values.dtype):
             data.target = data.target.astype(np.float64, copy=False)
-        elif np.issubdtype(data.target.values.dtype, int):
+            usedtype = 'float/float64'
+        elif np.issubdtype(int, data.target.values.dtype):
             data.target = data.target.astype(np.int64, copy=False)
+            usedtype = 'int/int64'
         else:
             raise TypeError('Cannot infer type ({}) of derived target (expr.: {})'.format(data.target.values.dtype, expr))
         trgname = 'target'
     assert data[trgname].unique().size >= 2, 'Number of unique targets smaller than 2 for name {} / expr {}'.format(trgname, expr)
-    return data, trgname
+    return data, trgname, usedtype
 
 
 def augment_with_weights_file(data, wtfile):
@@ -263,17 +269,42 @@ def load_subset_names(fpath):
     return content
 
 
-def select_dataset_subset(data, subset):
+def load_names_from_metadata(fpath, expr):
     """
-    :param dataset:
+    :param fpath:
+    :param expr:
+    :return:
+    """
+    with open(fpath, 'r') as infile:
+        try:
+            md = json.load(infile)
+            assert 'md' in expr, 'Missing metdata keyword "md" in expression: {}'.format(expr)
+            sample_names = md['sample_info']['names']
+            selector = eval(expr)
+            assert len(sample_names) == len(selector), 'Evaluating the expression > {} < resulted in {} selectors,' \
+                                                       ' but there are {} sample names' \
+                                                       ' in the metadata file {}'.format(expr, len(selector), len(sample_names), fpath)
+            subset_names = [n for s, n in zip(selector, sample_names) if s]
+        except json.JSONDecodeError:
+            raise TypeError('Expected CREEPIEST metadata file (JSON) - cannot decode this file: {}'.format(fpath))
+    return subset_names
+
+
+def select_dataset_subset(data, subset, crpmd=None):
+    """
+    :param data:
     :param subset:
+    :param crpmd:
     :return:
     """
     rows, cols = data.shape
     if not subset:
         pass
     elif os.path.isfile(subset):
-        subset_names = load_subset_names(subset)
+        if crpmd is not None:
+            subset_names = load_names_from_metadata(subset, crpmd)
+        else:
+            subset_names = load_subset_names(subset)
         data = data[data.name.isin(subset_names)]
     else:
         subset = subset.strip('"')
