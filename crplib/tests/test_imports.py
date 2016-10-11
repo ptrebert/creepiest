@@ -28,9 +28,8 @@ class TestModuleImports(unittest.TestCase):
 
     def test_python_imports(self):
         test_modules = ['socket', 'multiprocessing', 'queue', 'random', 'pandas',
-                        'matplotlib', 'sklearn', 'numpy', 'scipy', 'resource', 'pdb',
-                        'pstats', 'statsmodels', 'threading', 'bz2', 'json', 'select',
-                        'twobitreader']
+                        'sklearn', 'numpy', 'scipy', 'resource', 'pdb', 'twobitreader',
+                        'pstats', 'statsmodels', 'threading', 'bz2', 'json', 'select']
         for module in test_modules:
             _ = importlib.import_module(module)
         return
