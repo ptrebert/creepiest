@@ -64,7 +64,11 @@ def build_main_parser(stdincfg):
     generics.add_argument('--version', '-v', action='version', version=__version__,
                           help='Print version information and exit')
     generics.add_argument('--verbose', '-vb', action='store_true', default=False, dest='verbose',
-                          help='Print status messages to stderr. Default: FALSE')
+                          help='Print status messages to stderr. Equivalent to --debug.'
+                               ' Default: FALSE')
+    generics.add_argument('--debug', '-dbg', action='store_true', default=False, dest='debug',
+                          help='Print status messages to stderr. Equivalent to --verbose.'
+                               ' Default: FALSE')
     generics.add_argument('--outfile-mode', '-ofm', type=str, choices=['a', 'w', 'replace', 'append'], default='w',
                           dest='filemode', help='Specify if output overwrites (replace [w]) or is'
                                                 ' appended (append [a]) to existing files. Default: replace')
@@ -162,7 +166,10 @@ def init_logging_system(args, logbuf):
         bufhdl = logging.StreamHandler(stream=logbuf)
         bufhdl.setFormatter(formatter)
         logger.addHandler(bufhdl)
-    loglevel = logging.DEBUG if args.verbose else logging.WARNING
+    if args.verbose or args.debug:
+        loglevel = logging.DEBUG
+    else:
+        loglevel = logging.WARNING
     logger.setLevel(loglevel)
     return logger
 
@@ -193,6 +200,8 @@ def run():
     logbuf = None
     args = None
     # this uses OS randomness sources by default if available
+    # and is currently not used for critical analysis, no need to
+    # manually set seed for reproducibility
     rand.seed()
     retcode = 0
     conf_dump = ''
@@ -214,8 +223,8 @@ def run():
         if conf_dump:
             logger.debug('Configuration dumped to: {}'.format(conf_dump))
         logger.debug('Executing command: {}'.format(args.subparser_name))
-        args.__dict__['module_logger'] = logging.getLogger(args.subparser_name)
-        args.__dict__['filemode'] = normalize_file_mode(args.filemode)
+        setattr(args, 'module_logger', logging.getLogger(args.subparser_name))
+        setattr(args, 'filemode', normalize_file_mode(args.filemode))
         if args.profiling:
             retcode = cprf.runctx('args.execute(args)', {}, {'args': args}, 'crp_' + args.subparser_name + '.prf')
         else:
