@@ -20,4 +20,11 @@ echo "export PATH=${CRPBINPATH}:\$PATH" >> ./etc/conda/activate.d/env_vars.sh
 echo "export PYTHONPATH=${CRPPYTHONPATH}:\$PYTHONPATH" >> ./etc/conda/activate.d/env_vars.sh
 
 
+echo "#!/bin/sh" > ./etc/conda/deactivate.d/env_vars.sh
+
+echo "" >> ./etc/conda/deactivate.d/env_vars.sh
+
+echo "unset PYTHONPATH" >> ./etc/conda/deactivate.d/env_vars.sh
+
+
 
