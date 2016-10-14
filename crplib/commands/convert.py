@@ -7,6 +7,8 @@ Module to convert various data formats to HDF5
 import os as os
 import importlib as imp
 
+from crplib.auxiliary.hdf_ops import check_path_infos
+
 
 def convert_bedgraph_signal(args, logger):
     """
@@ -16,9 +18,12 @@ def convert_bedgraph_signal(args, logger):
     """
     assert os.path.isfile(args.chromsizes),\
         'Invalid path to chromosome sizes file: {}'.format(args.chromsizes)
-    assert all([os.path.isfile(f) for f in args.inputfile]),\
-        'Invalid path(s) to input file(s): {}'.format(args.inputfile)
+    assert all([os.path.isfile(f) for f in args.inputfiles]),\
+        'Invalid path(s) to input file(s): {}'.format(args.inputfiles)
     assert 0. <= args.clip <= 100., 'Clip value outside of range 0...100: {}'.format(args.clip)
+    _, grp, fp = check_path_infos(args.outputfile, args.outputgroup)
+    setattr(args, 'outputfile', fp)
+    setattr(args, 'outputgroup', grp)
     mod = imp.import_module('crplib.commands.convert_bedgraph')
     rv = mod.run_bedgraph_conversion(args, logger)
     assert os.path.isfile(args.outputfile), 'No output file created - conversion failed? {}'.format(args.outputfile)
@@ -83,9 +88,9 @@ def convert_map_file(args, logger):
 def run_conversion(args):
     """
     :param args: command line parameters
-     :type: Namespace object
+    :type args: Namespace object
     :return: exit code
-     :rtype: int
+    :rtype: int
     """
     logger = args.module_logger
     try:
@@ -96,10 +101,8 @@ def run_conversion(args):
                     'tfmotif': convert_motifdb_file,
                     'map': convert_map_file}
         convcall = convtype[args.task]
-        args.__dict__['keepchroms'] = args.keepchroms.strip('"')
-        args.__dict__['qcheck'] = args.keepchroms.strip('"')
-        logger.debug('Chromosome select pattern for target: {}'.format(args.keepchroms))
-        logger.debug('Chromosome select pattern for query: {}'.format(args.qcheck))
+        setattr(args, 'selectchroms', args.selectchroms.strip('"'))
+        logger.debug('Chromosome select pattern: {}'.format(args.selectchroms))
         rv = convcall(args, logger)
         logger.debug('Conversion complete')
         return rv

@@ -7,6 +7,8 @@ and contains the appropriate execute functions
 
 import importlib as implib
 
+from crplib.auxiliary.cmdline_parameters import *
+
 
 def add_sub_parsers(main_parser):
     """
@@ -63,7 +65,7 @@ def _add_info_command(subparsers):
                                         help='Print info about HDF file',
                                         description='... to be updated ...')
     comgroup = parser_info.add_argument_group('Print info')
-    comgroup.add_argument('--input', '-i', type=str, required=True, dest='inputfile')
+    comgroup.add_argument(*single_input['args'], **single_input['kwargs'])
     parser_info.set_defaults(execute=_info_execute)
     return subparsers
 
@@ -84,27 +86,25 @@ def _add_convert_command(subparsers):
     :return:
     """
     parser_convert = subparsers.add_parser('convert',
-                                           help='Convert bedGraph or BED files to HDF5 format.',
+                                           help='Convert various file formats to HDF5 format'
+                                                ' for faster I/O. HDF5 is the default data'
+                                                ' format of the CREEPIEST tool.',
                                            description='... to be updated ...')
+
     comgroup = parser_convert.add_argument_group('General parameters')
-    comgroup.add_argument('--task', '-tk', type=str, required=True, choices=['signal', 'region', 'chain',
-                                                                             'map', 'tfmotif'], dest='task',
-                          help='Specify task to execute, convert signal (bedGraph), region (BED-like) or chain files.')
-    comgroup.add_argument('--keep-chroms', '-kc', type=str, default='"(chr)?[0-9]+(\s|$)"', dest='keepchroms',
-                          help='Regular expression pattern (needs to be double quoted) matching'
-                               ' chromosome names to keep in the target. Default: "(chr)?[0-9]+(\s|$)" (i.e. autosomes)')
-    comgroup.add_argument('--query-check', '-qc', type=str, default='"(chr)?[0-9]+(\s|$)"', dest='qcheck',
-                          help='Regular expression pattern to check for valid chromosome names in the query'
-                               ' assembly. Default: "(chr)?[0-9]+(\s|$)" (i.e. autosomes)')
-    comgroup.add_argument('--input', '-i', type=str, nargs='+', required=True, dest='inputfile',
-                          help='Full path to one or more files to convert.')
-    comgroup.add_argument('--output', '-o', type=str, required=True, dest='outputfile',
-                          help='Full path to output file to be created')
-    comgroup.add_argument('--output-group', '-og', type=str, default='', dest='outputgroup',
-                          help='Group prefix to store individual chromosomes. Default: <empty>')
-    comgroup.add_argument('--query', '-qry', action='store_true', default=False, dest='query',
-                          help='Build index for query')
-    comgroup = parser_convert.add_argument_group('bedGraph parameters')
+
+    tmp = dict(default_task)
+    tmp['kwargs']['choices'] = ['signal', 'region', 'map', 'tfmotif']
+    tmp['kwargs']['help'] = 'Specify task to execute: convert signal (bedGraph),' \
+                            ' region (BED), map (tsv) or TF motif data.'
+    comgroup.add_argument(*tmp['args'], **tmp['kwargs'])
+    comgroup.add_argument(*multi_input['args'], **multi_input['kwargs'])
+    comgroup.add_argument(*single_hdfout['args'], **single_hdfout['kwargs'])
+    comgroup.add_argument(*output_group['args'], **output_group['kwargs'])
+    comgroup.add_argument(*select_chroms['args'], **select_chroms['kwargs'])
+
+    comgroup = parser_convert.add_argument_group('Signal conversion')
+
     comgroup.add_argument('--chrom-sizes', '-cs', type=str, default='', dest='chromsizes',
                           help='Full path to UCSC-style 2 column file with chromosome sizes')
     comgroup.add_argument('--no-qnorm', '-nq', action='store_true', default=False, dest='noqnorm',
@@ -117,7 +117,11 @@ def _add_convert_command(subparsers):
     comgroup.add_argument('--clip', '-cl', type=float, default=99.95, dest='clip',
                           help='Clip signal values above this percentile to reduce the effect of strong'
                                ' outliers. Default: 99.95')
-    comgroup = parser_convert.add_argument_group('BED parameters')
+    comgroup.add_argument('--pct-ranks', '-prk', action='store_true', default=False, dest='pctranks',
+                          help='Transform non-zero signal to percentile ranks (0 <= 10 <= 20 etc.)')
+
+    comgroup = parser_convert.add_argument_group('Region conversion')
+
     comgroup.add_argument('--name-idx', '-nix', type=int, default=-1, dest='nameidx',
                           help='Specify column index (0-based) with region names. If set to -1,'
                                ' generic names will be assigned based on genomic sort order'
@@ -136,10 +140,12 @@ def _add_convert_command(subparsers):
                                ' to be set to a valid column index. Default: 95')
     comgroup.add_argument('--filter-size', '-fs', type=int, default=0, dest='filtersize',
                           help='Remove regions smaller than this value. Default: 0')
+
     comgroup = parser_convert.add_argument_group('TF motif parameter')
     comgroup.add_argument('--motif-db', '-mdb', type=str, default='', dest='motifdb')
     comgroup.add_argument('--db-format', '-dbf', type=str, choices=['meme', 'map', 'list'], dest='dbformat')
-
+    comgroup.add_argument('--query', '-qry', action='store_true', default=False, dest='query',
+                          help='Build index for query')
     parser_convert.set_defaults(execute=_convert_execute)
     return subparsers
 

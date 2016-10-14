@@ -60,13 +60,17 @@ output_group = {'args': ('--output-group', '-og'),
                                    '/group/root/to/data - note that the group information '
                                    'can also be prepended to the file name separated by a colon, e.g., '
                                    '/group/root/to/data:/long/path/to/file.h5. The data will be stored'
-                                   ' splitted by individual chromosomes. Default group: <empty>'}}
+                                   ' split by individual chromosomes. Default group: <empty>'}}
 
 # misc parameters
 
-filter_chroms = {'args': ('--select-chroms', '-slc'),
+select_chroms = {'args': ('--select-chroms', '-slc'),
                  'kwargs': {'dest': 'selectchroms', 'type': str,
                             'default': '"(chr)?[0-9][0-9A-Z]?(\s|$)"',
                             'help': 'Specify regular expression to select chromosomes by name. '
                                     'The regular expression needs to be double-quoted. '
                                     'Default: autosomes (i.e.: "(chr)?[0-9][0-9A-Z]?(\s|$)"'}}
+
+default_task = {'args': ('--task', '-tk'),
+                'kwargs': {'dest': 'task', 'type': str,
+                           'required': True}}

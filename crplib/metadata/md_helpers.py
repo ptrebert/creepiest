@@ -20,6 +20,19 @@ def normalize_group_path(group, suffix=None):
     return group
 
 
+def normalize_chrom_name(chrom):
+    """
+    Add 'chr' prefix if not present
+    Remove all trailing or inner white spaces
+    :param chrom:
+    :return:
+    """
+    if not chrom.startswith('chr'):
+        chrom = 'chr' + chrom
+    chrom = chrom.strip().replace(' ', '')
+    return chrom
+
+
 def update_metadata_index(mdframe, group):
     """
     :param mdframe:

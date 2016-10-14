@@ -2,6 +2,7 @@
 
 import pandas as pd
 import numpy as np
+import numpy.ma as msk
 import scipy.stats as stats
 
 
@@ -87,3 +88,20 @@ def merge_1d_datasets(*args, mergestat, qnorm):
     mergers = {'mean': np.mean, 'median': np.median, 'max': np.max, 'min': np.min}
     col_mrg = mergers[mergestat]([arg for arg in args], axis=0)
     return col_mrg
+
+
+def transform_to_pct_ranks(signal):
+    """
+    :param signal:
+    :return:
+    """
+    m = msk.masked_where(signal == 0., signal)
+    percentiles = np.percentile(m.compressed(), [10, 20, 30, 40, 50, 60, 70, 80, 90, 100])
+    ranks = np.digitize(signal, percentiles, right=True)
+    # this is necessary to set all zero values to rank 0 again
+    ranks += 1
+    ranks[m.mask] = 0
+    ranks = ranks.astype(np.int32, copy=False)
+    assert ranks.min() == 0, 'Minimum rank is not 0: {}'.format(ranks.min())
+    assert ranks.max() == 10, 'Maximum rank is not 10: {}'.format(ranks.max())
+    return ranks
