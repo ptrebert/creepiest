@@ -2,6 +2,7 @@
 
 import pandas as pd
 import numpy as np
+import numpy.random as rng
 import numpy.ma as msk
 import scipy.stats as stats
 
@@ -96,8 +97,19 @@ def transform_to_pct_ranks(signal):
     :return:
     """
     m = msk.masked_where(signal == 0., signal)
-    percentiles = np.percentile(m.compressed(), [10, 20, 30, 40, 50, 60, 70, 80, 90, 100])
-    ranks = np.digitize(signal, percentiles, right=True)
+    try:
+        percentiles = np.percentile(m.compressed(), [10, 20, 30, 40, 50, 60, 70, 80, 90, 100])
+        ranks = np.digitize(signal, percentiles, right=True)
+    except ValueError as ve:
+        if isinstance(ve.args[0], str) and ve.args[0].startswith('bins must be monotonically'):
+            # very "flat" signal, add a little bit of noise
+            # Observed for E015_mm9_ESE14_H3K4me1
+            # the following raises again if it's still to flat
+            m += (rng.random(m.size) / 100.)
+            percentiles = np.percentile(m.compressed(), [10, 20, 30, 40, 50, 60, 70, 80, 90, 100])
+            ranks = np.digitize(signal, percentiles, right=True)
+        else:
+            raise ve
     # this is necessary to set all zero values to rank 0 again
     ranks += 1
     ranks[m.mask] = 0
