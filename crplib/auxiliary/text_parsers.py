@@ -5,8 +5,6 @@ Some helper functions to parse text-based files
 with more or less no well-defined format
 """
 
-import sys as sys
-
 import os as os
 import re as re
 import csv as csv
@@ -15,6 +13,10 @@ import functools as fnt
 
 from crplib.auxiliary.file_ops import text_file_mode
 from crplib.auxiliary.constants import VALID_DELIMITERS, DELIMITER_NAMES
+
+
+#MapBlock = col.namedtuple('MapBlock', [])
+RedBlock = col.namedtuple('RedBlock', ['chrom', 'start', 'end', 'match', 'name'])
 
 
 def read_chromosome_sizes(fpath, keep='.+'):
@@ -289,51 +291,60 @@ def chromsize_from_chain(chainfile, chrom, target=True):
     return chrom_size
 
 
-def _read_map_line(line):
+def _read_map_line(mode, line):
     """
+    :param mode:
     :param line:
     :return:
     """
-    tchrom, tstart, tend, tstrand, chainid, qchrom, qstart, qend, qstrand, mapnum = line.strip().split()
-    return tchrom, int(tstart), int(tend), tstrand, chainid, qchrom, int(qstart), int(qend), qstrand, int(mapnum)
+    parts = line.strip().split()
+    if mode == 'target':
+        block = RedBlock(chrom=parts[0], start=int(parts[1]), end=int(parts[2]), match=parts[5], name=int(parts[4]))
+    elif mode == 'query':
+        block = RedBlock(chrom=parts[5], start=int(parts[6]), end=int(parts[7]), match=parts[0], name=int(parts[4]))
+    elif mode == 'full':
+        raise NotImplementedError
+    else:
+        raise ValueError('Unknown mode specified for map block parsing: {}'.format(mode))
+    return block
 
 
-def get_map_iterator(fobj, tselect=None, qselect=None, read_num=0):
+def iter_reduced_blocks(fobj, tselect=None, qselect=None, which='target', read_num=0):
     """
     :param fobj:
     :param tselect:
     :param qselect:
+    :param which:
     :param read_num:
     :return:
     """
-    curr_chain = 0
-    read_chains = 0
+    chrom_pair = None, None
+    # super block = consecutive number of blocks with identical
+    # target/query chromosomes; ~ connected sub-part of chain
+    read_supblocks = 0
     skip = False
     tskip = fnt.partial(_check_skip, *(tselect,))
     qskip = fnt.partial(_check_skip, *(qselect,))
-    readmap = _read_map_line
+    readmap = fnt.partial(_read_map_line, *(which,))
     for line in fobj:
         if line.strip():
-            if 0 < read_num <= read_chains:
+            block = readmap(line)
+            if chrom_pair != (block.chrom, block.match):
+                read_supblocks += 1
+                chrom_pair = block.chrom, block.match
+                if which == 'target':
+                    skip = tskip(block.chrom) or qskip(block.match)
+                else:
+                    skip = qskip(block.chrom) or tskip(block.match)
+            if 0 < read_num < read_supblocks:
                 break
-            parts = readmap(line)
-            if parts[4] == curr_chain and skip:
+            if skip:
                 continue
-            elif parts[4] == curr_chain:
-                yield parts
-            elif tskip(parts[0]) or qskip(parts[5]):
-                curr_chain = parts[4]
-                skip = True
-                continue
-            else:
-                read_chains += 1
-                curr_chain = parts[4]
-                skip = False
-                yield parts
+            yield block
     return
 
-
-def get_map_positions(mapfile, tselect=None, qselect=None, tref=True):
+# TODO continue here - collect start positions of super blocks
+def get_superblock_positions(mapfile, tselect=None, qselect=None, tref=True):
     """
     :param mapfile:
     :param tselect:

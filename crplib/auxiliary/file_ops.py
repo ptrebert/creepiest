@@ -8,6 +8,7 @@ import os as os
 import gzip as gz
 import bz2 as bz
 import tempfile as tempf
+import hashlib as hsl
 import numpy as np
 import pandas as pd
 
@@ -113,3 +114,21 @@ def load_mmap_array(tmpfn, handle, dtype=None, shape=None):
     except (IOError, OSError, FileNotFoundError):
         pass
     return data, rm_success
+
+
+def get_checksum(fpath, hashtype='md5', blocksize=4096):
+    """
+    :param fpath:
+    :param hashtype:
+    :param blocksize:
+    :return:
+    """
+    assert os.path.isfile(fpath), 'Cannot compute checksum for file {} - invalid path: {}'.format(os.path.basename(fpath), fpath)
+    select_hash = {'md5': hsl.md5}
+    hasher = select_hash[hashtype]()
+    with open(fpath, 'rb') as f:
+        buf = f.read(blocksize)
+        while buf:
+            hasher.update(buf)
+            buf = f.read(blocksize)
+    return hashtype, hasher.hexdigest()

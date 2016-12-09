@@ -141,6 +141,23 @@ def _add_convert_command(subparsers):
     comgroup.add_argument('--filter-size', '-fs', type=int, default=0, dest='filtersize',
                           help='Remove regions smaller than this value. Default: 0')
 
+    comgroup = parser_convert.add_argument_group('Map conversion')
+
+    comgroup.add_argument('--target-assembly', '-trg', type=str, default='', dest='target',
+                          help='Specify the target [from] assembly name, e.g., hg19.'
+                               ' If the name is not specified, it will be inferred'
+                               ' from the chromosome sizes file (string only consisting'
+                               ' of alphanumerical characters from the beginning of the filename).')
+    comgroup.add_argument('--target-chrom', '-tchr', type=str, default='', dest='targetchrom',
+                          help='2 column text file with chromosome sizes for the target assembly.')
+    comgroup.add_argument('--query-assembly', '-qry', type=str, default='', dest='query',
+                          help='Specify the query [to] assembly name, e.g., mm9.'
+                               ' If the name is not specified, it will be inferred'
+                               ' from the chromosome sizes file (string only consisting'
+                               ' of alphanumerical characters from the beginning of the filename).')
+    comgroup.add_argument('--query-chrom', '-qchr', type=str, default='', dest='querychrom',
+                          help='2 column text file with chromosome sizes for the query assembly.')
+
     comgroup = parser_convert.add_argument_group('TF motif parameter')
     comgroup.add_argument('--motif-db', '-mdb', type=str, default='', dest='motifdb')
     comgroup.add_argument('--db-format', '-dbf', type=str, choices=['meme', 'map', 'list'], dest='dbformat')
