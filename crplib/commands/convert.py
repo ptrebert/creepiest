@@ -78,7 +78,7 @@ def convert_map_file(args, logger):
     :param logger:
     :return:
     """
-    assert os.path.isfile(args.inputfile[0]), 'Invalid path to input file: {}'.format(args.inputfile)
+    assert os.path.isfile(args.inputfiles[0]), 'Invalid path to input file: {}'.format(args.inputfiles)
     mod = imp.import_module('crplib.commands.convert_map')
     rv = mod.run_map_conversion(args, logger)
     assert os.path.isfile(args.outputfile), 'No output file created - conversion failed? {}'.format(args.outputfile)
