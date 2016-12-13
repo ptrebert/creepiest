@@ -8,15 +8,15 @@ import os as os
 import re as re
 import pandas as pd
 import multiprocessing as mp
-import operator as op
 import numpy as np
 import itertools as itt
 
 from crplib.auxiliary.file_ops import text_file_mode, get_checksum
-from crplib.auxiliary.text_parsers import iter_reduced_blocks, read_chromosome_sizes
+from crplib.auxiliary.text_parsers import iter_reduced_blocks, get_superblock_positions, read_chromosome_sizes
 from crplib.metadata.md_helpers import normalize_group_path
 
-from crplib.auxiliary.constants import MAPIDX_MASK, MAPIDX_SELECT, MAPIDX_SPLITS, MAPIDX_ORDER
+from crplib.auxiliary.constants import MAPIDX_MASK, MAPIDX_SELECT, \
+    MAPIDX_SPLITS, MAPIDX_ORDER, MAPIDX_POSIDX
 
 
 def assemble_worker_args(args, target, trgchroms, query, qrychroms):
@@ -26,7 +26,7 @@ def assemble_worker_args(args, target, trgchroms, query, qrychroms):
     """
     arglist = []
     commons = dict()
-    commons['inputfile'] = args.inputfile[0]
+    commons['inputfile'] = args.inputfiles[0]
 
     # prepare arguments for target-centric processing
     # match all possible query chromosomes for one
@@ -50,6 +50,14 @@ def assemble_worker_args(args, target, trgchroms, query, qrychroms):
         tmp['match'] = target_match
         tmp['assembly'] = query
         arglist.append(tmp)
+    # last parameter set for index building
+    tmp = dict(commons)
+    tmp['chrom'] = '(' + '|'.join([tc for tc in trgchroms.keys()]) + ')'  # $ appended in function
+    tmp['match'] = query_match
+    tmp['size'] = 0
+    tmp['role'] = 'index'
+    tmp['assembly'] = '{}_from_{}'.format(query, target)
+    arglist.append(tmp)
     assert arglist, 'No arguments created for workers'
     return arglist
 
@@ -97,19 +105,24 @@ def process_maps(params):
     csize = params['size']
     match_chroms = re.compile(params['match'])
     opn, mode = text_file_mode(fpath)
-    mask, splits, select, order = None, None, None, None
+    mask, splits, select, order, posidx = None, None, None, None, None
     with opn(fpath, mode=mode, encoding='ascii') as infile:
         if params['role'] == 'target':
             mapit = iter_reduced_blocks(infile, tselect=ref_chrom_select, qselect=match_chroms, which='target')
+            mask, splits, select, order = build_index_structures(mapit, csize)
         elif params['role'] == 'query':
             mapit = iter_reduced_blocks(infile, tselect=match_chroms, qselect=ref_chrom_select, which='query')
+            mask, splits, select, order = build_index_structures(mapit, csize)
+        elif params['role'] == 'index':
+            pass
         else:
             raise ValueError('Unknown role specified: {}'.format(params['role']))
-        mask, splits, select, order = build_index_structures(mapit, csize)
-    return (params['role'], params['assembly'], ref_chrom), mask, splits, select, order
+    if params['role'] == 'index':
+        posidx = get_superblock_positions(fpath, ref_chrom_select, match_chroms)
+    return (params['role'], params['assembly'], ref_chrom), mask, splits, select, order, posidx
 
 
-def determine_assembly_names(tname, qname, tfile, qfile):
+def determine_assembly_names(tname, tfile, qname, qfile):
     """
     :param tname:
     :param qname:
@@ -135,42 +148,71 @@ def determine_assembly_names(tname, qname, tfile, qfile):
     return target, query
 
 
+def built_index_metadata(trg, qry, htype, check, trgsizes, qrysizes):
+    """
+    :param trg:
+    :param qry:
+    :param htype:
+    :param check:
+    :param trgsizes:
+    :param qrysizes:
+    :return:
+    """
+    rows = [('target', trg), ('query', qry), ('hashtype', htype), ('hash', check)]
+    for chrom, size in trgsizes.items():
+        rows.append((os.path.join(trg, chrom), str(size)))
+    for chrom, size in qrysizes.items():
+        rows.append((os.path.join(qry, chrom), str(size)))
+    md = pd.DataFrame(rows, columns=['key', 'value'])
+    return md
+
+
 def run_map_conversion(args, logger):
     """
     :param args:
     :param logger:
     :return:
     """
-    logger.debug('Determining checksum for map file: {}'.format(args.inputfile[0]))
-    hashtype, checksum = get_checksum(args.inputfile[0])
+    logger.debug('Determining checksum for map file: {}'.format(args.inputfiles[0]))
+    hashtype, checksum = get_checksum(args.inputfiles[0])
     logger.debug('{} checksum: {}'.format(hashtype, checksum))
     target, query = determine_assembly_names(args.target, args.targetchrom,
                                              args.query, args.querychrom)
-    logger.debug('Assembly names identified: from TARGET {} >-> to QUERY {}'.format(target, query))
+    logger.debug('Assembly names identified: from TARGET {} >>> to QUERY {}'.format(target, query))
     trgchroms = read_chromosome_sizes(args.targetchrom, args.selectchroms)
     qrychroms = read_chromosome_sizes(args.querychrom, args.selectchroms)
     logger.debug('Files with chromosome sizes read, assembling worker parameters')
     arglist = assemble_worker_args(args, target, trgchroms, query, qrychroms)
     logger.debug('Argument list of size {} created'
-                 ' - start processing map file {}'.format(len(arglist), args.inputfile[0]))
+                 ' - start processing map file {}'.format(len(arglist), args.inputfiles[0]))
     with pd.HDFStore(args.outputfile, args.filemode, complevel=9, complib='blosc', encoding='utf-8') as hdfout:
         with mp.Pool(args.workers) as pool:
             logger.debug('Iterating results')
             resit = pool.imap_unordered(process_maps, arglist)
-            for infos, mask, splits, select, relpos in resit:
+            for infos, mask, splits, select, order, posidx in resit:
                 role, assembly, chrom = infos
-                logger.debug('Finished {} for {} {}'.format(chrom, role, assembly))
-                grp_mask = normalize_group_path(og_mask, suffix=chrom)
-                hdfout.put(grp_mask, pd.Series(mask, dtype=np.bool), format='fixed')
-                grp_splits = normalize_group_path(og_splits, suffix=chrom)
-                hdfout.put(grp_splits, pd.Series(splits, dtype=np.int32), format='fixed')
-                grp_select = normalize_group_path(og_select, suffix=chrom)
-                hdfout.put(grp_select, pd.Series(select, dtype=np.bool), format='fixed')
-                grp_order = normalize_group_path(og_order, suffix=chrom)
-                # the order is the block name,
-                hdfout.put(grp_order, pd.Series(relpos, dtype=np.int32), format='fixed')
-                hdfout.flush()
-                logger.debug('Data saved')
+                if posidx is None:
+                    logger.debug('Finished {} for {} {}'.format(chrom, role, assembly))
+                    grp_mask = normalize_group_path(os.path.join(role, MAPIDX_MASK), suffix=chrom)
+                    hdfout.put(grp_mask, pd.Series(mask, dtype=np.bool), format='fixed')
+                    grp_splits = normalize_group_path(os.path.join(role, MAPIDX_SPLITS), suffix=chrom)
+                    hdfout.put(grp_splits, pd.Series(splits, dtype=np.int32), format='fixed')
+                    grp_select = normalize_group_path(os.path.join(role, MAPIDX_SELECT), suffix=chrom)
+                    hdfout.put(grp_select, pd.Series(select, dtype=np.bool), format='fixed')
+                    # the order is the block name
+                    grp_order = normalize_group_path(os.path.join(role, MAPIDX_ORDER), suffix=chrom)
+                    hdfout.put(grp_order, pd.Series(order, dtype=np.int32), format='fixed')
+                    hdfout.flush()
+                    logger.debug('Data saved')
+                else:
+                    logger.debug('Finished {} for {} - storing positions'.format(role, assembly))
+                    for qchrom, trgblocks in posidx.items():
+                        for tchrom, pos in trgblocks.items():
+                            grp_posidx = normalize_group_path(os.path.join('qt', MAPIDX_POSIDX, qchrom, tchrom))
+                            hdfout.put(grp_posidx, pd.Series(pos, dtype=np.int64), format='fixed')
+                            hdfout.flush()
+        mdf = built_index_metadata(target, query, hashtype, checksum, trgchroms, qrychroms)
+        hdfout.put('/metadata', mdf, format='table')
         hdfout.flush()
         logger.debug('Full index created, storing metadata')
     logger.debug('HDF file closed: {}'.format(args.outputfile))

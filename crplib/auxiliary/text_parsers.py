@@ -16,10 +16,11 @@ from crplib.auxiliary.constants import VALID_DELIMITERS, DELIMITER_NAMES
 
 
 #MapBlock = col.namedtuple('MapBlock', [])
+# Reduced block, does not contain full line information
 RedBlock = col.namedtuple('RedBlock', ['chrom', 'start', 'end', 'match', 'name'])
 
 
-def read_chromosome_sizes(fpath, keep='.+'):
+def read_chromosome_sizes(fpath, keep='\w+'):
     """
     :param fpath:
     :param keep:
@@ -343,46 +344,59 @@ def iter_reduced_blocks(fobj, tselect=None, qselect=None, which='target', read_n
             yield block
     return
 
-# TODO continue here - collect start positions of super blocks
-def get_superblock_positions(mapfile, tselect=None, qselect=None, tref=True):
+
+def get_superblock_positions(mapfile, tselect=None, qselect=None):
     """
     :param mapfile:
     :param tselect:
     :param qselect:
-    :param tref:
     :return:
     """
-    if tselect is None:
-        tselect = re.compile('.+')
-    if qselect is None:
-        qselect = re.compile('.+')
+    tskip = fnt.partial(_check_skip, *(tselect,))
+    qskip = fnt.partial(_check_skip, *(qselect,))
     opn, mode = text_file_mode(mapfile)
-    readmap = _read_map_line
-    last_chain = -1
+    # the index is built to speed up the mapping from
+    # target to query, but, technically, the index is
+    # reciprocally valid (directionality just does not matter here)
+    readmap = fnt.partial(_read_map_line, *('target', ))
+    last_supblock = None, None
+    skip = False
     map_positions = col.defaultdict(dict)
     with opn(mapfile, mode) as maps:
         while 1:
             line = maps.readline()
             llen = len(line)
             if not line:
+                # this is EOF at last
                 break
             elif not line.strip():
+                # just empty line
                 continue
             else:
                 parts = readmap(line)
-                if tselect.match(parts[0]) is not None and qselect.match(parts[5]) is not None:
-                    if parts[4] != last_chain:
-                        # record start position of new map block
-                        pos = maps.tell() - llen
-                        if tref:
-                            tchrom, qchrom = parts[0], parts[5]
-                        else:
-                            tchrom, qchrom = parts[5], parts[0]
-                        try:
-                            map_positions[tchrom][qchrom].append(pos)
-                        except KeyError:
-                            map_positions[tchrom][qchrom] = [pos]
-                        last_chain = parts[4]
+                tchrom, qchrom = parts.chrom, parts.match
+                if (tchrom, qchrom) != last_supblock:
+                    skip = tskip(tchrom) or qskip(qchrom)
+                    last_supblock = tchrom, qchrom
+                    if skip:
+                        continue
+                    # record start position of new super block
+                    pos = maps.tell() - llen
+                    try:
+                        # Why saved in this order?
+                        # For the mapping, a fixed number of query
+                        # chromosomes is allocated, say 3, to keep
+                        # memory footprint low. Then, the worker
+                        # processes load and map in parallel from all
+                        # target chromosomes to the few query chromosomes.
+                        # It follows that one needs to know:
+                        # For a given query chromosome Q, where are the blocks
+                        # in the mapping from any target chromosome to this
+                        # particular query chromosome?
+                        map_positions[qchrom][tchrom].append(pos)
+                    except KeyError:
+                        map_positions[qchrom][tchrom] = [pos]
+    assert map_positions, 'No map positions extracted from file {} - building index failed'.format(mapfile)
     return map_positions
 
 

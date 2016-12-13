@@ -143,14 +143,14 @@ def _add_convert_command(subparsers):
 
     comgroup = parser_convert.add_argument_group('Map conversion')
 
-    comgroup.add_argument('--target-assembly', '-trg', type=str, default='', dest='target',
+    comgroup.add_argument('--target-assembly', '-tassm', type=str, default='', dest='target',
                           help='Specify the target [from] assembly name, e.g., hg19.'
                                ' If the name is not specified, it will be inferred'
                                ' from the chromosome sizes file (string only consisting'
                                ' of alphanumerical characters from the beginning of the filename).')
     comgroup.add_argument('--target-chrom', '-tchr', type=str, default='', dest='targetchrom',
                           help='2 column text file with chromosome sizes for the target assembly.')
-    comgroup.add_argument('--query-assembly', '-qry', type=str, default='', dest='query',
+    comgroup.add_argument('--query-assembly', '-qassm', type=str, default='', dest='query',
                           help='Specify the query [to] assembly name, e.g., mm9.'
                                ' If the name is not specified, it will be inferred'
                                ' from the chromosome sizes file (string only consisting'
