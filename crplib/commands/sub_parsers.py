@@ -157,6 +157,13 @@ def _add_convert_command(subparsers):
                                ' of alphanumerical characters from the beginning of the filename).')
     comgroup.add_argument('--query-chrom', '-qchr', type=str, default='', dest='querychrom',
                           help='2 column text file with chromosome sizes for the query assembly.')
+    comgroup.add_argument('--index-col', '-idxc', type=int, dest='indexcol', required=True,
+                          help='Specify the column number (starting at 0) that contains the'
+                               ' numerical index.')
+    comgroup.add_argument('--min-map', '-min', action='store_true', default=False, dest='minmap',
+                          help='Generate minimal map file - this will result in ~15% smaller'
+                               ' files but comes at the cost of slightly longer computation times'
+                               ' in downstream analysis.')
 
     comgroup = parser_convert.add_argument_group('TF motif parameter')
     comgroup.add_argument('--motif-db', '-mdb', type=str, default='', dest='motifdb')
@@ -329,24 +336,25 @@ def _add_mapsig_command(subparsers):
                                           help='Map a signal track from one assembly to another',
                                           description='...to be updated...')
     comgroup = parser_mapsig.add_argument_group('Map signal track')
+
+    comgroup.add_argument(*single_input['args'], **single_input['kwargs'])
+    comgroup.add_argument(*input_group['args'], **input_group['kwargs'])
     comgroup.add_argument('--map-file', '-mpf', type=str, required=True, dest='mapfile',
                           help='Full path to map file with pairwise alignment information between'
                                ' reference (in liftOver parlance: target) and query.')
-    comgroup.add_argument('--query-chroms', '-qch', type=str, required=True, dest='querychroms',
-                          help='Full path to file with chromosome sizes of the query assembly.')
-    comgroup.add_argument('--keep-chroms', '-c', type=str, default='"(chr)?[0-9]+(\s|$)"', dest='keepchroms',
-                          help='Regular expression pattern (needs to be double quoted) matching'
-                               ' chromosome names to keep. Default: "(chr)?[0-9]+(\s|$)" (i.e. autosomes)')
+    comgroup.add_argument(*hdf_indexfile['args'], **hdf_indexfile['kwargs'])
+    comgroup.add_argument('--select-chroms', '-slc', type=str, dest='selectchroms', default="\w+",
+                          help='Specify regular expression to select chromosomes of the query'
+                               ' assembly by name. The regular expression needs to be double-quoted.'
+                               ' Default: "\w+"')
     comgroup.add_argument('--allocate-chroms', '-ac', type=int, default=2, dest='allocate',
-                          help='Number of chromosomes to be hold in memory simultaneously. Default: 2')
-    comgroup.add_argument('--input', '-i', type=str, required=True, dest='inputfile',
-                          help='Full path to input file in HDF5 format.')
-    comgroup.add_argument('--input-group', '-ig', type=str, default='', dest='inputgroup',
-                          help='Group root in input file for signal to map. Default: <empty>')
-    comgroup.add_argument('--output', '-o', type=str, dest='outputfile',
-                          help='Full path to output file.')
-    comgroup.add_argument('--output-group', '-og', type=str, default='', dest='outputgroup',
-                          help='Specify group root path for mapped signal in output file.')
+                          help='Number of chromosomes of the query assembly to be allocated'
+                               ' in memory simultaneously. Note that each worker process still'
+                               ' has to load the actual data of the target assembly to be mapped.'
+                               ' If you are tight on memory, set this to 1 and also set the number'
+                               ' of worker processes to 1. Default: 2')
+    comgroup.add_argument(*single_hdfout['args'], **single_hdfout['kwargs'])
+    comgroup.add_argument(*output_group['args'], **output_group['kwargs'])
     parser_mapsig.set_defaults(execute=_mapsig_execute)
     return subparsers
 

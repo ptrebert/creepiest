@@ -10,12 +10,15 @@ import re as re
 import csv as csv
 import collections as col
 import functools as fnt
+import io as io
 
 from crplib.auxiliary.file_ops import text_file_mode
 from crplib.auxiliary.constants import VALID_DELIMITERS, DELIMITER_NAMES
 
 
-#MapBlock = col.namedtuple('MapBlock', [])
+# Full block of map
+MapBlock = col.namedtuple('MapBlock', ['chrom', 'tstart', 'tend', 'tstrand', 'name',
+                                       'match', 'qstart', 'qend', 'qstrand'])
 # Reduced block, does not contain full line information
 RedBlock = col.namedtuple('RedBlock', ['chrom', 'start', 'end', 'match', 'name'])
 
@@ -298,24 +301,26 @@ def _read_map_line(mode, line):
     :param line:
     :return:
     """
-    parts = line.strip().split()
+    # chr1	87771	87786	+	1	chr1	77636	77651	+
+    parts = line.split()
     if mode == 'target':
         block = RedBlock(chrom=parts[0], start=int(parts[1]), end=int(parts[2]), match=parts[5], name=int(parts[4]))
     elif mode == 'query':
         block = RedBlock(chrom=parts[5], start=int(parts[6]), end=int(parts[7]), match=parts[0], name=int(parts[4]))
-    elif mode == 'full':
-        raise NotImplementedError
+    elif mode == 'both':
+        block = MapBlock(chrom=parts[0], tstart=int(parts[1]), tend=int(parts[2]), tstrand=parts[3], name=int(parts[4]),
+                         match=parts[5], qstart=int(parts[6]), qend=int(parts[7]), qstrand=parts[8])
     else:
         raise ValueError('Unknown mode specified for map block parsing: {}'.format(mode))
     return block
 
 
-def iter_reduced_blocks(fobj, tselect=None, qselect=None, which='target', read_num=0):
+def iter_map_blocks(fobj, tselect=None, qselect=None, mode='target', read_num=0):
     """
     :param fobj:
     :param tselect:
     :param qselect:
-    :param which:
+    :param mode:
     :param read_num:
     :return:
     """
@@ -326,14 +331,67 @@ def iter_reduced_blocks(fobj, tselect=None, qselect=None, which='target', read_n
     skip = False
     tskip = fnt.partial(_check_skip, *(tselect,))
     qskip = fnt.partial(_check_skip, *(qselect,))
-    readmap = fnt.partial(_read_map_line, *(which,))
+    readmap = fnt.partial(_read_map_line, *(mode,))
+    lc = 0
+    start_pos = fobj.tell()
     for line in fobj:
-        if line.strip():
+        line = line.decode('utf-8').strip()
+        if not line:
+            continue
+        lc += 1
+        block = readmap(line)
+        if chrom_pair != (block.chrom, block.match):
+            read_supblocks += 1
+            chrom_pair = block.chrom, block.match
+            if mode == 'target' or mode == 'both':
+                skip = tskip(block.chrom) or qskip(block.match)
+            else:
+                skip = qskip(block.chrom) or tskip(block.match)
+        if 0 < read_num < read_supblocks:
+            break
+        if skip:
+            continue
+        yield block
+    # at least one super block should always be read (due to init of None, None)
+    # otherwise, there is something wrong
+    assert read_supblocks > 0 or lc > 0, \
+        'No super blocks/lines read in mode "{}" starting at {}'.format(mode, start_pos)
+    return
+
+
+def iter_shmap_blocks(memobj, tselect=None, qselect=None, mode='target', read_num=0):
+    """
+    :param memobj:
+    :param tselect:
+    :param qselect:
+    :param mode:
+    :param read_num:
+    :return:
+    """
+    chrom_pair = None, None
+    # super block = consecutive number of blocks with identical
+    # target/query chromosomes; ~ connected sub-part of chain
+    read_supblocks = 0
+    skip = False
+    tskip = fnt.partial(_check_skip, *(tselect,))
+    qskip = fnt.partial(_check_skip, *(qselect,))
+    readmap = fnt.partial(_read_map_line, *(mode,))
+    lc = 0
+    linebuffer = io.StringIO()
+    memend = memobj.size()
+    pos = 0
+    blocksize = 4096
+    while 1:
+        _ = linebuffer.write(memobj[pos:pos+blocksize].decode('utf-8'))
+        lines = linebuffer.getvalue().split('\n')
+        for line in lines[:-1]:
+            if not line:
+                continue
             block = readmap(line)
             if chrom_pair != (block.chrom, block.match):
                 read_supblocks += 1
                 chrom_pair = block.chrom, block.match
-                if which == 'target':
+                if mode == 'target' or mode == 'both':
                     skip = tskip(block.chrom) or qskip(block.match)
                 else:
                     skip = qskip(block.chrom) or tskip(block.match)
@@ -342,6 +400,16 @@ def iter_reduced_blocks(fobj, tselect=None, qselect=None, which='target', read_n
             if skip:
                 continue
             yield block
+        linebuffer = io.StringIO()
+        linebuffer.write(lines[-1])
+        pos += blocksize
+        if pos > memend and len(linebuffer.getvalue()) == 0:
+            break
+    # at least one super block should always be read (due to init of None, None)
+    # otherwise, there is something wrong
+    assert read_supblocks > 0 or lc > 0, \
+        'No super blocks/lines read in mode "{}" starting at {}'.format(mode)
+    assert len(linebuffer.getvalue()) == 0, 'Buffer not empty: {}'.format(linebuffer.getvalue())
     return
 
 

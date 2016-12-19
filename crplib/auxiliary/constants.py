@@ -19,7 +19,7 @@ MAPIDX_MASK = 'cons/mask'
 MAPIDX_SPLITS = 'cons/splits'
 MAPIDX_SELECT = 'cons/select'
 MAPIDX_ORDER = 'cons/order'
-MAPIDX_POSIDX = 'posidx'
+MAPIDX_BLOCKS = 'blocks'
 
 # this is deprecated...
 FEAT_FP_PREC = 5

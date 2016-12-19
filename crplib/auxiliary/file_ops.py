@@ -33,6 +33,23 @@ def text_file_mode(fpath):
     return f, m
 
 
+def shm_file_object(fpath):
+    """
+    :param fpath:
+    :return:
+    """
+    assert os.path.isfile(fpath)
+    ext = fpath.split('.')[-1].lower()
+    if ext in ['gz', 'gzip']:
+        f, t = gz.GzipFile, 'gzip'
+    elif ext in ['bz', 'bz2', 'bzip', 'bzip2']:
+        f, t = bz.BZ2File, 'bzip'
+    else:
+        # assume plain binary
+        f, t = None, 'raw'
+    return f, t
+
+
 def create_filepath(fpath, logger=None):
     """
     :param fpath:
