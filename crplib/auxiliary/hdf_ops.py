@@ -5,6 +5,7 @@ Convenience module for some operations on HDF files
 """
 
 import os as os
+import re as re
 import numpy as np
 import pandas as pd
 import collections as col
@@ -207,3 +208,28 @@ def load_masked_sigtrack(hdfsig, chainfile, group, chrom, csize=None, mask=None)
             load_group = os.path.join(group, chrom)
         signal = np.ma.array(hdf[load_group].values, mask=mask)
     return signal
+
+
+def extract_chromsizes_from_map(mapfile, which, select):
+    """
+    :param mapfile:
+    :param which:
+    :param select:
+    :return:
+    """
+    chromselect = re.compile(select)
+    chromosomes = dict()
+    with pd.HDFStore(mapfile, 'r') as hdf:
+        md = hdf['metadata']
+        assembly = md.loc[md.key == which, 'value'].str.cat()
+        assm_chroms = md.loc[md.key.str.contains(assembly)]
+        assert not assm_chroms.empty, 'No chromosomes selected from metadata for assembly {}'.format(assembly)
+        for row in assm_chroms.itertuples():
+            a, c = os.path.split(row.key)
+            assert a == assembly, 'Unexpected key for assembly {}: {} ({})'.format(assembly, a, which)
+            if chromselect.match(c) is not None:
+                chromosomes[c] = int(row.value)
+    assert chromosomes, 'No chromosomes sizes extracted from file: {} - {} - {}'.format(os.path.basename(mapfile),
+                                                                                        which,
+                                                                                        select)
+    return chromosomes
