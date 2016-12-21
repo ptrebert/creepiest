@@ -339,14 +339,8 @@ def _add_mapsig_command(subparsers):
 
     comgroup.add_argument(*single_input['args'], **single_input['kwargs'])
     comgroup.add_argument(*input_group['args'], **input_group['kwargs'])
-    comgroup.add_argument('--map-file', '-mpf', type=str, required=True, dest='mapfile',
-                          help='Full path to map file with pairwise alignment information between'
-                               ' reference (in liftOver parlance: target) and query.')
-    comgroup.add_argument(*hdf_indexfile['args'], **hdf_indexfile['kwargs'])
-    comgroup.add_argument('--select-chroms', '-slc', type=str, dest='selectchroms', default="\w+",
-                          help='Specify regular expression to select chromosomes of the query'
-                               ' assembly by name. The regular expression needs to be double-quoted.'
-                               ' Default: "\w+"')
+    comgroup.add_argument(*hdf_mapfile['args'], **hdf_mapfile['kwargs'])
+    comgroup.add_argument(*select_chroms['args'], **select_chroms['kwargs'])
     comgroup.add_argument('--allocate-chroms', '-ac', type=int, default=2, dest='allocate',
                           help='Number of chromosomes of the query assembly to be allocated'
                                ' in memory simultaneously. Note that each worker process still'
