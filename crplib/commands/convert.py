@@ -36,8 +36,8 @@ def convert_genomic_region(args, logger):
     :param logger:
     :return:
     """
-    assert all([os.path.isfile(f) for f in args.inputfile]), \
-        'Invalid path(s) to input file(s): {}'.format(args.inputfile)
+    assert all([os.path.isfile(f) for f in args.inputfiles]), \
+        'Invalid path(s) to input file(s): {}'.format(args.inputfiles)
     assert 1. <= args.keeptop <= 100., \
         'Keeping top N percent value outside of range 1...100: {}'.format(args.keeptop)
     mod = imp.import_module('crplib.commands.convert_region')

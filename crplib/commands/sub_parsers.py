@@ -157,7 +157,7 @@ def _add_convert_command(subparsers):
                                ' of alphanumerical characters from the beginning of the filename).')
     comgroup.add_argument('--query-chrom', '-qchr', type=str, default='', dest='querychrom',
                           help='2 column text file with chromosome sizes for the query assembly.')
-    comgroup.add_argument('--index-col', '-idxc', type=int, dest='indexcol', required=True,
+    comgroup.add_argument('--index-col', '-idxc', type=int, dest='indexcol',
                           help='Specify the column number (starting at 0) that contains the'
                                ' numerical index.')
     comgroup.add_argument('--min-map', '-min', action='store_true', default=False, dest='minmap',
