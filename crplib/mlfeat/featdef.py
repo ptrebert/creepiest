@@ -470,13 +470,16 @@ def feat_mapsig(sample, infix=''):
     ret[FEAT_MAPSIG_PREFIX + infix + 'pct_cons'] = (conserved / reglen) * 100
     if conserved == 0:
         cons_mean = 0
+        cons_median = 0
         cons_max = 0
         cons_min = 0
     else:
         cons_mean = np.ma.mean(sample)
+        cons_median = np.ma.median(sample)
         cons_max = np.ma.max(sample)
         cons_min = np.ma.min(sample)
     ret[FEAT_MAPSIG_PREFIX + infix + 'abs_mean'] = cons_mean
+    ret[FEAT_MAPSIG_PREFIX + infix + 'abs_median'] = cons_median
     ret[FEAT_MAPSIG_PREFIX + infix + 'abs_max'] = cons_max
     ret[FEAT_MAPSIG_PREFIX + infix + 'abs_min'] = cons_min
     return ret
