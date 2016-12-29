@@ -192,16 +192,22 @@ def _add_compfeat_command(subparsers):
     parser_compfeat = subparsers.add_parser('compfeat',
                                             help='Compute features for dataset',
                                             description='...to be updated...')
-    parser_compfeat.add_argument('--task', '-tk', type=str, choices=['regress', 'classify', 'groups'], dest='task')
+
     comgroup = parser_compfeat.add_argument_group('General parameters')
-    comgroup.add_argument('--input', '-i', type=str, required=True, dest='inputfile')
-    comgroup.add_argument('--output', '-o', type=str, dest='outputfile')
-    comgroup.add_argument('--target-index', '-idx', type=str, default='', dest='targetindex',
-                          help='Full path to target index created with "convert" command.'
-                               ' Only required for task "cons". Default: <empty>')
-    comgroup.add_argument('--keep-chroms', '-c', type=str, default='"(chr)?[0-9]+(\s|$)"', dest='keepchroms',
-                          help='Regular expression pattern (needs to be double quoted) matching'
-                               ' chromosome names to keep. Default: "(chr)?[0-9]+(\s|$)" (i.e. autosomes)')
+
+    tmp = dict(default_task)
+    tmp['kwargs']['choices'] = ['regress', 'classify', 'matched']
+    tmp['kwargs']['help'] = 'Specify task to execute: compute features for regression, classification,' \
+                            ' or matched classification (each positive sample is matched to a negative sample)'
+    comgroup.add_argument(*tmp['args'], **tmp['kwargs'])
+    comgroup.add_argument(*single_input['args'], **single_input['kwargs'])
+    comgroup.add_argument(*input_group['args'], **input_group['kwargs'])
+    comgroup.add_argument(*single_hdfout['args'], **single_hdfout['kwargs'])
+    comgroup.add_argument(*output_group['args'], **output_group['kwargs'])
+    comgroup.add_argument(*select_chroms['args'], **select_chroms['kwargs'])
+    comgroup.add_argument(*hdf_mapfile['args'], **hdf_mapfile['kwargs'])
+    comgroup.add_argument(*map_reference['args'], **map_reference['kwargs'])
+
     comgroup.add_argument('--features', '-ft', type=str, nargs='+', default=[], dest='features')
     comgroup.add_argument('--kmers', '-km', type=int, nargs='+', default=[], dest='kmers')
     comgroup.add_argument('--seq-file', '-sf', type=str, default='', dest='seqfile')
@@ -216,11 +222,8 @@ def _add_compfeat_command(subparsers):
     comgroup.add_argument('--num-samples', '-smp', type=int, default=20000, dest='numsamples',
                           help='Number of training samples to collect')
     comgroup.add_argument('--resolution', '-res', type=int, default=25, dest='resolution')
-    comgroup.add_argument('--input-group', '-ig', type=str, default='', dest='inputgroup')
-    comgroup.add_argument('--output-group', '-og', type=str, default='', dest='outputgroup',
-                          help='Specify a root path to store the individual chromosomes in the HDF5. Default: <empty>')
 
-    comgroup = parser_compfeat.add_argument_group('Parameter for region classification (clsreg)')
+    comgroup = parser_compfeat.add_argument_group('Parameter for binary classification (groups)')
     comgroup.add_argument('--pos-ingroup', '-pig', type=str, default='', dest='posingroup')
     comgroup.add_argument('--neg-ingroup', '-nig', type=str, default='', dest='negingroup')
     comgroup.add_argument('--add-seq', '-ads', action='store_true', default=False, dest='addseq')
