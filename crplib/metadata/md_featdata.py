@@ -29,7 +29,7 @@ def gen_obj_and_md(mdframe, group, chrom, args, datavals):
         numsamples = dataobj.shape[0]
     if args.task == 'regress':
         resolution = args.resolution
-    elif args.task == 'groups':
+    elif args.task == 'matched':
         resolution = 'N/A'
     elif args.task == 'classify':
         resolution = args.window
@@ -49,7 +49,7 @@ def gen_obj_and_md(mdframe, group, chrom, args, datavals):
     if 'tfm' in args.features:
         srcfiles += ',' + os.path.basename(args.tfmotifs)
     entries = [group, chrom, mtime, int(size_mem), numsamples, resolution, features,
-               kmers, srcfiles, os.path.basename(args.targetindex)]
+               kmers, srcfiles, os.path.basename(args.mapfile)]
     upd_idx = update_metadata_index(mdframe, group)
     if upd_idx is not None:
         mdframe.iloc[upd_idx, ] = entries
