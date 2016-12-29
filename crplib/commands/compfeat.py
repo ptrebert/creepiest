@@ -14,7 +14,7 @@ import pandas as pd
 
 from crplib.metadata.md_featdata import gen_obj_and_md, MD_FEATDATA_COLDEFS
 from crplib.auxiliary.hdf_ops import load_masked_sigtrack, get_valid_hdf5_groups, \
-    get_trgindex_groups, get_valid_chrom_group, get_default_group
+    get_mapindex_groups, get_valid_chrom_group, get_default_group
 from crplib.auxiliary.file_ops import create_filepath, check_array_serializable, load_mmap_array
 from crplib.auxiliary.seq_parsers import get_twobit_seq, add_seq_regions
 from crplib.mlfeat.featdef import feat_mapsig, feat_tf_motifs,\
@@ -35,8 +35,8 @@ def sample_signal_traindata(params):
     step_bw = res * 4
     step_fw = res * 6
     # memory-wise large objects
-    index_groups = get_trgindex_groups(params['targetindex'], '')
-    with pd.HDFStore(params['targetindex'], 'r') as idx:
+    index_groups = get_mapindex_groups(params['mapfile'], params['mapreference'])
+    with pd.HDFStore(params['mapfile'], 'r') as idx:
         mask = idx[index_groups[chrom]['mask']]
     chromseq = get_twobit_seq(params['seqfile'], params['chrom'])
     signal = load_masked_sigtrack(params['inputfile'], '', params['group'],
@@ -70,8 +70,8 @@ def add_signal_features(samples, params):
     sigfiles = params['sigfiles']
     siggroups = params['siggroups']
     chrom = params['chrom']
-    index_groups = get_trgindex_groups(params['targetindex'], '')
-    with pd.HDFStore(params['targetindex'], 'r') as idx:
+    index_groups = get_mapindex_groups(params['mapfile'], params['mapreference'])
+    with pd.HDFStore(params['mapfile'], 'r') as idx:
         mask = idx[index_groups[chrom]['mask']]
     mapfeat = feat_mapsig
     for sgf in sigfiles:
@@ -278,14 +278,15 @@ def assemble_regsig_args(chromlim, args):
     arglist = []
     commons = dict()
     commons['inputfile'] = args.inputfile
-    commons['targetindex'] = args.targetindex
+    commons['mapfile'] = args.mapfile
+    commons['mapreference'] = args.mapreference
     commons['seqfile'] = args.seqfile
     commons['group'] = args.inputgroup
     commons['resolution'] = args.resolution
     commons['features'] = args.features
     commons['kmers'] = args.kmers
 
-    index_groups = get_trgindex_groups(args.targetindex, '')
+    index_groups = get_mapindex_groups(args.mapfile,args.mapreference)
 
     num_chrom = len(index_groups.keys())
     smp_per_chrom = args.numsamples // num_chrom
@@ -349,8 +350,9 @@ def assemble_clsreg_args(args, logger):
     commons['roifiles'] = roifiles
     commons['roigroups'] = roigroups
     commons['roiquant'] = args.roiquant
-    commons['targetindex'] = args.targetindex
-    check = re.compile(args.keepchroms)
+    commons['mapfile'] = args.mapfile
+    commons['mapreference'] = args.mapreference
+    check = re.compile(args.selectchroms)
     posgroups = get_valid_hdf5_groups(args.inputfile, args.posingroup)
     neggroups = get_valid_hdf5_groups(args.inputfile, args.negingroup)
     arglist = []
@@ -390,13 +392,14 @@ def assemble_scnreg_args(args, logger):
     commons['siglabels'] = siglabels
     commons['sigfiles'] = sigfiles
     commons['siggroups'] = siggroups
-    commons['targetindex'] = args.targetindex
+    commons['mapfile'] = args.mapfile
+    commons['mapreference'] = args.mapreference
     roifiles, roilabels, roigroups = build_featurefile_info(args.roifile)
     commons['roilabels'] = roilabels
     commons['roifiles'] = roifiles
     commons['roigroups'] = roigroups
     commons['roiquant'] = args.roiquant
-    check = re.compile(args.keepchroms)
+    check = re.compile(args.selectchroms)
     ingroups = get_valid_hdf5_groups(args.inputfile, args.inputgroup)
     arglist = []
     for grp in ingroups:
@@ -446,7 +449,6 @@ def prepare_scnreg_samples(args, logger):
     """
     arglist = assemble_scnreg_args(args, logger)
     logger.debug('Argument list of size {} to process'.format(len(arglist)))
-    _ = create_filepath(args.outputfile, logger)
     with pd.HDFStore(args.outputfile, args.filemode, complib='blosc', complevel=9, encoding='utf-8') as hdfout:
         metadata = pd.DataFrame(columns=MD_FEATDATA_COLDEFS)
         with mp.Pool(args.workers) as pool:
@@ -475,9 +477,9 @@ def run_compute_features(args):
     :return:
     """
     logger = args.module_logger
-    args.__dict__['keepchroms'] = args.keepchroms.strip('"')
+    setattr(args, 'selectchroms', args.selectchroms.strip('"'))
     _ = create_filepath(args.outputfile, logger)
-    logger.debug('Chromosome select pattern: {}'.format(args.keepchroms))
+    logger.debug('Chromosome select pattern: {}'.format(args.selectchroms))
     if args.task == 'regress':
         logger.debug('Computing features/sampling data for task {}'.format(args.task))
         # "magic number" following common limits, e.g., in ChromImpute

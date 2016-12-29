@@ -20,7 +20,7 @@ from scipy.interpolate import LSQUnivariateSpline as kspline
 from sklearn.cross_validation import permutation_test_score as permtest
 
 from crplib.auxiliary.seq_parsers import get_twobit_seq
-from crplib.auxiliary.hdf_ops import load_masked_sigtrack, get_valid_hdf5_groups, get_trgindex_groups
+from crplib.auxiliary.hdf_ops import load_masked_sigtrack, get_valid_hdf5_groups, get_mapindex_groups
 from crplib.auxiliary.file_ops import create_filepath
 from crplib.auxiliary.modeling import select_dataset_subset, load_model, \
     load_model_metadata, get_scorer, load_ml_dataset, determine_scoring_method
@@ -141,7 +141,7 @@ def make_signal_estimate(params):
     seq = get_twobit_seq(params['seqfile'], params['chrom'])
     chromlen = len(seq)
     res = params['resolution']
-    index_groups = get_trgindex_groups(params['targetindex'], '')
+    index_groups = get_mapindex_groups(params['targetindex'], '')
     with pd.HDFStore(params['targetindex'], 'r') as idx:
         mask = idx[index_groups[chrom]['mask']]
     map_sig = load_masked_sigtrack(params['inputfile'], '',

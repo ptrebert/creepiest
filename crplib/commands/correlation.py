@@ -13,7 +13,7 @@ import pandas as pd
 import json as json
 import itertools as itt
 
-from crplib.auxiliary.hdf_ops import get_valid_hdf5_groups, get_trgindex_groups, get_default_group
+from crplib.auxiliary.hdf_ops import get_valid_hdf5_groups, get_mapindex_groups, get_default_group
 from crplib.auxiliary.file_ops import create_filepath, text_file_mode
 
 
@@ -40,7 +40,7 @@ def assemble_worker_params(args):
                'targetindex': args.targetindex, 'measure': args.measure,
                'roifile': args.roifile, 'roilimit': args.roilimit,
                'skipsize': args.skipsize}
-    index_groups = get_trgindex_groups(args.targetindex, '')
+    index_groups = get_mapindex_groups(args.targetindex, '')
     arglist = []
     for chrom in chrom_union:
         tmp = dict(commons)
