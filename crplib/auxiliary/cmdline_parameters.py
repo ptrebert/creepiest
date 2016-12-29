@@ -79,3 +79,9 @@ select_chroms = {'args': ('--select-chroms', '-slc'),
 default_task = {'args': ('--task', '-tk'),
                 'kwargs': {'dest': 'task', 'type': str,
                            'required': True}}
+
+map_reference = {'args': ('--map-reference', '-mapref'),
+                 'kwargs': {'dest': 'mapreference', 'type': str,
+                            'choices': ['target', 'query'],
+                            'help': 'Specify the information that should be extracted'
+                                    ' from the map file (from target or from query species).'}}
