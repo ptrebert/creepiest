@@ -13,7 +13,8 @@ import collections as col
 from crplib.auxiliary.file_ops import text_file_mode
 from crplib.auxiliary.text_parsers import get_chain_iterator, chromsize_from_chain
 
-from crplib.auxiliary.constants import MAPIDX_MASK, MAPIDX_SPLITS, MAPIDX_SELECT, MAPIDX_ORDER
+from crplib.auxiliary.constants import MAPIDX_MASK, MAPIDX_SPLITS,\
+    MAPIDX_SELECT, MAPIDX_ORDER, MAPIDX_BLOCKS
 
 
 def get_valid_hdf5_groups(filepath, prefix, exclmd=True):
@@ -120,27 +121,31 @@ def get_chrom_list(filepath, verify=False):
     return chroms
 
 
-def get_trgindex_groups(fpath, grproot):
+def get_mapindex_groups(fpath, which):
     """
     :param fpath:
-    :param grproot:
+    :param which:
     :return:
     """
-    groups = get_valid_hdf5_groups(fpath, grproot)
-    assert groups, 'No data found in target index {} with group {}'.format(fpath, grproot)
+    groups = get_valid_hdf5_groups(fpath, '')
+    assert groups, 'No data found in target index {} with group {}'.format(fpath, which)
+    assert which in ['target', 'query'], 'Unknown reference for map index: {}'.format(which)
     infos = col.defaultdict(dict)
     for g in groups:
         chrom = os.path.split(g)[1]
-        if MAPIDX_MASK in g:
-            infos[chrom]['mask'] = g
-        elif MAPIDX_SPLITS in g:
-            infos[chrom]['splits'] = g
-        elif MAPIDX_SELECT in g:
-            infos[chrom]['select'] = g
-        elif MAPIDX_ORDER in g:
-            infos[chrom]['order'] = g
-        else:
-            raise ValueError('Unexpected group in target index {}: {}'.format(fpath, g))
+        if which in g:
+            if MAPIDX_MASK in g:
+                infos[chrom]['mask'] = g
+            elif MAPIDX_SPLITS in g:
+                infos[chrom]['splits'] = g
+            elif MAPIDX_SELECT in g:
+                infos[chrom]['select'] = g
+            elif MAPIDX_ORDER in g:
+                infos[chrom]['order'] = g
+            elif MAPIDX_BLOCKS in g:
+                continue
+            else:
+                raise ValueError('Unknown group in map file detected: {}'.format(g))
     return infos
 
 
