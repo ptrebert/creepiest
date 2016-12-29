@@ -10,9 +10,9 @@ import numpy as np
 import pickle as pck
 import pandas as pd
 
-from sklearn.grid_search import GridSearchCV
+from sklearn.model_selection import GridSearchCV
 from sklearn.base import clone
-from sklearn.cross_validation import StratifiedKFold
+from sklearn.model_selection import StratifiedKFold
 
 from crplib.auxiliary.modeling import load_model, get_scorer, load_ml_dataset, extract_model_attributes
 from crplib.auxiliary.hdf_ops import get_valid_hdf5_groups
