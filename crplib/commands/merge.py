@@ -30,7 +30,7 @@ def assemble_worker_params(args):
     # Note for zip:
     # "The iterator stops when the shortest input iterable is exhausted"
     # no problem when there is only one file
-    for deflab, ipf in zip(list(asciiup), args.inputfile):
+    for deflab, ipf in zip(list(asciiup), args.inputfiles):
         lab, grp, fp = check_path_infos(ipf)
         if lab is None:
             lab = deflab
@@ -155,13 +155,13 @@ def run_merge_datasets(args):
     :return:
     """
     logger = args.module_logger
-    if len(args.inputfile) > 1:
-        assert len(args.inputfile) < 27, 'Merging of more than 26 datasets not supported at the moment'
+    if len(args.inputfiles) > 1:
+        assert len(args.inputfiles) < 27, 'Merging of more than 26 datasets not supported at the moment'
         logger.debug('Preparing merge of datasets...')
     if len(args.valfile) > 0:
         logger.debug('Extending the final dataset with infos'
                      ' from {} additional file(s)'.format(len(args.valfile)))
-    if len(args.inputfile) < 2 and len(args.valfile) == 0:
+    if len(args.inputfiles) < 2 and len(args.valfile) == 0:
         logger.warning('No merging possible and no additional datasets specified.'
                        ' What do you want me to do, human?')
     else:
@@ -178,10 +178,11 @@ def run_merge_datasets(args):
                 resit = pool.imap_unordered(merge_extend_datasets, arglist, chunksize=1)
                 for chrom, dataobj in resit:
                     logger.debug('Received data for chromosome {}'.format(chrom))
-                    grp, dataobj, metadata = region_generate(metadata, args.outputgroup, chrom, [args.inputfile, args.valfile], dataobj)
+                    grp, dataobj, metadata = region_generate(metadata, args.outputgroup, chrom, [args.inputfiles, args.valfile], dataobj)
                     hdf.put(grp, dataobj, format='fixed')
                     hdf.flush()
                     logger.debug('Flushed data to file')
             hdf.put('metadata', metadata, format='table')
             hdf.flush()
+    logger.debug('Merging complete')
     return 0

@@ -256,12 +256,10 @@ def _add_merge_command(subparsers):
                                          help='Merge two datasets or add new data',
                                          description='... to be updated ...')
     comgroup = parser_apply.add_argument_group('General parameters')
-    comgroup.add_argument('--input', '-i', type=str, required=True, nargs='+', dest='inputfile',
-                          help='Full path to input file in HDF5 format.')
-    comgroup.add_argument('--output', '-o', type=str, required=True, dest='outputfile',
-                          help='Full path to output file in HDF5 format.')
-    comgroup.add_argument('--output-group', '-og', type=str, default='', dest='outputgroup',
-                          help='Group root path for output. Default: <empty>')
+    comgroup.add_argument(*multi_input['args'], **multi_input['kwargs'])
+    comgroup.add_argument(*single_hdfout['args'], **single_hdfout['kwargs'])
+    comgroup.add_argument(*output_group['args'], **output_group['kwargs'])
+
     comgroup.add_argument('--merge-on', '-mrg', type=str, default=['name'], nargs='+', dest='mergeon')
     comgroup.add_argument('--add-values', '-val', type=str, nargs='*', default=[], dest='valfile')
     comgroup.add_argument('--from-column', '-col', type=str, nargs='*', default=[], dest='valcolumn')
