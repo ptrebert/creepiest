@@ -33,6 +33,15 @@ single_jsonout = {'args': ('--output', '-o'),
                                      '/long/path/to/file.json - note that the path will '
                                      'be created if it does not exist.'}}
 
+single_output = {'args': ('--output', '-o'),
+                 'kwargs': {'required': True,
+                            'dest': 'outputfile', 'type': str,
+                            'help': 'Specify full path to output file. The path will be'
+                                    ' created if it does not exist. The keyword "stdout"'
+                                    ' can be used instead of a file path. If the file path'
+                                    ' ends with ".gz" or ".bz2", the output file will be'
+                                    ' compressed accordingly.'}}
+
 hdf_indexfile = {'args': ('--index-file', '-idx'),
                  'kwargs': {'dest': 'indexfile', 'type': str,
                             'help': 'Specify full path to HDF index file, e.g., '

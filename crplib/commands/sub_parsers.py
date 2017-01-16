@@ -80,6 +80,45 @@ def _info_execute(args):
     return retval
 
 
+def _add_dump_command(subparsers):
+    """
+    :param subparsers:
+    :return:
+    """
+    parser_dump = subparsers.add_parser('dump',
+                                        help='Dump data from HDF file to (compressed) text',
+                                        description='...to be updated...')
+    comgroup = parser_dump.add_argument_group('General parameters')
+    comgroup.add_argument(*single_input['args'], **single_input['kwargs'])
+    comgroup.add_argument(*input_group['args'], **input_group['kwargs'])
+    comgroup.add_argument(*single_output['args'], **single_output['kwargs'])
+
+    comgroup = parser_dump.add_argument_group('Map index parameters')
+    comgroup.add_argument(*map_reference['args'], **map_reference['kwargs'])
+    comgroup.add_argument('--full-blocks', '-fb', action='store_true', default=False, dest='fullblocks',
+                          help='Dump full blocks, i.e., blocks contain info about both target and query assembly.')
+
+    comgroup = parser_dump.add_argument_group('Signal parameters')
+    comgroup.add_argument('--skip-ends', '-ske', type=int, default=0, dest='skipends',
+                          help='Skip this number of bases at the beginning/end of each chromosome.')
+    comgroup.add_argument('--resolution', '-res', type=int, default=1, dest='resolution',
+                          help='Summarize the signal value over bins of this size and dump those.')
+    comgroup.add_argument('--statistic', '-stat', type=str, choices=['mean', 'max', 'min', 'sum', 'median', 'product'],
+                          help='Use this function to summarize the signal values.')
+    parser_dump.set_defaults(execute=_dump_execute)
+    return subparsers
+
+
+def _dump_execute(args):
+    """
+    :param args:
+    :return:
+    """
+    dump = implib.import_module('crplib.commands.dump')
+    retval = dump.run_dump_to_file(args)
+    return retval
+
+
 def _add_convert_command(subparsers):
     """
     :param subparsers:
@@ -542,33 +581,4 @@ def _match_execute(args):
     """
     regmatch = implib.import_module('crplib.commands.match')
     retval = regmatch.run_background_match(args)
-    return retval
-
-
-def _add_dump_command(subparsers):
-    """
-    :param subparsers:
-    :return:
-    """
-    parser_dump = subparsers.add_parser('dump',
-                                        help='Dump content of an HDF file to BED-like text.',
-                                        description='... to be updated ...')
-    comgroup = parser_dump.add_argument_group('General parameters')
-    comgroup.add_argument('--input', '-i', type=str, dest='inputfile')
-    comgroup.add_argument('--input-group', '-ig', type=str, dest='inputgroup')
-    comgroup.add_argument('--output', '-o', type=str, dest='outputfile')
-    comgroup = parser_dump.add_argument_group('Parameters for signal tracks')
-    comgroup.add_argument('--resolution', '-res', type=int, default=25, dest='resolution')
-    comgroup.add_argument('--summ-stat', '-sst', type=str, choices=['mean', 'max', 'min'])
-    parser_dump.set_defaults(execute=_dump_execute)
-    return subparsers
-
-
-def _dump_execute(args):
-    """
-    :param args:
-    :return:
-    """
-    dump = implib.import_module('crplib.commands.dump')
-    retval = dump.run_dump_to_file(args)
     return retval
