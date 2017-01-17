@@ -18,6 +18,7 @@ def add_sub_parsers(main_parser):
     subparsers = main_parser.add_subparsers(dest='subparser_name', title='Subcommands')
     subparsers = _add_tests_command(subparsers)
     subparsers = _add_info_command(subparsers)
+    subparsers = _add_dump_command(subparsers)
     subparsers = _add_convert_command(subparsers)
     subparsers = _add_compfeat_command(subparsers)
     subparsers = _add_train_command(subparsers)
@@ -104,7 +105,7 @@ def _add_dump_command(subparsers):
     comgroup.add_argument('--resolution', '-res', type=int, default=1, dest='resolution',
                           help='Summarize the signal value over bins of this size and dump those.')
     comgroup.add_argument('--statistic', '-stat', type=str, choices=['mean', 'max', 'min', 'sum', 'median', 'product'],
-                          help='Use this function to summarize the signal values.')
+                          dest='summstat', help='Use this function to summarize the signal values.')
     parser_dump.set_defaults(execute=_dump_execute)
     return subparsers
 
@@ -115,7 +116,7 @@ def _dump_execute(args):
     :return:
     """
     dump = implib.import_module('crplib.commands.dump')
-    retval = dump.run_dump_to_file(args)
+    retval = dump.run_dump_data(args)
     return retval
 
 
