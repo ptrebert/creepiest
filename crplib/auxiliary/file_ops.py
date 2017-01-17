@@ -15,13 +15,16 @@ import pandas as pd
 from crplib.auxiliary.constants import LIMIT_SERIALIZATION
 
 
-def text_file_mode(fpath):
-    """ Naive determination of file type and appropriate selection
-    of opening function and mode
+def text_file_mode(fpath, read=True):
+    """
+    Naive determination of file type and respective open function and mode
+
     :param fpath:
+    :param read:
     :return:
     """
-    assert os.path.isfile(fpath), 'Invalid path to file: {}'.format(fpath)
+    if read:
+        assert os.path.isfile(fpath), 'Invalid path to file: {}'.format(fpath)
     ext = fpath.split('.')[-1].lower()
     # TODO should read magic numbers instead...
     if ext in ['gz', 'gzip']:
@@ -30,6 +33,8 @@ def text_file_mode(fpath):
         f, m = bz.open, 'rt'
     else:
         f, m = open, 'r'
+    if not read:
+        m = m.replace('r', 'w')
     return f, m
 
 
