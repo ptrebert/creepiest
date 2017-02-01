@@ -28,6 +28,7 @@ def assemble_worker_args(args, logger):
         'Specified score index field as {} - first three fields need to be "chrom - start - end"'.format(args.scoreidx)
     for fp in args.inputfiles:
         skip, delim, colnames = determine_text_table_type(fp, args.useheader, logger)
+        logger.debug('Input file analyzed - skipping {} row(s)'.format(skip))
         if colnames:
             colnames[0] = 'chrom'
             colnames[1] = 'start'
@@ -150,7 +151,7 @@ def process_regions(params):
         regions = pd.read_csv(infile, sep=params['delimiter'], names=params['colnames'],
                               index_col=False, dtype=datatypes, header=0,
                               skipinitialspace=True, skiprows=params['skip'], skip_blank_lines=True,
-                              encoding='utf-8', comment='#', usecols=params['colnames'])
+                              encoding='utf-8', comment=None, usecols=params['colnames'])
     chroms_in_file = regions.chrom.drop_duplicates().tolist()
     remove_chroms = set(filter(lambda x: chr_match.match(x) is None, chroms_in_file))
     drop_columns = ['filter_for_chrom']
@@ -250,6 +251,7 @@ def run_region_conversion(args, logger):
             logger.debug('Identified {} chromosomes in dataset(s)'.format(len(all_chroms)))
             for chrom in sorted(all_chroms):
                 chrom_regions = all_regions[all_regions.chrom == chrom]
+                logger.debug('Collected {} regions from chromosome {}'.format(chrom_regions.shape[0], chrom ))
                 chrom_regions = chrom_regions.drop(['chrom'], axis='columns', inplace=False)
                 if chrom_regions.empty:
                     continue
