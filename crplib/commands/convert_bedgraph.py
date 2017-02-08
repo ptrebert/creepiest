@@ -14,7 +14,7 @@ import itertools as itt
 from crplib.auxiliary.text_parsers import read_chromosome_sizes
 from crplib.auxiliary.file_ops import text_file_mode, create_filepath
 from crplib.metadata.md_signal import gen_obj_and_md, MD_SIGNAL_COLDEFS
-from crplib.numalg.normalization import merge_1d_datasets, transform_to_pct_ranks
+from crplib.numalg.normalization import merge_1d_datasets, transform_to_dec_ranks
 
 from crplib.auxiliary.constants import DIV_B_TO_GB
 
@@ -28,7 +28,7 @@ def assemble_worker_args(chroms, args):
     arglist = []
     tmp = vars(args)
     commons = dict()
-    for k in ['inputfiles', 'mergestat', 'noqnorm', 'clip', 'pctranks']:
+    for k in ['inputfiles', 'mergestat', 'noqnorm', 'clip', 'decranks']:
         commons[k] = tmp[k]
     for name, size in chroms.items():
         tmp = dict(commons)
@@ -66,8 +66,8 @@ def process_signal(params):
         retvals = merge_1d_datasets(*all_data, mergestat=params['mergestat'], qnorm=False)
     else:
         retvals = all_data[0]
-    if params['pctranks'] and np.count_nonzero(values) > 0:
-        retvals = transform_to_pct_ranks(retvals)
+    if params['decranks'] and np.count_nonzero(values) > 0:
+        retvals = transform_to_dec_ranks(retvals)
     if np.count_nonzero(values) == 0:
         retvals = None
     return chrom, retvals

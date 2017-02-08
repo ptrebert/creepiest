@@ -157,8 +157,8 @@ def _add_convert_command(subparsers):
     comgroup.add_argument('--clip', '-cl', type=float, default=99.95, dest='clip',
                           help='Clip signal values above this percentile to reduce the effect of strong'
                                ' outliers. Default: 99.95')
-    comgroup.add_argument('--pct-ranks', '-prk', action='store_true', default=False, dest='pctranks',
-                          help='Transform non-zero signal to percentile ranks (0 <= 10 <= 20 etc.)')
+    comgroup.add_argument('--dec-ranks', '-drk', action='store_true', default=False, dest='decranks',
+                          help='Transform non-zero signal to decile ranks (0 <= 10 <= 20 etc.)')
 
     comgroup = parser_convert.add_argument_group('Region conversion')
 
