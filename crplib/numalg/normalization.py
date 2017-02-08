@@ -52,6 +52,39 @@ def quant_norm_deprecated(*args, statistic='mean', nzonly=False):
     return rk
 
 
+def nonzero_qnorm(mat):
+    """
+    Perform quantile normalization as below, but restrict to columns in mat
+    that have at least one non-zero entry, i.e., exclude all all-zero columns
+    Intended for, e.g., chromosome-wide normalizations of histone data that
+    are mostly zero
+    :param mat:
+    :return:
+    """
+    add_zero_columns = False
+    col_idx = mat.sum(axis=0) > 0
+    if np.sum(col_idx) != mat.shape[1]:
+        # at least one all-zero column
+        add_zero_columns = True
+        mat = mat[:, col_idx]
+    ranks = np.zeros_like(mat)
+    for row_idx in range(mat.shape[0]):
+        ranks[row_idx, :] = stats.rankdata(mat[row_idx, :], method='dense')
+    mat.sort(axis=1)
+    col_means = np.unique(mat.mean(axis=0))
+    mean_ranks = stats.rankdata(col_means, method='dense')
+    for row_idx in range(ranks.shape[0]):
+        indices = np.digitize(ranks[row_idx, :], mean_ranks, right=True)
+        ranks[row_idx, :] = col_means[indices]
+    norm_mat = ranks
+    if add_zero_columns:
+        add_zeros = np.zeros((ranks.shape[0], col_idx.size))
+        col_indices = np.arange(col_idx.size)[col_idx]
+        add_zeros[:, col_indices] = ranks[:]
+        norm_mat = add_zeros
+    return norm_mat
+
+
 def quant_norm(*args):
     """ Perform quantile normalization as proposed by Bolstad et al.
     Since the handling of ties during the ranking is not specified in the original paper,
@@ -91,7 +124,7 @@ def merge_1d_datasets(*args, mergestat, qnorm):
     return col_mrg
 
 
-def transform_to_pct_ranks(signal):
+def transform_to_dec_ranks(signal):
     """
     :param signal:
     :return:
