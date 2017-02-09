@@ -35,8 +35,34 @@ def assemble_worker_args(chroms, args):
         tmp['chrom'] = name
         tmp['size'] = size
         arglist.append(tmp)
-    assert arglist, 'No parameter sets for workers created'
-    return arglist
+    # a little "heuristic" to make memory usage
+    # more stable on the executing machine
+    large_to_small = sorted(arglist, key=lambda d: d['size'], reverse=True)
+    small_to_large = sorted(arglist, key=lambda d: d['size'])
+    new_arglist = []
+    added = set()
+    for large in large_to_small:
+        if large['chrom'] in added:
+            continue
+        this_size = large['size']
+        new_arglist.append(large)
+        added.add(large['chrom'])
+        size_added = 0
+        num_added = 0
+        while size_added < this_size or num_added <= args.workers:
+            if len(small_to_large) == 0:
+                break
+            small = small_to_large.pop(0)
+            if small['chrom'] in added:
+                continue
+            size_added += small['size']
+            num_added += 1
+            new_arglist.append(small)
+            added.add(small['chrom'])
+    assert len(new_arglist) == len(arglist),\
+        'Lost information when rearranging items: old {} vs new {}'.format(len(arglist), len(new_arglist))
+    assert new_arglist, 'No parameter sets for workers created'
+    return new_arglist
 
 
 def process_signal(params):
