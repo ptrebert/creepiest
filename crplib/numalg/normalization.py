@@ -3,15 +3,38 @@
 import numpy as np
 import numpy.random as rng
 import numpy.ma as msk
+import multiprocessing as mp
 import scipy.stats as stats
 
+import time as ti
 
-def nonzero_qnorm(mat):
+
+_shm_input_matrix = None
+_shm_rank_matrix = None
+
+
+def nonzero_qnorm(mat, workers=1):
+    """ Perform quantile normalization as proposed by Bolstad et al., but restrict to columns
+    in matrix that have at least one non-zero entry, i.e., exclude columns with no signal.
+    Since the handling of ties during the ranking is not specified in the original paper,
+    this method uses dense ranking (rank always increases by 1 between groups)
+    Hence, the result of this function is slightly different to, e.g., the R function
+    normalize.quantiles from the preprocessCore package
+    Intended for chromosome-wide normalizations of, e.g., histone data that commonly
+    have a substantial amount of all-zero positions in the respective signal tracks
+
+    :param mat: [rows] samples X genes [columns]
+    :param workers: number of CPU core to use, default 1
+    :return:
     """
-    Perform quantile normalization as below, but restrict to columns in mat
-    that have at least one non-zero entry, i.e., exclude all all-zero columns
-    Intended for, e.g., chromosome-wide normalizations of histone data that
-    are mostly zero
+    if workers <= 1:
+        return nonzero_qnorm_sequential(mat)
+    else:
+        return nonzero_qnorm_parallel(mat, workers)
+
+
+def nonzero_qnorm_sequential(mat):
+    """
     :param mat:
     :return:
     """
@@ -39,29 +62,75 @@ def nonzero_qnorm(mat):
     return norm_mat
 
 
-def quant_norm(*args):
-    """ Perform quantile normalization as proposed by Bolstad et al.
-    Since the handling of ties during the ranking is not specified in the original paper,
-    this method uses dense ranking (rank always increases by 1 between groups)
-    Hence, the result of this function is slightly different to, e.g., the R function
-    normalize.quantiles from the preprocessCore package
-
-    :param args: arbitrary number of numpy arrays with dtype float64
-    :return: quantile normalized arrays, same number as input
+def _rank_sort_matrix(params):
     """
-    ranks = list()
-    for arg in args:
-        rk = stats.rankdata(arg, method='dense')
-        ranks.append(rk)
-        arg.sort()
-    col_stat = np.mean([arg for arg in args], axis=0, dtype='float64')
-    col_stat = np.unique(col_stat)
-    col_ranks = stats.rankdata(col_stat, method='dense')
-    for idx, rarr in enumerate(ranks):
-        indices = np.digitize(rarr, col_ranks, right=True)
-        rarr = col_stat[indices]
-        ranks[idx] = rarr
-    return ranks
+    :param params:
+    :return:
+    """
+    global _shm_input_matrix
+    global _shm_rank_matrix
+    row_idx, num_cols = params
+    start, end = row_idx * num_cols, row_idx * num_cols + num_cols
+    _shm_rank_matrix[start:end] = stats.rankdata(_shm_input_matrix[start:end], method='dense')
+    _shm_input_matrix[start:end] = np.sort(_shm_input_matrix[start:end])
+    return
+
+
+def _mean_replace_matrix(params):
+    """
+    :param params:
+    :return:
+    """
+    row_idx, num_cols, ranks, means = params
+    global _shm_rank_matrix
+    start, end = row_idx * num_cols, row_idx * num_cols + num_cols
+    indices = np.digitize(_shm_rank_matrix[start:end], ranks, right=True)
+    _shm_rank_matrix[start:end] = means[indices]
+    return
+
+
+def nonzero_qnorm_parallel(mat, workers):
+    """ Current issues: multiprocessing.Array is just a wrapper around
+    the Python Array module, not around numpy array (quite logically so, actually...).
+    It follows that multidimensional arrays are not supported.
+    All the copying and reshaping here consumes more
+    memory and make the code slower than the sequential version. In order
+    to avoid that, need to rewrite rest of the code or get the numpy.ctypeslib
+    to work (currently throws an error about strided arrays not being supported)
+
+    :param mat:
+    :param workers:
+    :return:
+    """
+    raise RuntimeError('Abort: parallel version of q-norm too inefficient to be used')
+    global _shm_input_matrix
+    global _shm_rank_matrix
+    add_zero_columns = False
+    num_rows = mat.shape[0]
+    col_idx = mat.sum(axis=0) > 0
+    if np.sum(col_idx) != mat.shape[1]:
+        # at least one all-zero column
+        add_zero_columns = True
+        mat = mat[:, col_idx]
+        value_cols = mat.shape[1]
+    else:
+        value_cols = mat.shape[1]
+    num_items = num_rows * value_cols
+    _shm_input_matrix = mp.Array('d', num_items, lock=False)
+    _shm_input_matrix[:] = mat.ravel()
+    _shm_rank_matrix = mp.Array('d', num_items, lock=False)
+    with mp.Pool(workers) as pool:
+        _ = pool.map(_rank_sort_matrix, [(idx, value_cols) for idx in range(num_rows)])
+        col_means = np.unique(np.array(_shm_input_matrix[:]).reshape(num_rows, value_cols).mean(axis=0))
+        mean_ranks = stats.rankdata(col_means, method='dense')
+        _ = pool.map(_mean_replace_matrix, [(idx, value_cols, mean_ranks, col_means) for idx in range(num_rows)])
+    if add_zero_columns:
+        add_zeros = np.zeros((num_rows, col_idx.size))
+        col_indices = np.arange(col_idx.size)[col_idx]
+        add_zeros[:, col_indices] = np.array(_shm_rank_matrix[:]).reshape(num_rows, value_cols)
+        return add_zeros
+    else:
+        return np.array(_shm_rank_matrix[:]).reshape(num_rows, value_cols)
 
 
 def merge_1d_datasets(*args, mergestat, qnorm):
@@ -71,10 +140,21 @@ def merge_1d_datasets(*args, mergestat, qnorm):
     :param qnorm:
     :return:
     """
+    ncols = len(args[0])
+    data_matrix = np.array([arg for arg in args], dtype=args[0].dtype)
+    mat_rows = data_matrix.shape[0]
+    mat_cols = data_matrix.shape[1]
+    assert mat_cols == ncols,\
+        'Building data matrix from samples failed: {} resulted in {}'.format(ncols, data_matrix.shape)
+    # I guess the following should generally be the case for real datasets...
+    assert mat_rows < mat_cols,\
+        'Data matrix has more columns (genes) than rows (samples): {}'.format(data_matrix.shape)
+    # if the merge statistic is mean, than running q-norm first is unnecessary
+    # maybe, this should be checked here
     if qnorm:
-        args = quant_norm(*args)
+        data_matrix = nonzero_qnorm(data_matrix)
     mergers = {'mean': np.mean, 'median': np.median, 'max': np.max, 'min': np.min}
-    col_mrg = mergers[mergestat]([arg for arg in args], axis=0)
+    col_mrg = mergers[mergestat](data_matrix, axis=0)
     return col_mrg
 
 

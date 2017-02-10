@@ -28,6 +28,7 @@ def add_sub_parsers(main_parser):
     subparsers = _add_match_command(subparsers)
     subparsers = _add_merge_command(subparsers)
     subparsers = _add_eval_command(subparsers)
+    subparsers = _add_norm_command(subparsers)
     return main_parser
 
 
@@ -221,6 +222,46 @@ def _convert_execute(args):
     """
     convert = implib.import_module('crplib.commands.convert')
     retval = convert.run_conversion(args)
+    return retval
+
+
+def _add_norm_command(subparsers):
+    """
+    :param subparsers:
+    :return:
+    """
+    parser_norm = subparsers.add_parser('norm',
+                                        help='Perform quantile normalization',
+                                        description='...to be updated...')
+    parser_norm.add_argument(*multi_input['args'], **multi_input['kwargs'])
+    parser_norm.add_argument('--output-dir', '-od', type=str, dest='outdir', default='as_input',
+                             help='Specify output directory for all files or "as_input"'
+                                  ' to put normalized files next to the originals.'
+                                  ' Default: as_input')
+    parser_norm.add_argument('--replace', '-rep', type=str, dest='replace', default='.h5',
+                             help='Specify what to replace in the old filename to create the'
+                                  ' new one. Default: .h5')
+    parser_norm.add_argument('--suffix', '-suf', type=str, dest='suffix', default='.norm.h5',
+                             help='Specify the new suffix, i.e., the string that should replace'
+                                  ' the part of the old filename specified above.'
+                                  ' Default: .norm.h5')
+    parser_norm.add_argument('--sym-link', '-sym', action='store_true', default=False, dest='symlink',
+                             help='If normalization is run in batch mode on a diverse dataset, create a'
+                                  ' symbolic link (using the derived output filename) for samples'
+                                  ' w/o replicates that would otherwise not give a new output and thus,'
+                                  ' potentially, lead to failed runs in the workflow. Default: False')
+    parser_norm.add_argument(*output_group['args'], **output_group['kwargs'])
+    parser_norm.set_defaults(execute=_norm_execute)
+    return subparsers
+
+
+def _norm_execute(args):
+    """
+    :param args:
+    :return:
+    """
+    norm = implib.import_module('crplib.commands.norm')
+    retval = norm.run_normalization(args)
     return retval
 
 
