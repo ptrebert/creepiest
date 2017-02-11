@@ -86,7 +86,7 @@ def load_ml_dataset(fpath, groups, modelfeat, args, logger):
     :param logger:
     :return:
     """
-    trgname, wtname = None, None
+    trgname, wtname, usedtype = None, None, 'n/a'
     dataset_info = dict()
     with pd.HDFStore(fpath, 'r') as hdf:
         if isinstance(groups, (list, tuple)):
@@ -191,6 +191,16 @@ def augment_with_target(data, trgname, expr):
     """
     if trgname:
         assert trgname in data.columns, 'Supplied name of target variable {} is not a column name'.format(trgname)
+        trg_dtype = data[trgname].values.dtype
+        if np.issubdtype(bool, trg_dtype):
+            usedtype = 'bool/int8'
+        elif np.issubdtype(float, trg_dtype):
+            usedtype = 'float/float64'
+        elif np.issubdtype(int, trg_dtype):
+            usedtype = 'int/int64'
+        else:
+            raise TypeError(
+                'Cannot infer type ({}) of derived target (expr.: {})'.format(data.target.values.dtype, expr))
     else:
         assert 'data' in expr, 'Could not find "data" keyword in expression to evaluate: {}'.format(expr)
         data = data.assign(target=pd.eval(expr.strip('"')))
