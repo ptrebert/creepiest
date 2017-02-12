@@ -5,6 +5,7 @@ Command to train models on predefined training datasets
 """
 
 import os as os
+import io as io
 import json as json
 import numpy as np
 import pickle as pck
@@ -57,23 +58,31 @@ def train_gridcv(model, params, traindata, outputs, folds, njobs, sampleweights)
 def simplify_cv_scores(cvfolds):
     """
     :param cvfolds:
-     :type: list of sklearn.grid_search._CVScoreTuple
     :return:
-     :rtype: list of dict
     """
-    grid = []
-    for index, entry in enumerate(cvfolds):
-        this_comb = {'grid_index': index}
-        values = np.array(entry.cv_validation_scores)
-        mean = np.mean(values)
-        std = np.std(values)
-        min_score = np.min(values)
-        max_score = np.max(values)
-        this_comb['scores'] = {'mean': mean, 'std': std,
-                               'max': max_score, 'min': min_score}
-        this_comb['params'] = entry.parameters
-        grid.append(this_comb)
-    return grid
+    normalized = dict()
+    for key, entries in cvfolds.items():
+        if key.startswith('param_'):
+            continue
+        elif key == 'params':
+            params = []
+            for idx, pdict in enumerate(entries):
+                for k, v in pdict.items():
+                    pdict[k] = int(v)  # note that this transforms True/False to 1/0
+                pdict['index'] = idx
+                params.append(pdict)
+            normalized['params'] = params
+        else:
+            test_item = entries[0]
+            if np.issubdtype(bool, test_item):
+                normalized[key] = [bool(i) for i in entries]
+            elif np.issubdtype(float, test_item):
+                normalized[key] = [float(i) for i in entries]
+            elif np.issubdtype(int, test_item):
+                normalized[key] = [int(i) for i in entries]
+            else:
+                raise TypeError('Cannot JSON normalize item {} of type {}'.format(test_item, type(test_item)))
+    return normalized
 
 
 def calc_sample_weights(model, traindata, outputs, names, k):
@@ -128,8 +137,9 @@ def run_train_model(args):
         run_metadata['model_info']['params'] = tune_info.best_params_
         run_metadata['model_info']['tuned'] = True
         run_metadata['training_info'] = dict()
-        run_metadata['training_info']['cv_scores'] = simplify_cv_scores(tune_info.grid_scores_)
+        run_metadata['training_info']['cv_scores'] = simplify_cv_scores(tune_info.cv_results_)
         run_metadata['training_info']['best_score'] = tune_info.best_score_
+        run_metadata['training_info']['best_index'] = int(tune_info.best_index_)
         run_metadata['training_info']['scoring'] = params['scoring']
     run_metadata['model_info']['name'] = model_spec['model_name']
     run_metadata['model_info']['type'] = model_spec['model_type']
