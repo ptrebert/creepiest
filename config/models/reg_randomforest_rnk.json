@@ -7,21 +7,22 @@
 "oob_score_"
 ],
 "default": {
-"n_estimators": 50,
+"n_estimators": 100,
 "bootstrap": true,
 "oob_score": true
 },
 "cvtune": {
-"scoring": "r2_score",
+"scoring": "kendall_tau",
 "min_samples_split": [
 2,
 6,
 11
 ],
 "n_estimators": [
-50,
 100,
-200
+200,
+400,
+600
 ],
 "bootstrap": [true],
 "oob_score": [true]

@@ -5,12 +5,24 @@ import json as json
 import importlib as imp
 import pickle as pck
 import numpy as np
+import functools as fnt
 
 import pandas as pd
 import sklearn.metrics as sklmet
+import scipy.stats as stats
 
 from crplib.auxiliary.text_parsers import text_file_mode
 from crplib.mlfeat.featdef import get_prefix_list, get_classes_from_names
+
+
+def kendall_tau_scorer(x, y):
+    """
+    :param x:
+    :param y:
+    :return:
+    """
+    statistic, p_value = stats.kendalltau(x, y, nan_policy='raise')
+    return statistic
 
 
 def get_scorer(name, smpwt=None):
@@ -32,6 +44,8 @@ def get_scorer(name, smpwt=None):
         scorer = sklmet.make_scorer(sklmet.mean_squared_error, sample_weight=smpwt, greater_is_better=False)
     elif name == 'r2_score' or name == 'r2':
         scorer = sklmet.make_scorer(sklmet.r2_score, sample_weight=smpwt, multioutput='uniform_average')
+    elif name == 'kendall_tau' or 'kendall_tau_score':
+        scorer = sklmet.make_scorer(kendall_tau_scorer, greater_is_better=True)
     else:
         try:
             scorer = sklmet.make_scorer(getattr(sklmet, name), sample_weight=smpwt)
