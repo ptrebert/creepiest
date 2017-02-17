@@ -345,6 +345,10 @@ def _add_merge_command(subparsers):
     comgroup.add_argument('--add-values', '-val', type=str, nargs='*', default=[], dest='valfile')
     comgroup.add_argument('--from-column', '-col', type=str, nargs='*', default=[], dest='valcolumn')
 
+    comgroup = parser_apply.add_argument_group('Stack datasets vertically')
+    comgroup.add_argument('--just-stack', '-jst', action='store_true', default=False, dest='stack')
+    comgroup.add_argument('--add-indicator', '-ind', action='store_true', default=False, dest='indicator')
+
     parser_apply.set_defaults(execute=_merge_execute)
     return subparsers
 

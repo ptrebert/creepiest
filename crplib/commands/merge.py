@@ -149,6 +149,28 @@ def merge_extend_datasets(params):
     return chrom, chrom_data
 
 
+def stack_datasets(params):
+    """
+    :param params:
+    :return:
+    """
+    dsets = []
+    chrom = params['chrom']
+    for fp, grp, lab in zip(params['inputfile'],
+                            params['inputgroup'],
+                            params['inputlabel']):
+        data = load_data_group(fp, grp, chrom)
+        if params['indicator']:
+            data.insert(0, 'indicator', pd.Series([lab] * data.shape[0], dtype='object'))
+        dsets.append(data)
+    stacked = pd.concat(dsets, axis=0, ignore_index=True)
+    stacked = stacked.dropna(axis=1, how='any')
+    subset = [c for c in stacked.columns if c != 'indicator']
+    stacked = stacked.drop_duplicates(subset=subset, keep='first', inplace=False)
+    stacked = stacked.reset_index(drop=True)
+    return chrom, stacked
+
+
 def run_merge_datasets(args):
     """
     :param args:
@@ -175,7 +197,10 @@ def run_merge_datasets(args):
                 metadata = pd.DataFrame(columns=MD_REGION_COLDEFS)
             with mp.Pool(args.workers) as pool:
                 logger.debug('Initialized {} worker process(es)'.format(args.workers))
-                resit = pool.imap_unordered(merge_extend_datasets, arglist, chunksize=1)
+                if args.stack:
+                    resit = pool.imap_unordered(stack_datasets, arglist, chunksize=1)
+                else:
+                    resit = pool.imap_unordered(merge_extend_datasets, arglist, chunksize=1)
                 for chrom, dataobj in resit:
                     logger.debug('Received data for chromosome {}'.format(chrom))
                     grp, dataobj, metadata = region_generate(metadata, args.outputgroup, chrom, [args.inputfiles, args.valfile], dataobj)
