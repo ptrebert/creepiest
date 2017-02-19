@@ -109,55 +109,55 @@ def load_ml_dataset(fpath, groups, modelfeat, args, logger):
         else:
             dataset = hdf[groups]
             anygroup = groups
-        logger.debug('Raw dataset loaded')
-        dataset_info['rows'] = dataset.shape[0]
-        dataset_info['columns'] = dataset.shape[1]
-        if hasattr(args, 'task') and args.task == 'est':
-            pass
-        else:
-            logger.debug('Determining target variable for dataset')
-            dataset, trgname, usedtype = augment_with_target(dataset, args.targetvar, args.derivetarget)
-        datrows = dataset.shape[0]
-        datcols = dataset.shape[1]
-        assert datrows > 1, 'No samples (rows) remain in dataset after determining the target variable'
-        assert datcols > 1, 'No features (columns) remain in dataset after determining target variable' 
-        if hasattr(args, 'loadweights') and args.loadweights:
-            logger.debug('Loading sample weights from file')
-            dataset, wtname = augment_with_weights_file(dataset, args.loadweights)
-        dataset_info['subset'] = args.subset
-        logger.debug('Selecting subset of data (if applicable)')
-        dataset = select_dataset_subset(dataset, args.subset, args.crpmetadata)
-        datrows = dataset.shape[0]
-        datcols = dataset.shape[1]
-        assert datrows > 1, 'No samples (rows) remain in dataset after subset selection'
-        assert datcols > 1, 'No features (columns) remain in dataset after subset selection' 
-        if trgname is not None:
-            targets = dataset.loc[:, trgname].values
-            assert np.unique(targets).size >= 2, 'Less than 2 unique targets remain - maybe, you selected' \
-                                                 ' a pointless subset of the data, human?'
-            store_targets = targets.tolist()
-        else:
-            targets = None
-            store_targets = None
-        if wtname is not None:
-            weights = dataset.loc[:, wtname].values
-        else:
-            weights = None
-        sample_names = extract_sample_names(dataset)
-        if modelfeat is not None:
-            logger.debug('Selecting features based on model information')
-            predictors = dataset.loc[:, modelfeat]
-            assert predictors.shape[1] > 1, 'No features selected using model information: {}'.format(modelfeat)
-            feat_info = {'order': modelfeat}
-        else:
-            logger.debug('Extracting feature information')
-            feat_info = extract_feature_information(dataset.columns, hdf['metadata'], anygroup)
-            if hasattr(args, 'usefeatures') and args.usefeatures:
-                prefixes = get_prefix_list(args.usefeatures)
-                feat_info['order'] = list(filter(lambda x: any([x.startswith(p) for p in prefixes]), feat_info['order']))
-                feat_info['classes'] = args.usefeatures
-            predictors = dataset.loc[:, feat_info['order']]
-            assert predictors.shape[1] > 1, 'No features selected from dataset columns'
+    logger.debug('Raw dataset loaded')
+    dataset_info['rows'] = dataset.shape[0]
+    dataset_info['columns'] = dataset.shape[1]
+    if hasattr(args, 'task') and args.task == 'est':
+        pass
+    else:
+        logger.debug('Determining target variable for dataset')
+        dataset, trgname, usedtype = augment_with_target(dataset, args.targetvar, args.derivetarget)
+    datrows = dataset.shape[0]
+    datcols = dataset.shape[1]
+    assert datrows > 1, 'No samples (rows) remain in dataset after determining the target variable'
+    assert datcols > 1, 'No features (columns) remain in dataset after determining target variable'
+    if hasattr(args, 'loadweights') and args.loadweights:
+        logger.debug('Loading sample weights from file')
+        dataset, wtname = augment_with_weights_file(dataset, args.loadweights)
+    dataset_info['subset'] = args.subset
+    logger.debug('Selecting subset of data (if applicable)')
+    dataset = select_dataset_subset(dataset, args.subset, args.crpmetadata)
+    datrows = dataset.shape[0]
+    datcols = dataset.shape[1]
+    assert datrows > 1, 'No samples (rows) remain in dataset after subset selection'
+    assert datcols > 1, 'No features (columns) remain in dataset after subset selection'
+    if trgname is not None:
+        targets = dataset.loc[:, trgname].values
+        assert np.unique(targets).size >= 2, 'Less than 2 unique targets remain - maybe, you selected' \
+                                             ' a pointless subset of the data, human?'
+        store_targets = targets.tolist()
+    else:
+        targets = None
+        store_targets = None
+    if wtname is not None:
+        weights = dataset.loc[:, wtname].values
+    else:
+        weights = None
+    sample_names = extract_sample_names(dataset)
+    if modelfeat is not None:
+        logger.debug('Selecting features based on model information')
+        predictors = dataset.loc[:, modelfeat]
+        assert predictors.shape[1] > 1, 'No features selected using model information: {}'.format(modelfeat)
+        feat_info = {'order': modelfeat}
+    else:
+        logger.debug('Extracting feature information')
+        feat_info = extract_feature_information(dataset.columns, hdf['metadata'], anygroup)
+        if hasattr(args, 'usefeatures') and args.usefeatures:
+            prefixes = get_prefix_list(args.usefeatures)
+            feat_info['order'] = list(filter(lambda x: any([x.startswith(p) for p in prefixes]), feat_info['order']))
+            feat_info['classes'] = args.usefeatures
+        predictors = dataset.loc[:, feat_info['order']]
+        assert predictors.shape[1] > 1, 'No features selected from dataset columns'
     logger.debug('Assembling metadata')
     dataset_info['num_samples'] = predictors.shape[0]
     dataset_info['num_features'] = predictors.shape[1]
