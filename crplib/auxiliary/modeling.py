@@ -103,6 +103,7 @@ def load_ml_dataset(fpath, groups, modelfeat, args, logger):
     trgname, wtname, usedtype = None, None, 'n/a'
     dataset_info = dict()
     with pd.HDFStore(fpath, 'r') as hdf:
+        metadata = hdf['metadata']
         if isinstance(groups, (list, tuple)):
             dataset = pd.concat([hdf[grp] for grp in sorted(groups)], ignore_index=True)
             anygroup = groups[0]
@@ -151,7 +152,7 @@ def load_ml_dataset(fpath, groups, modelfeat, args, logger):
         feat_info = {'order': modelfeat}
     else:
         logger.debug('Extracting feature information')
-        feat_info = extract_feature_information(dataset.columns, hdf['metadata'], anygroup)
+        feat_info = extract_feature_information(dataset.columns, metadata, anygroup)
         if hasattr(args, 'usefeatures') and args.usefeatures:
             prefixes = get_prefix_list(args.usefeatures)
             feat_info['order'] = list(filter(lambda x: any([x.startswith(p) for p in prefixes]), feat_info['order']))
