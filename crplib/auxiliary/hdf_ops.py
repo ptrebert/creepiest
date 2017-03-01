@@ -58,9 +58,19 @@ def get_default_group(filepath):
             mdf = hdf['metadata']
         except KeyError:
             # no metadata in file, maybe it's left over from a failed run
-            return ''
-        for row in mdf.itertuples(index=False):
-            group_root.add(os.path.split(row.group)[0])
+            for group in hdf.keys():
+                pre, suf = os.path.split(group)
+                if pre == '/':
+                    group_root.add('/' + suf)
+                else:
+                    group_root.add(pre)
+        else:
+            for row in mdf.itertuples(index=False):
+                pre, suf = os.path.split(row.group)
+                if pre == '/':
+                    group_root.add('/' + suf)
+                else:
+                    group_root.add(pre)
     assert len(group_root) == 1,\
         'Cannot identify default group in file {} - several groups per chromosome: {}'.format(os.path.basename(filepath), group_root)
     return group_root.pop()
