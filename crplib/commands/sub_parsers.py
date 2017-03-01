@@ -344,6 +344,10 @@ def _add_merge_command(subparsers):
     comgroup.add_argument('--merge-on', '-mrg', type=str, default=['name'], nargs='+', dest='mergeon')
     comgroup.add_argument('--add-values', '-val', type=str, nargs='*', default=[], dest='valfile')
     comgroup.add_argument('--from-column', '-col', type=str, nargs='*', default=[], dest='valcolumn')
+    comgroup.add_argument('--is-superset', '-sup', action='store_true', default=False, dest='superset',
+                          help='The dataset to load the values from is the superset, i.e., the data is not'
+                               ' split by chromosome. Currently, this is only supported with a single'
+                               ' column name specified via "--merge-on".')
 
     comgroup = parser_apply.add_argument_group('Stack datasets vertically')
     comgroup.add_argument('--just-stack', '-jst', action='store_true', default=False, dest='stack')

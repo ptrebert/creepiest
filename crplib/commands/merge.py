@@ -119,7 +119,18 @@ def extend_datasets(dataset, params):
     select_cols = params['mergeon'] + params['valcolumn']
     for valfile, group, label in zip(params['valfile'], params['valgroup'], params['vallabel']):
         suffix_val = '_' + label if label else ''
-        data_val = load_data_group(valfile, group, chrom)
+        try:
+            data_val = load_data_group(valfile, group, chrom)
+        except KeyError as ke:
+            if params['superset']:
+                assert len(merge_cols) == 1, 'Only single column to merge on supported: {}'.format(merge_cols)
+                merge_name = merge_cols[0]
+                data_val = load_data_group(valfile, group)
+                subset_idx = data_val[merge_name].isin(dataset[merge_name])
+                subset = data_val.loc[subset_idx, :]
+                data_val = subset.copy()
+            else:
+                raise ke
         for colname in merge_cols:
             shape_a, shape_b = dataset[colname].shape, data_val[colname].shape
             assert shape_a == shape_b,\
