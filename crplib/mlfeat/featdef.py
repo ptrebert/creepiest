@@ -47,11 +47,15 @@ FEAT_DNASE_MEDPROB = 'ftdnm_abs_medprob'
 FEAT_DNASE_MAXPROB = 'ftdnm_abs_maxprob'
 FEAT_DNASE_MEDAD = 'ftdnm_abs_medad'
 
+# priors are not computed, but manually added to the training data
+FEAT_DERIVED = 'ftdrv'
+
 FEAT_PREFIX_MAP = {'len': [FEAT_LENGTH, FEAT_RELLENGTH], 'prm': [FEAT_COREPROM_PREFIX],
                    'gc': [FEAT_GC], 'cpg': [FEAT_CPG], 'oecpg': [FEAT_OECPG],
                    'rep': [FEAT_REPCONT], 'kmf': [FEAT_KMERFREQ_PREFIX], 'tfm': [FEAT_TFMOTIF_PREFIX],
                    'msig': [FEAT_MAPSIG_PREFIX], 'roi': [FEAT_ROI_PREFIX],
-                   'dnm': [FEAT_DNASE_MEDPROB, FEAT_DNASE_MAXPROB, FEAT_DNASE_MEDAD]}
+                   'dnm': [FEAT_DNASE_MEDPROB, FEAT_DNASE_MAXPROB, FEAT_DNASE_MEDAD],
+                   'drv': [FEAT_DERIVED]}
 
 FEAT_CLASS_MAP = dict()
 for ftclass, prefixes in FEAT_PREFIX_MAP.items():
