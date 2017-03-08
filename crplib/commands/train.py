@@ -141,13 +141,10 @@ def run_train_model(args):
         run_metadata['training_info']['best_score'] = tune_info.best_score_
         run_metadata['training_info']['best_index'] = int(tune_info.best_index_)
         run_metadata['training_info']['scoring'] = params['scoring']
-        class_order = list(map(int, model.classes_))
-        logger.debug('Getting true class probabilities for training samples')
-        y_prob = pd.DataFrame(model.predict_proba(traindata), columns=class_order)
-        true_class_prob = (y_prob.lookup(y_prob.index, targets)).tolist()
-        run_metadata['training_info']['true_class_prob'] = true_class_prob
     run_metadata['model_info']['name'] = model_spec['model_name']
     run_metadata['model_info']['type'] = model_spec['model_type']
+    if model_spec['model_type'] == 'classifier':
+        run_metadata['training_info']['class_order'] = list(map(int, model.classes_))
     logger.debug('Training finished')
     if 'store_attributes' in model_spec:
         logger.debug('Storing user requested model attributes')

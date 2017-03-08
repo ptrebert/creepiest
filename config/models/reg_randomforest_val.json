@@ -4,7 +4,8 @@
 "model_type": "regressor",
 "store_attributes": [
 "feature_importances_",
-"oob_score_"
+"oob_score_",
+"oob_prediction_"
 ],
 "default": {
 "n_estimators": 100,

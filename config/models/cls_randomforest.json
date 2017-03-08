@@ -4,7 +4,8 @@
 "model_type": "classifier",
 "store_attributes": [
 "feature_importances_",
-"oob_score_"
+"oob_score_",
+"oob_decision_function_"
 ],
 "default": {
 "n_estimators": 500,
