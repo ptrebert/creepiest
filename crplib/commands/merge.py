@@ -122,7 +122,8 @@ def extend_datasets(dataset, params):
         try:
             data_val = load_data_group(valfile, group, chrom)
         except KeyError as ke:
-            if params['superset']:
+            if params['wgdataset']:
+                # data come in form of whole-genome dataset, i.e., not split by chromosome
                 assert len(merge_cols) == 1, 'Only single column to merge on supported: {}'.format(merge_cols)
                 merge_name = merge_cols[0]
                 data_val = load_data_group(valfile, group)
@@ -133,13 +134,25 @@ def extend_datasets(dataset, params):
                 raise ke
         for colname in merge_cols:
             shape_a, shape_b = dataset[colname].shape, data_val[colname].shape
-            assert shape_a == shape_b,\
-                'Different number of data entries ({} vs {}) for column {}'.format(shape_a, shape_b, colname)
-            assert dataset[colname].isin(data_val[colname]).all(),\
-                'Some entries are not shared between dataset' \
-                ' and value file {} for column {}'.format(os.path.basename(valfile), colname)
+            try:
+                assert shape_a == shape_b,\
+                    'Different number of data entries ({} vs {}) for column: "{}"'.format(shape_a, shape_b, colname)
+                assert dataset[colname].isin(data_val[colname]).all(),\
+                    'Some entries are not shared between dataset' \
+                    ' and value file {} for column {}'.format(os.path.basename(valfile), colname)
+            except AssertionError as ae:
+                if params['ignoremissing']:
+                    pass
+                else:
+                    raise ae
         data_val = data_val[select_cols]
         dataset = dataset.merge(data_val, how='outer', on=merge_cols, suffixes=('', suffix_val))
+        all_rows = dataset.shape[0]
+        if params['ignoremissing']:
+            dataset = dataset.dropna(axis=0, how='any', inplace=False)
+            if dataset.isnull().any(axis=0).any():
+                assert dataset.shape[0] < all_rows, 'No rows dropped for chrom: {}'.format(chrom)
+            assert not dataset.empty, 'Dataset empty after dropping N/A rows'
     return dataset
 
 
