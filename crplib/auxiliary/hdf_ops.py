@@ -61,18 +61,19 @@ def get_default_group(filepath):
             for group in hdf.keys():
                 pre, suf = os.path.split(group)
                 if pre == '/':
-                    group_root.add('/' + suf)
+                    group_root.add('')
                 else:
                     group_root.add(pre)
         else:
             for row in mdf.itertuples(index=False):
                 pre, suf = os.path.split(row.group)
                 if pre == '/':
-                    group_root.add('/' + suf)
+                    group_root.add('')
                 else:
                     group_root.add(pre)
     assert len(group_root) == 1,\
-        'Cannot identify default group in file {} - several groups per chromosome: {}'.format(os.path.basename(filepath), group_root)
+        'Cannot identify default group in file {} - ' \
+        'several groups per chromosome: {}'.format(os.path.basename(filepath), sorted(group_root))
     return group_root.pop()
 
 
