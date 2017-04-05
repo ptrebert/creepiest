@@ -21,10 +21,10 @@
 16
 ],
 "n_estimators": [
-250,
 500,
 1000,
-2000
+2000,
+3000
 ],
 "bootstrap": [true],
 "oob_score": [true]
