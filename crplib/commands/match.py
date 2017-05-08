@@ -113,7 +113,7 @@ def find_background_regions(params):
             rec['index'] = i
         maxlen = int(maxlen / 2.)
         minlen = int(minlen / 2.)
-    fg = add_seq_regions(fg, params['seqfile'], params['chrom'])
+    fg = add_seq_regions(fg, params['twobitgenome'], params['chrom'])
     compfeat = get_online_version(params['features'], params['kmers'], yardstick)
     fg = map(compfeat, fg)
     fg = sorted(fg, key=lambda d: d['index'])
@@ -121,7 +121,7 @@ def find_background_regions(params):
     getvals = op.itemgetter(*tuple(featnames))
     featmatrix = np.array([list(getvals(d)) for d in fg], dtype=np.float64)
     kdtree = spat.KDTree(featmatrix)
-    chromseq = get_twobit_seq(params['seqfile'], params['chrom'])
+    chromseq = get_twobit_seq(params['twobitgenome'], params['chrom'])
     mask = np.zeros(len(chromseq), dtype=np.bool)
     for rec in fg:
         mask[rec['start']:rec['end']] = 1
@@ -140,7 +140,7 @@ def assemble_worker_params(args):
     """
     commons = dict()
     commons['inputfile'] = args.inputfile
-    commons['seqfile'] = args.seqfile
+    commons['twobitgenome'] = args.twobitgenome
     commons['features'] = args.features
     commons['kmers'] = args.kmers
     commons['timeout'] = args.timeout
@@ -154,8 +154,13 @@ def assemble_worker_params(args):
         tmp = dict(commons)
         _, chrom = os.path.split(ig)
         tmp['chrom'] = chrom
-        tmp['group_fg'] = ig
-        tmp['group_bg'] = os.path.join(args.outputgroup, chrom)
+        fg_grp = ig
+        bg_grp = os.path.join(args.outputgroup, chrom)
+        assert fg_grp.strip('/') != bg_grp.strip('/'), 'Foreground and background groups identical: {} and {}\n' \
+                                                       'Please specify a different output group'.format(fg_grp, bg_grp)
+
+        tmp['group_fg'] = fg_grp
+        tmp['group_bg'] = bg_grp
         arglist.append(tmp)
     return arglist
 
@@ -189,7 +194,7 @@ def run_background_match(args):
         raise AssertionError('Too many features for nearest neighbor search.')
     arglist = assemble_worker_params(args)
     logger.debug('Compiled argument list of size {} to process'.format(len(arglist)))
-    with pd.HDFStore(args.outputfile, 'w', complib='blosc', complevel=9) as hdfout:
+    with pd.HDFStore(args.outputfile, args.filemode, complib='blosc', complevel=9) as hdfout:
         logger.debug('Initializing worker pool of size {}'.format(args.workers))
         if 'metadata' in hdfout:
             metadata = hdfout['metadata']
