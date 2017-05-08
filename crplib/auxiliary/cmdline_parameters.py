@@ -53,7 +53,7 @@ hdf_mapfile = {'args': ('--map-file', '-map'),
                                     '/long/path/to/file.map.h5'}}
 
 twobit_genome = {'args': ('--2bit-genome', '-2bg'),
-                 'kwargs': {'dest': '2bitgenome', 'type': str,
+                 'kwargs': {'dest': 'twobitgenome', 'type': str,
                             'help': 'Specify full path to 2bit genome file, e.g., '
                                     '/long/path/to/genome_file.2bit'}}
 
