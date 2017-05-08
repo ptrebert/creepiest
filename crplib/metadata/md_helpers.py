@@ -56,9 +56,9 @@ def flaterator(iterable):
     """
     buffer = []
     if isinstance(iterable, str):
-        return iterable
+        buffer.append(iterable)
     elif not hasattr(iterable, '__iter__'):
-        return iterable
+        buffer.append(iterable)
     else:
         for thing in iterable:
             if isinstance(thing, str):
