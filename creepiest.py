@@ -60,7 +60,7 @@ def build_main_parser(stdincfg):
         args, remain_args = conf_parser.parse_known_args()
     main_parser = argp.ArgumentParser(add_help=True, parents=[conf_parser], description=prog_desc,
                                       formatter_class=argp.RawDescriptionHelpFormatter, allow_abbrev=False)
-    generics = main_parser.add_argument_group('General')
+    generics = main_parser.add_argument_group('CREEPIEST runtime parameter')
     generics.add_argument('--version', '-v', action='version', version=__version__,
                           help='Print version information and exit')
     generics.add_argument('--verbose', '-vb', action='store_true', default=False, dest='verbose',
