@@ -597,9 +597,14 @@ def _add_match_command(subparsers):
                                                      ' the input regions) for similar regions. A common usecase is'
                                                      ' the search for a set of background regions closely matching'
                                                      ' the set of input (foreground) regions.')
-    comgroup = parser_match.add_argument_group('Parameters for background search')
-    comgroup.add_argument('--seq-file', '-seq', type=str, required=True, dest='seqfile',
-                          help='Full path to genomic sequence file in 2bit format.')
+    comgroup = parser_match.add_argument_group('Module I/O parameter')
+    comgroup.add_argument(*single_input['args'], **single_input['kwargs'])
+    comgroup.add_argument(*input_group['args'], **input_group['kwargs'])
+    comgroup.add_argument(*single_hdfout['args'], **single_hdfout['kwargs'])
+    comgroup.add_argument(*output_group['args'], **output_group['kwargs'])
+    comgroup.add_argument(*twobit_genome['args'], **twobit_genome['kwargs'])
+
+    comgroup = parser_match.add_argument_group('Module runtime parameter')
     comgroup.add_argument('--features', '-ft', type=str, nargs='+', default=['len', 'gc', 'rep'], dest='features')
     comgroup.add_argument('--kmers', '-km', type=int, nargs='+', default=[], dest='kmers')
     comgroup.add_argument('--timeout', '-to', type=int, default=10, dest='timeout',
@@ -614,14 +619,6 @@ def _add_match_command(subparsers):
                           help='Increment relaxation after each iteration by this value: Default: 0.5')
     comgroup.add_argument('--relax-limit', '-rl', type=float, default=3.0, dest='relaxlimit',
                           help='Maximum allowed relaxation, reset to initial value for next iteration. Default: 3.0')
-    comgroup.add_argument('--input', '-i', type=str, required=True, dest='inputfile',
-                          help='Full path to input file in HDF5 format.')
-    comgroup.add_argument('--input-group', '-ig', type=str, default='', dest='inputgroup',
-                          help='Group root path for input. Default: <empty>')
-    comgroup.add_argument('--output', '-o', type=str, required=True, dest='outputfile',
-                          help='Full path to output file in HDF5 format.')
-    comgroup.add_argument('--output-group', '-og', type=str, default='', dest='outputgroup',
-                          help='Group root path for output. Default: <empty>')
     parser_match.set_defaults(execute=_match_execute)
     return subparsers
 
