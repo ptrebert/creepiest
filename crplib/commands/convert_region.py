@@ -148,10 +148,18 @@ def process_regions(params):
 
     opn, mode = text_file_mode(fpath)
     with opn(fpath, mode=mode, encoding='ascii') as infile:
-        regions = pd.read_csv(infile, sep=params['delimiter'], names=params['colnames'],
-                              index_col=False, dtype=datatypes, header=0,
-                              skipinitialspace=True, skiprows=params['skip'], skip_blank_lines=True,
-                              encoding='utf-8', comment=None, usecols=params['colnames'])
+        if params['useheader']:
+            # in Pandas docs:
+            # "Explicitly pass header=0 to be able to replace existing names"
+            regions = pd.read_csv(infile, sep=params['delimiter'], names=params['colnames'],
+                                  index_col=False, dtype=datatypes, header=0,
+                                  skipinitialspace=True, skiprows=params['skip'], skip_blank_lines=True,
+                                  encoding='utf-8', comment=None, usecols=params['colnames'])
+        else:
+            regions = pd.read_csv(infile, sep=params['delimiter'], names=params['colnames'],
+                                  index_col=False, dtype=datatypes, header=None,
+                                  skipinitialspace=True, skiprows=params['skip'], skip_blank_lines=True,
+                                  encoding='utf-8', comment=None, usecols=params['colnames'])
     chroms_in_file = regions.chrom.drop_duplicates().tolist()
     remove_chroms = set(filter(lambda x: chr_match.match(x) is None, chroms_in_file))
     drop_columns = ['filter_for_chrom']
