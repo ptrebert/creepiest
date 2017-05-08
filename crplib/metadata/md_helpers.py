@@ -55,13 +55,18 @@ def flaterator(iterable):
     :return:
     """
     buffer = []
-    for thing in iterable:
-        if isinstance(thing, str):
-            yield thing
-        elif not hasattr(thing, '__iter__'):
-            yield thing
-        else:
-            buffer.extend(list(flaterator(thing)))
+    if isinstance(iterable, str):
+        return iterable
+    elif not hasattr(iterable, '__iter__'):
+        return iterable
+    else:
+        for thing in iterable:
+            if isinstance(thing, str):
+                yield thing
+            elif not hasattr(thing, '__iter__'):
+                yield thing
+            else:
+                buffer.extend(list(flaterator(thing)))
     for item in buffer:
         yield item
     return
