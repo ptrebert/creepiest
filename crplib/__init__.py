@@ -11,8 +11,8 @@ __description__ = """        The CREEPIEST tool
 [CRoss-spEcies EPIgenome ESTimation]
 ------------------------------------
 
-The CREEPIEST tool report errors always on stderr.
-If the verbose switch is set, status messages will print to stderr.
+The CREEPIEST tool reports errors always on stderr.
+If the verbose/debug switch is set, status messages will print to stderr.
 
 For basic usage information, run:
 ./creepiest <subcommand> --help
