@@ -34,11 +34,14 @@ def get_feature_selector(region):
     return feat, len(feat)
 
 
-def start_relaxed_search(nntree, chromseq, mask, compfeat, featselect, limits, params):
+def start_relaxed_search(nntree, idxmap, chromseq, mask, compfeat, featselect, limits, params):
     """
     :param nntree:
+    :param idxmap: mapping between DataFrame indices and row indices of array in nn-tree
     :param chromseq:
+    :param mask:
     :param compfeat:
+    :param featselect:
     :param limits:
     :param params:
     :return:
@@ -75,16 +78,16 @@ def start_relaxed_search(nntree, chromseq, mask, compfeat, featselect, limits, p
                     if dist <= relax and index not in found:
                         found.add(index)
                         mask[s:e] = 1
-                        cand['index'] = index
-                        cand['name'] = 'match_' + chrom + '_idx' + str(index)
+                        cand['index'] = idxmap[index]
+                        cand['name'] = 'match_' + chrom + '_idx' + str(idxmap[index])
                         matched.append(cand)
                         break
             else:
                 if neighbors[0] <= relax and neighbors[1] not in found:
                     found.add(neighbors[1])
                     mask[s:e] = 1
-                    cand['index'] = neighbors[1]
-                    cand['name'] = 'match_' + chrom + '_idx' + str(neighbors[1])
+                    cand['index'] = idxmap[neighbors[1]]
+                    cand['name'] = 'match_' + chrom + '_idx' + str(idxmap[neighbors[1]])
                     matched.append(cand)
         knn += 1
         relax += params['relax_step']
@@ -107,19 +110,21 @@ def find_background_regions(params):
         maxlen = (fg.end - fg.start).max()
         yardstick = int(maxlen * mult_hi)
         minlen = (fg.end - fg.start).min() * mult_lo
-        idx = fg.index
+        fg['index'] = fg.index.tolist()
         fg = fg.to_dict(orient='record')
-        for i, rec in zip(idx, fg):
-            rec['index'] = i
         maxlen = int(maxlen / 2.)
         minlen = int(minlen / 2.)
     fg = add_seq_regions(fg, params['twobitgenome'], params['chrom'])
     compfeat = get_online_version(params['features'], params['kmers'], yardstick)
     fg = map(compfeat, fg)
+    # sort foreground regions according to DataFrame index
     fg = sorted(fg, key=lambda d: d['index'])
+    # now, create index map between array rows and DataFrame index
+    idx_map = dict((arr_idx, d['index']) for arr_idx, d in enumerate(fg))
     featnames, numfeat = get_feature_selector(fg[0])
     getvals = op.itemgetter(*tuple(featnames))
     featmatrix = np.array([list(getvals(d)) for d in fg], dtype=np.float64)
+    assert featmatrix.shape[0] == len(fg), 'Lost foreground entries: {} vs {}'.format(len(fg), featmatrix.shape[0])
     kdtree = spat.KDTree(featmatrix)
     chromseq = get_twobit_seq(params['twobitgenome'], params['chrom'])
     mask = np.zeros(len(chromseq), dtype=np.bool)
@@ -127,7 +132,7 @@ def find_background_regions(params):
         mask[rec['start']:rec['end']] = 1
     mask[0:CHROMOSOME_BOUNDARY] = 1
     limits = minlen, maxlen, len(fg)
-    matched = start_relaxed_search(kdtree, chromseq, mask, compfeat, getvals, limits, params)
+    matched = start_relaxed_search(kdtree, idx_map, chromseq, mask, compfeat, getvals, limits, params)
     if not matched and not params['allownomatch']:
         raise AssertionError('No matches found for file {} / group {} (query size: {})'.format(params['inputfile'], params['group_fg'], len(fg)))
     return params['chrom'], fg, params['group_fg'], matched, params['group_bg']
@@ -208,13 +213,19 @@ def run_background_match(args):
                 if not bgreg:
                     logger.debug('No matches for group {}, discarding input set'.format(fgreg))
                     continue
-                df_fg = regions_to_dataframe(fgreg)
-                grp, df_fg, metadata = gen_obj_and_md(metadata, fggrp, chrom, os.path.basename(args.inputfile), df_fg)
-                hdfout.put(grp, df_fg, format='fixed')
-                hdfout.flush()
                 df_bg = regions_to_dataframe(bgreg)
                 grp, df_bg, metadata = gen_obj_and_md(metadata, bggrp, chrom, os.path.basename(args.inputfile), df_bg)
                 hdfout.put(grp, df_bg, format='fixed')
+                hdfout.flush()
+                df_fg = regions_to_dataframe(fgreg)
+                if args.savepairs:
+                    select_indices = df_bg.index
+                    logger.debug('Saving only matched pairs: {}'.format(select_indices.size))
+                    df_fg = df_fg.loc[select_indices, :].copy()
+                    assert df_fg.shape[0] == df_bg.shape[0], 'Subsetting foreground regions failed. Should be {}' \
+                                                             ' - Is {}'.format(df_bg.shape[0], df_fg.shape[0])
+                grp, df_fg, metadata = gen_obj_and_md(metadata, fggrp, chrom, os.path.basename(args.inputfile), df_fg)
+                hdfout.put(grp, df_fg, format='fixed')
                 hdfout.flush()
                 logger.debug('Saved matched regions')
             hdfout.put('/metadata', metadata, format='table')
