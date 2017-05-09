@@ -90,23 +90,36 @@ def _add_dump_command(subparsers):
     parser_dump = subparsers.add_parser('dump',
                                         help='Dump data from HDF file to (compressed) text',
                                         description='...to be updated...')
-    comgroup = parser_dump.add_argument_group('General parameters')
+    comgroup = parser_dump.add_argument_group('Module I/O parameter')
     comgroup.add_argument(*single_input['args'], **single_input['kwargs'])
     comgroup.add_argument(*input_group['args'], **input_group['kwargs'])
     comgroup.add_argument(*single_output['args'], **single_output['kwargs'])
 
-    comgroup = parser_dump.add_argument_group('Map index parameters')
+    comgroup = parser_dump.add_argument_group('Module runtime parameter: map index')
     comgroup.add_argument(*map_reference['args'], **map_reference['kwargs'])
     comgroup.add_argument('--full-blocks', '-fb', action='store_true', default=False, dest='fullblocks',
                           help='Dump full blocks, i.e., blocks contain info about both target and query assembly.')
 
-    comgroup = parser_dump.add_argument_group('Signal parameters')
+    comgroup = parser_dump.add_argument_group('Module runtime parameter: signal track')
     comgroup.add_argument('--skip-ends', '-ske', type=int, default=0, dest='skipends',
-                          help='Skip this number of bases at the beginning/end of each chromosome.')
+                          help='Skip this number of bases at the beginning/end of each chromosome. Default: 0')
     comgroup.add_argument('--resolution', '-res', type=int, default=1, dest='resolution',
-                          help='Summarize the signal value over bins of this size and dump those.')
+                          help='Summarize the signal value over bins of this size and dump those. Default: 1bp')
     comgroup.add_argument('--statistic', '-stat', type=str, choices=['mean', 'max', 'min', 'sum', 'median', 'product'],
-                          dest='summstat', help='Use this function to summarize the signal values.')
+                          dest='summstat', default='mean',
+                          help='Use this function to summarize the signal values. Default: mean')
+
+    comgroup = parser_dump.add_argument_group('Module runtime parameter: region file')
+    comgroup.add_argument('--delimiter', '-delim', type=str, default="\t", dest='delimiter',
+                          help='Column delimiter enclosed in double quotes. Default: "\t"')
+    comgroup.add_argument('--comment-header', '-cmh', action='store_true', default=False, dest='commentheader',
+                          help='If set, first character of header row will be set to "#". Default: False')
+    comgroup.add_argument('--no-header', '-noh', action='store_true', default=False, dest='noheader',
+                          help='Output just data and no header line. Default: False')
+    comgroup.add_argument('--R-table', '-rtab', action='store_true', default=False, dest='rtable',
+                          help='Print the row indices as first column w/o header to make R import straightforward.'
+                               ' Default: False')
+
     parser_dump.set_defaults(execute=_dump_execute)
     return subparsers
 
@@ -619,6 +632,9 @@ def _add_match_command(subparsers):
                           help='Increment relaxation after each iteration by this value: Default: 0.5')
     comgroup.add_argument('--relax-limit', '-rl', type=float, default=3.0, dest='relaxlimit',
                           help='Maximum allowed relaxation, reset to initial value for next iteration. Default: 3.0')
+    comgroup.add_argument('--save-pairs', '-sp', action='store_true', default=False, dest='savepairs',
+                          help='Save only pairs of matched foreground - background regions instead'
+                               ' of all foreground plus matched background regions. Default: False')
     parser_match.set_defaults(execute=_match_execute)
     return subparsers
 
