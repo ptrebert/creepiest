@@ -4,7 +4,7 @@ The CRoss spEcies EPIgenome ESTimation tool
 
 ## Code maturity
 
-Stable beta
+Stable beta :worried:
 
 ## Installation
 
