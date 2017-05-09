@@ -12,6 +12,9 @@ import collections as col
 
 from crplib.auxiliary.file_ops import text_file_mode
 from crplib.auxiliary.text_parsers import get_chain_iterator, chromsize_from_chain
+from crplib.metadata.md_featdata import MD_FEATDATA_COLDEFS
+from crplib.metadata.md_regions import MD_REGION_COLDEFS
+from crplib.metadata.md_signal import MD_SIGNAL_COLDEFS
 
 from crplib.auxiliary.constants import MAPIDX_MASK, MAPIDX_SPLITS,\
     MAPIDX_SELECT, MAPIDX_ORDER, MAPIDX_BLOCKS
@@ -249,3 +252,30 @@ def extract_chromsizes_from_map(mapfile, which, select):
                                                                                         which,
                                                                                         select)
     return chromosomes
+
+
+def determine_crp_filetype(fpath):
+    """ Heuristically try to determine HDF datatype based on metadata record
+    :param fpath:
+    :return:
+    """
+    datatype = None
+    with pd.HDFStore(fpath, 'r') as hdf:
+        try:
+            md = hdf['metadata']
+        except KeyError:
+            raise RuntimeError('Could not detect metadata in file {} to determine its type.\n'
+                               'Two plausible reasons:\n'
+                               '1) this file has been corrupted and does not contain a valid metadata record.\n'
+                               '2) this file has not been created with the CREEPIEST tool.'.format(fpath))
+        else:
+            col_defs = sorted(md.columns)
+            if col_defs == sorted(MD_SIGNAL_COLDEFS):
+                datatype = 'signal'
+            elif col_defs == sorted(MD_REGION_COLDEFS):
+                datatype = 'regions'
+            elif col_defs == sorted(MD_FEATDATA_COLDEFS):
+                datatype = 'features'
+            else:
+                pass
+    return datatype
