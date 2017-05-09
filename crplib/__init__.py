@@ -1,6 +1,6 @@
 # coding=utf-8
 
-__version__ = '0.4.0'
+__version__ = '0.5.0'
 __default_log_long__ = '%(asctime)s [%(levelname)s-%(name)s]: %(module)s::%(funcName)s | %(message)s | %(lineno)d'
 __default_log_short__ = '%(asctime)s: %(module)s::%(funcName)s | %(message)s'
 __author__ = 'Peter Ebert'
