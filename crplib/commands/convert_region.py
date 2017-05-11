@@ -154,12 +154,14 @@ def process_regions(params):
             regions = pd.read_csv(infile, sep=params['delimiter'], names=params['colnames'],
                                   index_col=False, dtype=datatypes, header=0,
                                   skipinitialspace=True, skiprows=params['skip'], skip_blank_lines=True,
-                                  encoding='utf-8', comment=None, usecols=params['colnames'])
+                                  encoding='utf-8', comment=None, usecols=params['colnames'],
+                                  low_memory=False)
         else:
             regions = pd.read_csv(infile, sep=params['delimiter'], names=params['colnames'],
                                   index_col=False, dtype=datatypes, header=None,
                                   skipinitialspace=True, skiprows=params['skip'], skip_blank_lines=True,
-                                  encoding='utf-8', comment=None, usecols=params['colnames'])
+                                  encoding='utf-8', comment=None, usecols=params['colnames'],
+                                  low_memory=False)
     chroms_in_file = regions.chrom.drop_duplicates().tolist()
     remove_chroms = set(filter(lambda x: chr_match.match(x) is None, chroms_in_file))
     drop_columns = ['filter_for_chrom']
