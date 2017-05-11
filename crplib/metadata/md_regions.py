@@ -5,7 +5,8 @@ import datetime as dt
 import pandas as pd
 
 from crplib.auxiliary.constants import DIV_B_TO_MB
-from crplib.metadata.md_helpers import normalize_group_path, update_metadata_index, flaterator
+from crplib.metadata.md_helpers import normalize_group_path, update_metadata_index,\
+    flaterator, normalize_chrom_name
 
 
 MD_REGION_COLDEFS = ['group', 'chrom', 'mtime', 'size_mb', 'numreg', 'covbp', 'srcfile']
@@ -20,6 +21,7 @@ def gen_obj_and_md(mdframe, group, chrom, srcfiles, datavals):
     :param datavals:
     :return:
     """
+    chrom = normalize_chrom_name(chrom)
     group = normalize_group_path(group, chrom)
     srcfile_items = [item for item in flaterator(srcfiles)]
     srcfiles = ','.join([os.path.basename(fp) for fp in srcfile_items])
