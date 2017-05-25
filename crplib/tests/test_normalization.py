@@ -13,10 +13,11 @@ import numpy.testing as nptest
 class TestNormalization(unittest.TestCase):
     def setUp(self):
         norm_mod = importlib.import_module('crplib.numalg.normalization')
-        self.qnorm = norm_mod.quant_norm
+        self.qnorm = norm_mod.nonzero_qnorm
         self.sample_a = np.array([5, 2, 3, 4])
         self.sample_b = np.array([4, 1, 4, 2])
         self.sample_c = np.array([3, 4, 6, 8])
+        self.sample_mat = np.array([self.sample_a, self.sample_b, self.sample_c])
 
     def tearDown(self):
         pass
@@ -27,7 +28,7 @@ class TestNormalization(unittest.TestCase):
                   np.array([4.66667, 2., 4.66667, 3.], dtype=np.float64),
                   np.array([2., 3., 4.66667, 5.66667], dtype=np.float64)]
 
-        got = self.qnorm(self.sample_a, self.sample_b, self.sample_c)
+        got = self.qnorm(self.sample_mat)
 
         # the tolerance is set according to expected output for this test case
         # and not based on possible precision for dtype=np.float64
