@@ -6,7 +6,7 @@ import numpy.ma as msk
 import multiprocessing as mp
 import scipy.stats as stats
 
-import time as ti
+import pandas as pd
 
 
 _shm_input_matrix = None
@@ -38,28 +38,134 @@ def nonzero_qnorm_sequential(mat):
     :param mat:
     :return:
     """
+    assert np.isfinite(mat).all(), 'Matrix contains invalid (NaN, INF) values'
     add_zero_columns = False
     col_idx = mat.sum(axis=0) > 0
-    if np.sum(col_idx) != mat.shape[1]:
+    non_zero_cols = np.sum(col_idx)
+    if non_zero_cols == 0:
+        return mat
+    orig_shape = mat.shape
+    if non_zero_cols != mat.shape[1]:
         # at least one all-zero column
         add_zero_columns = True
         mat = mat[:, col_idx]
-    ranks = np.zeros_like(mat, dtype=np.float64)
+    ranks = np.zeros_like(mat, dtype=np.int64)
     for row_idx in range(mat.shape[0]):
-        ranks[row_idx, :] = stats.rankdata(mat[row_idx, :], method='dense')
+        ranks[row_idx, :] = stats.rankdata(mat[row_idx, :], method='min')
     mat.sort(axis=1)
-    col_means = np.unique(mat.mean(axis=0))
-    mean_ranks = stats.rankdata(col_means, method='dense')
+    col_means = mat.mean(axis=0)
+    mean_ranks = stats.rankdata(col_means, method='min')
+    replace_means = pd.Series(col_means, index=mean_ranks, dtype=np.float64)
     for row_idx in range(ranks.shape[0]):
-        indices = np.digitize(ranks[row_idx, :], mean_ranks, right=True)
-        ranks[row_idx, :] = col_means[indices]
-    norm_mat = ranks
+        mat[row_idx, :] = replace_means[ranks[row_idx, :]]
+    norm_mat = mat
     if add_zero_columns:
-        add_zeros = np.zeros((ranks.shape[0], col_idx.size))
+        add_zeros = np.zeros(orig_shape, dtype=np.float64)
         col_indices = np.arange(col_idx.size)[col_idx]
         add_zeros[:, col_indices] = ranks[:]
         norm_mat = add_zeros
+    assert norm_mat.max() > 0, 'Normalization failed: ends with all zero data matrix'
     return norm_mat
+
+
+def simple_quantile_normalization(mat):
+    """
+    This code: simple q-norm implementation ignoring issues like breaking ties,
+    normalizing against target distribution etc.
+
+    Code found at:
+    http://lists.open-bio.org/pipermail/biopython/2010-March/012505.html
+
+    Presumed author: Vincent Davis
+
+    Original docstring:
+    "anarray with samples in the columns and probes across the rows"
+
+    My changes:
+    Variable name mapping for readability:
+    data := A
+    new_data := AA
+    ranks := I
+
+    :param mat:
+    :return:
+    """
+    new_data = np.zeros_like(mat, dtype=np.float64)
+    ranks = np.argsort(mat, axis=0)
+    new_data[ranks, np.arange(mat.shape[1])] = np.mean(mat[ranks, np.arange(mat.shape[1])], axis=1)[:, np.newaxis]
+    return new_data
+
+
+def preprocess_core_qnorm(mat):
+    """
+    This method is just a mock-up to keep a "reference" to R's preprocessCore
+    package w/o introducing an additional dependency
+
+    R version 3.1.2 (2014-10-31) -- "Pumpkin Helmet"
+    preprocessCore_1.28.0
+
+    # Example from Wikipedia page
+    # note that the Wikipedia example uses "min" as tie breaking
+    # rule whereas the R default is "average"
+    # Presumably, this default also applies to preprocessCore ?
+
+    > mat <- matrix(c(5,2,3,4,4,1,4,2,3,4,6,8), nrow=4, ncol=3)
+    > normalize.quantiles(mat)
+         [,1]     [,2]     [,3]
+    [1,] 5.666667 5.166667 2.000000
+    [2,] 2.000000 2.000000 3.000000
+    [3,] 3.000000 5.166667 4.666667
+    [4,] 4.666667 3.000000 5.666667
+
+    # Example by Rafael Irizarry posted on Twitter
+    # http://t.co/lCyy6YyNB8
+
+    > mat <- matrix(c(2,5,4,3,3,4,14,8,8,9,4,4,6,5,3,5,7,9,8,5), nrow=5, ncol=4)
+    > normalize.quantiles(mat)
+        [,1] [,2] [,3] [,4]
+    [1,] 3.50 3.50 5.25 4.25
+    [2,] 8.50 8.50 5.25 5.50
+    [3,] 6.50 5.25 8.50 8.50
+    [4,] 5.25 5.25 6.50 6.50
+    [5,] 5.25 6.50 3.50 4.25
+
+    :param mat: data matrix with layout samples (col) X probes (row)
+    :return:
+    """
+    wiki_example = np.array([5, 4, 3,
+                             2, 1, 4,
+                             3, 4, 6,
+                             4, 2, 8], dtype=np.float64).reshape(4, 3)
+    irizarry_example = np.array([2, 4, 4, 5,
+                                 5, 14, 4, 7,
+                                 4, 8, 6, 9,
+                                 3, 8, 5, 8,
+                                 3, 9, 3, 5], dtype=np.float64).reshape(5, 4)
+    if wiki_example.shape == mat.shape and np.allclose(mat, wiki_example):
+        wiki_ex_result = np.array([5.666667, 5.166667, 2,
+                                   2, 2, 3,
+                                   3, 5.166667, 4.666667,
+                                   4.666667, 3, 5.666667], dtype=np.float64).reshape(4, 3)
+        return wiki_ex_result
+    elif irizarry_example.shape == mat.shape and np.allclose(mat, irizarry_example):
+        # This result matrix is the result when applying the R function
+        # as indicated in the docstring
+        irizarry_ex_result = np.array([3.5, 3.5, 5.25, 4.25,
+                                       8.5, 8.5, 5.25, 5.5,
+                                       6.5, 5.25, 8.5, 8.5,
+                                       5.25, 5.25, 6.5, 6.5,
+                                       5.25, 6.5, 3.5, 4.25], dtype=np.float64).reshape(5, 4)
+        # This result is the one given in Irizarry's Twitter post
+        # Why this is different is unclear, could be again a change
+        # in the tie breaking strategy
+        # irizarry_ex_result2 = np.array([3.5, 3.5, 5., 5.,
+        #                                8.5, 8.5, 5.5, 5.5,
+        #                                6.5, 5., 8.5, 8.5,
+        #                                5., 5.5, 6.5, 6.5,
+        #                                5.5, 6.5, 3.5, 3.5], dtype=np.float64).reshape(5, 4)
+        return irizarry_ex_result
+    else:
+        return np.zeros_like(mat)
 
 
 def _rank_sort_matrix(params):
