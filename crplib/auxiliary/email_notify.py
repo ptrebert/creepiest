@@ -39,7 +39,7 @@ def send_notification(address, subname, exitcode, start, end, log):
         try:
             msg = MIMEText(content.format(**kwargs))
             msg['Subject'] = 'CREEPIEST run exit code: {}'.format(exitcode)
-            msg['From'] = 'DoNotReply@creepiest-tool.org'
+            msg['From'] = 'creepiest@mpi-inf.mpg.de'
             msg['To'] = address
             s = smtplib.SMTP('localhost')
             s.send_message(msg)
