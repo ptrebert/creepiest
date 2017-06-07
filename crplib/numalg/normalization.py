@@ -8,7 +8,6 @@ import scipy.stats as stats
 
 import pandas as pd
 
-
 _shm_input_matrix = None
 _shm_rank_matrix = None
 
@@ -17,13 +16,13 @@ def nonzero_qnorm(mat, workers=1):
     """ Perform quantile normalization as proposed by Bolstad et al., but restrict to columns
     in matrix that have at least one non-zero entry, i.e., exclude columns with no signal.
     Since the handling of ties during the ranking is not specified in the original paper,
-    this method uses dense ranking (rank always increases by 1 between groups)
-    Hence, the result of this function is slightly different to, e.g., the R function
+    this method uses min ranking.
+    Hence, the result of this function is different to, e.g., the R function
     normalize.quantiles from the preprocessCore package
     Intended for chromosome-wide normalizations of, e.g., histone data that commonly
     have a substantial amount of all-zero positions in the respective signal tracks
 
-    :param mat: [rows] samples X genes [columns]
+    :param mat: [rows] samples X features [columns]
     :param workers: number of CPU core to use, default 1
     :return:
     """
@@ -39,8 +38,9 @@ def nonzero_qnorm_sequential(mat):
     :return:
     """
     assert np.isfinite(mat).all(), 'Matrix contains invalid (NaN, INF) values'
+    mat = mat.round(decimals=3)
     add_zero_columns = False
-    col_idx = mat.sum(axis=0) > 0
+    col_idx = np.array(mat.sum(axis=0) > 0, dtype=np.bool)
     non_zero_cols = np.sum(col_idx)
     if non_zero_cols == 0:
         return mat
@@ -49,23 +49,72 @@ def nonzero_qnorm_sequential(mat):
         # at least one all-zero column
         add_zero_columns = True
         mat = mat[:, col_idx]
-    ranks = np.zeros_like(mat, dtype=np.int64)
+    # determine data ranks
+    data_ranks = np.zeros(mat.shape, dtype=np.int32)
     for row_idx in range(mat.shape[0]):
-        ranks[row_idx, :] = stats.rankdata(mat[row_idx, :], method='min')
+        data_ranks[row_idx, :] = stats.rankdata(mat[row_idx, :], method='min')
+    data_ranks = data_ranks.astype(np.int32)
+    uniq_data_ranks = np.unique(data_ranks)
+
+    # get column means
     mat.sort(axis=1)
     col_means = mat.mean(axis=0)
-    mean_ranks = stats.rankdata(col_means, method='min')
-    replace_means = pd.Series(col_means, index=mean_ranks, dtype=np.float64)
-    for row_idx in range(ranks.shape[0]):
-        mat[row_idx, :] = replace_means[ranks[row_idx, :]]
-    norm_mat = mat
+    col_means = col_means.round(decimals=3).astype(np.float32)
+
+    # ranks for column means
+    col_mean_ranks = stats.rankdata(col_means, method='min')
+    col_mean_ranks = col_mean_ranks.astype(np.int32)
+
+    # lookup table for rank -> mean replacement
+    replace_means = pd.Series(col_means, index=col_mean_ranks,
+                              dtype=np.float32)
+    # reduce to unique entries (i.e., group by index value = rank of mean value)
+    replace_means = replace_means.groupby(by=replace_means.index).first()
+
+    # Check if there are ranks missing
+    # There are cases where data_ranks contains values that do
+    # not appear in col_mean_ranks - apparently, the ranking of
+    # floating point numbers is the issue here
+    missing_ranks = set(uniq_data_ranks).difference(set(replace_means.index))
+    if len(missing_ranks) > 0:
+        missing_means = []
+        missing_positions = []
+        for mr in sorted(missing_ranks):
+            # this "cannot" raise a ValueError since this would
+            # imply that missing ranks contains rank 1; cannot happen
+            # if no other error causes this situation
+            lo = replace_means[replace_means.index < mr].idxmax()
+            lo_val = replace_means[lo]
+            try:
+                # this happened indeed once for hg19/H3K36me3
+                hi = replace_means[replace_means.index > mr].idxmin()
+                hi_val = replace_means[hi]
+            except ValueError:
+                # catches: argmin of empty sequence
+                hi_val = replace_means.max()
+            assert lo_val <= hi_val,\
+                'Invalid combination of low and high replacement means: {} and {}'.format(lo_val, hi_val)
+            new_val = np.round((lo_val + hi_val) / 2., 3)
+            missing_means.append(new_val)
+            missing_positions.append(mr)
+
+        additional_means = pd.Series(missing_means, index=missing_positions, dtype=np.float32)
+        replace_means = replace_means.append(additional_means)
+
+    for row_idx in range(mat.shape[0]):
+        # by constructions, this must give a valid replacement vector
+        mat[row_idx, :] = replace_means[data_ranks[row_idx, :]]
+
     if add_zero_columns:
-        add_zeros = np.zeros(orig_shape, dtype=np.float64)
+        add_zeros = np.zeros(orig_shape, dtype=np.float32)
         col_indices = np.arange(col_idx.size)[col_idx]
-        add_zeros[:, col_indices] = ranks[:]
-        norm_mat = add_zeros
-    assert norm_mat.max() > 0, 'Normalization failed: ends with all zero data matrix'
-    return norm_mat
+        add_zeros[:, col_indices] = mat[:]
+        mat = add_zeros
+    # Note that this is ok since all zero matrices are returned
+    # immediately in the beginning
+    assert mat.max() > 0, 'Normalization failed: ends with all zero data matrix'
+    assert np.isfinite(mat).all(), 'Result matrix contains invalid (NaN, INF) values'
+    return mat
 
 
 def simple_quantile_normalization(mat):
@@ -81,8 +130,7 @@ def simple_quantile_normalization(mat):
     Original docstring:
     "anarray with samples in the columns and probes across the rows"
 
-    My changes:
-    Variable name mapping for readability:
+    My changes to improve readability:
     data := A
     new_data := AA
     ranks := I
@@ -90,7 +138,7 @@ def simple_quantile_normalization(mat):
     :param mat:
     :return:
     """
-    new_data = np.zeros_like(mat, dtype=np.float64)
+    new_data = np.zeros_like(mat, dtype=mat.dtype)
     ranks = np.argsort(mat, axis=0)
     new_data[ranks, np.arange(mat.shape[1])] = np.mean(mat[ranks, np.arange(mat.shape[1])], axis=1)[:, np.newaxis]
     return new_data
@@ -135,17 +183,17 @@ def preprocess_core_qnorm(mat):
     wiki_example = np.array([5, 4, 3,
                              2, 1, 4,
                              3, 4, 6,
-                             4, 2, 8], dtype=np.float64).reshape(4, 3)
+                             4, 2, 8], dtype=np.float32).reshape(4, 3)
     irizarry_example = np.array([2, 4, 4, 5,
                                  5, 14, 4, 7,
                                  4, 8, 6, 9,
                                  3, 8, 5, 8,
-                                 3, 9, 3, 5], dtype=np.float64).reshape(5, 4)
+                                 3, 9, 3, 5], dtype=np.float32).reshape(5, 4)
     if wiki_example.shape == mat.shape and np.allclose(mat, wiki_example):
         wiki_ex_result = np.array([5.666667, 5.166667, 2,
                                    2, 2, 3,
                                    3, 5.166667, 4.666667,
-                                   4.666667, 3, 5.666667], dtype=np.float64).reshape(4, 3)
+                                   4.666667, 3, 5.666667], dtype=np.float32).reshape(4, 3)
         return wiki_ex_result
     elif irizarry_example.shape == mat.shape and np.allclose(mat, irizarry_example):
         # This result matrix is the result when applying the R function
@@ -154,7 +202,7 @@ def preprocess_core_qnorm(mat):
                                        8.5, 8.5, 5.25, 5.5,
                                        6.5, 5.25, 8.5, 8.5,
                                        5.25, 5.25, 6.5, 6.5,
-                                       5.25, 6.5, 3.5, 4.25], dtype=np.float64).reshape(5, 4)
+                                       5.25, 6.5, 3.5, 4.25], dtype=np.float32).reshape(5, 4)
         # This result is the one given in Irizarry's Twitter post
         # Why this is different is unclear, could be again a change
         # in the tie breaking strategy

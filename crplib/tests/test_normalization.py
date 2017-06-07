@@ -21,7 +21,7 @@ class TestNormalization(unittest.TestCase):
         self.wiki_ex_fxs = np.array([5, 4, 3,
                                      2, 1, 4,
                                      3, 4, 6,
-                                     4, 2, 8], dtype=np.float64).reshape(4, 3)
+                                     4, 2, 8], dtype=np.float32).reshape(4, 3)
         # Change to sample X feature layout
         self.wiki_ex_sxf = np.transpose(self.wiki_ex_fxs)
 
@@ -29,7 +29,7 @@ class TestNormalization(unittest.TestCase):
         self.wiki_res_fxs = np.array([5.666667, 4.666667, 2,
                                       2, 2, 3,
                                       3, 4.666667, 4.666667,
-                                      4.666667, 3, 5.666667], dtype=np.float64).reshape(4, 3)
+                                      4.666667, 3, 5.666667], dtype=np.float32).reshape(4, 3)
         self.wiki_res_sxf = np.transpose(self.wiki_res_fxs)
 
         # Example by Rafael Irizarry, 4 samples with 5 observations each
@@ -37,7 +37,7 @@ class TestNormalization(unittest.TestCase):
                                          5, 14, 4, 7,
                                          4, 8, 6, 9,
                                          3, 8, 5, 8,
-                                         3, 9, 3, 5], dtype=np.float64).reshape(5, 4)
+                                         3, 9, 3, 5], dtype=np.float32).reshape(5, 4)
         # Change to sample X feature layout
         self.irizarry_ex_sxf = np.transpose(self.irizarry_ex_fxs)
 
@@ -47,14 +47,14 @@ class TestNormalization(unittest.TestCase):
                                                8.5, 8.5, 5.25, 5.5,
                                                6.5, 5.25, 8.5, 8.5,
                                                5.25, 5.25, 6.5, 6.5,
-                                               5.25, 6.5, 3.5, 4.25], dtype=np.float64).reshape(5, 4)
+                                               5.25, 6.5, 3.5, 4.25], dtype=np.float32).reshape(5, 4)
         self.irizarry_code_res_sxf = np.transpose(self.irizarry_code_res_fxs)
 
         self.irizarry_desc_res_fxs = np.array([3.5, 3.5, 5., 5.,
                                                8.5, 8.5, 5.5, 5.5,
                                                6.5, 5., 8.5, 8.5,
                                                5., 5.5, 6.5, 6.5,
-                                               5.5, 6.5, 3.5, 3.5], dtype=np.float64).reshape(5, 4)
+                                               5.5, 6.5, 3.5, 3.5], dtype=np.float32).reshape(5, 4)
         self.irizarry_desc_res_sxf = np.transpose(self.irizarry_desc_res_fxs)
 
         # Just for robustness testing, some artificial datasets
@@ -77,7 +77,7 @@ class TestNormalization(unittest.TestCase):
         true_shape = self.wiki_res_fxs.shape
         self.assertEqual(res_shape, true_shape,
                          'Shape mismatch: {} vs {}'.format(res_shape, true_shape))
-        nptest.assert_allclose(wiki_res_fxs, self.wiki_res_fxs, rtol=0.0001)
+        nptest.assert_allclose(wiki_res_fxs, self.wiki_res_fxs, rtol=0.001)
         return
 
     def test_simple_qnorm_irizarry_desc(self):
@@ -91,7 +91,7 @@ class TestNormalization(unittest.TestCase):
         true_shape = self.irizarry_desc_res_fxs.shape
         self.assertEqual(res_shape, true_shape,
                          'Shape mismatch: {} vs {}'.format(res_shape, true_shape))
-        nptest.assert_allclose(irizarry_res_fxs, self.irizarry_desc_res_fxs, rtol=0.0001)
+        nptest.assert_allclose(irizarry_res_fxs, self.irizarry_desc_res_fxs, rtol=0.001)
         return
 
     def test_simple_qnorm_irizarry_code(self):
@@ -105,7 +105,7 @@ class TestNormalization(unittest.TestCase):
         true_shape = self.irizarry_code_res_fxs.shape
         self.assertEqual(res_shape, true_shape,
                          'Shape mismatch: {} vs {}'.format(res_shape, true_shape))
-        nptest.assert_allclose(irizarry_res_fxs, self.irizarry_code_res_fxs, rtol=0.0001)
+        nptest.assert_allclose(irizarry_res_fxs, self.irizarry_code_res_fxs, rtol=0.001)
         return
 
     def test_ppc_qnorm_wiki(self):
@@ -120,7 +120,7 @@ class TestNormalization(unittest.TestCase):
         true_shape = self.wiki_res_fxs.shape
         self.assertEqual(res_shape, true_shape,
                          'Shape mismatch: {} vs {}'.format(res_shape, true_shape))
-        nptest.assert_allclose(wiki_res_fxs, self.wiki_res_fxs, rtol=0.0001)
+        nptest.assert_allclose(wiki_res_fxs, self.wiki_res_fxs, rtol=0.001)
         return
 
     def test_ppc_qnorm_irizarry_desc(self):
@@ -134,7 +134,7 @@ class TestNormalization(unittest.TestCase):
         true_shape = self.irizarry_desc_res_fxs.shape
         self.assertEqual(res_shape, true_shape,
                          'Shape mismatch: {} vs {}'.format(res_shape, true_shape))
-        nptest.assert_allclose(irizarry_res_fxs, self.irizarry_desc_res_fxs, rtol=0.0001)
+        nptest.assert_allclose(irizarry_res_fxs, self.irizarry_desc_res_fxs, rtol=0.001)
         return
 
     def test_ppc_qnorm_irizarry_code(self):
@@ -148,7 +148,7 @@ class TestNormalization(unittest.TestCase):
         true_shape = self.irizarry_code_res_fxs.shape
         self.assertEqual(res_shape, true_shape,
                          'Shape mismatch: {} vs {}'.format(res_shape, true_shape))
-        nptest.assert_allclose(irizarry_res_fxs, self.irizarry_code_res_fxs, rtol=0.0001)
+        nptest.assert_allclose(irizarry_res_fxs, self.irizarry_code_res_fxs, rtol=0.001)
         return
 
     def test_nz_qnorm_wiki(self):
@@ -162,7 +162,7 @@ class TestNormalization(unittest.TestCase):
         true_shape = self.wiki_res_sxf.shape
         self.assertEqual(res_shape, true_shape,
                          'Shape mismatch: {} vs {}'.format(res_shape, true_shape))
-        nptest.assert_allclose(wiki_res_sxf, self.wiki_res_sxf, rtol=0.0001)
+        nptest.assert_allclose(wiki_res_sxf, self.wiki_res_sxf, rtol=0.001)
         return
 
     def test_nz_qnorm_irizarry_desc(self):
@@ -176,7 +176,7 @@ class TestNormalization(unittest.TestCase):
         true_shape = self.irizarry_desc_res_sxf.shape
         self.assertEqual(res_shape, true_shape,
                          'Shape mismatch: {} vs {}'.format(res_shape, true_shape))
-        nptest.assert_allclose(irizarry_res_sxf, self.irizarry_desc_res_sxf, rtol=0.0001)
+        nptest.assert_allclose(irizarry_res_sxf, self.irizarry_desc_res_sxf, rtol=0.001)
         return
 
     def test_nz_qnorm_irizarry_code(self):
@@ -190,5 +190,5 @@ class TestNormalization(unittest.TestCase):
         true_shape = self.irizarry_code_res_sxf.shape
         self.assertEqual(res_shape, true_shape,
                          'Shape mismatch: {} vs {}'.format(res_shape, true_shape))
-        nptest.assert_allclose(irizarry_res_sxf, self.irizarry_code_res_sxf, rtol=0.0001)
+        nptest.assert_allclose(irizarry_res_sxf, self.irizarry_code_res_sxf, rtol=0.001)
         return
