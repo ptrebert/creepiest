@@ -48,9 +48,9 @@ hdf_indexfile = {'args': ('--index-file', '-idx'),
                                     '/long/path/to/index_file.h5'}}
 
 hdf_mapfile = {'args': ('--map-file', '-map'),
-                 'kwargs': {'dest': 'mapfile', 'type': str,
-                            'help': 'Specify full path to HDF map file, e.g., '
-                                    '/long/path/to/file.map.h5'}}
+               'kwargs': {'dest': 'mapfile', 'type': str,
+                          'help': 'Specify full path to HDF map file, e.g., '
+                                  '/long/path/to/file.map.h5'}}
 
 twobit_genome = {'args': ('--2bit-genome', '-2bg'),
                  'kwargs': {'dest': 'twobitgenome', 'type': str,
