@@ -544,15 +544,15 @@ def _add_correlation_command(subparsers):
     comgroup.add_argument('--skip-size', '-sks', type=int, default=0, dest='skipsize',
                           help='Skip regions below that size. Default: 0')
     comgroup.add_argument('--roi-file', '-roi', type=str, dest='roifile', default='')
-    comgroup.add_argument('--target-index', '-idx', type=str, default='', dest='targetindex',
-                          help='Full path to target index created with "convert" command.'
-                               ' Only required for task "cons". Default: <empty>')
+    comgroup.add_argument(*hdf_mapfile['args'], **hdf_mapfile['kwargs'])
+    comgroup.add_argument('--map-reference', '-mref', type=str, choices=['target', 'query'],
+                          dest='mapreference',
+                          help='Specify whether to use target or query coordinates from map file.')
     comgroup.add_argument('--input-a', '-ia', type=str, required=True, dest='inputfilea')
-    comgroup.add_argument('--input-group-a', '-iga', type=str, default='', dest='inputgroupa')
+    comgroup.add_argument('--input-group-a', '-iga', type=str, default='default', dest='inputgroupa')
     comgroup.add_argument('--input-b', '-ib', type=str, required=True, dest='inputfileb')
-    comgroup.add_argument('--input-group-b', '-igb', type=str, default='', dest='inputgroupb')
-    comgroup.add_argument('--output', '-o', type=str, required=True, dest='outputfile',
-                          help='Full path to output file in JSON format.')
+    comgroup.add_argument('--input-group-b', '-igb', type=str, default='default', dest='inputgroupb')
+    comgroup.add_argument(*single_jsonout['args'], **single_jsonout['kwargs'])
     parser_corr.set_defaults(execute=_correlation_execute)
     return subparsers
 

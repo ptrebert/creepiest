@@ -3,6 +3,7 @@
 """
 Module to compute pairwise correlation between signal tracks
 """
+import sys as sys
 
 import os as os
 import multiprocessing as mp
@@ -22,14 +23,15 @@ def assemble_worker_params(args):
     :param args:
     :return:
     """
-    groups_a = get_valid_hdf5_groups(args.inputfilea, args.inputgroupa)
-    groups_b = get_valid_hdf5_groups(args.inputfileb, args.inputgroupb)
     ingrp_a = args.inputgroupa
-    if not ingrp_a:
+    if not ingrp_a or ingrp_a in ['default', 'auto']:
         ingrp_a = get_default_group(args.inputfilea)
     ingrp_b = args.inputgroupb
-    if not ingrp_b:
+    if not ingrp_b or ingrp_b in ['default', 'auto']:
         ingrp_b = get_default_group(args.inputfileb)
+
+    groups_a = get_valid_hdf5_groups(args.inputfilea, ingrp_a)
+    groups_b = get_valid_hdf5_groups(args.inputfileb, ingrp_b)
 
     chroms_a = set([os.path.split(g)[1] for g in groups_a])
     chroms_b = set([os.path.split(g)[1] for g in groups_b])
@@ -37,10 +39,10 @@ def assemble_worker_params(args):
     assert chrom_union, 'No shared chromosomes between input files/groups'
     commons = {'inputfilea': args.inputfilea, 'inputfileb': args.inputfileb,
                'inputgroupa': ingrp_a, 'inputgroupb': ingrp_b,
-               'targetindex': args.targetindex, 'measure': args.measure,
+               'mapfile': args.mapfile, 'measure': args.measure,
                'roifile': args.roifile, 'roilimit': args.roilimit,
                'skipsize': args.skipsize}
-    index_groups = get_mapindex_groups(args.targetindex, '')
+    index_groups = get_mapindex_groups(args.mapfile, args.mapreference)
     arglist = []
     for chrom in chrom_union:
         tmp = dict(commons)
@@ -77,6 +79,7 @@ def adapt_mask_to_roi(consmask, roifp, chrom):
     """
     roimask = np.ones(consmask.size, dtype=np.bool)
     opn, mode = text_file_mode(roifp)
+    chrom_found = False
     with opn(roifp, mode) as rois:
         for line in rois:
             if not line or line.startswith('#'):
@@ -84,8 +87,12 @@ def adapt_mask_to_roi(consmask, roifp, chrom):
             cols = line.strip().split()
             if cols[0] != chrom:
                 continue
+            chrom_found = True
             roimask[int(cols[1]):int(cols[2])] = 0
     comb_mask = consmask | roimask  # 0 | 0 = 0
+    assert not comb_mask.sum() == consmask.size,\
+        'All positions on chromosome {} masked - ' \
+        'any regions for that chromosome in ROI file: {}'.format(chrom, chrom_found)
     pos = np.arange(consmask.size)
     pos = msk.array(pos, mask=comb_mask)
     select = np.array([k for k, g in itt.groupby(~comb_mask)], dtype=np.bool)
@@ -102,7 +109,7 @@ def compute_corr_cons(params):
     skipsize = params['skipsize']
     # loading index data
     fun_avg = np.vectorize(np.average, otypes=[np.float64])
-    with pd.HDFStore(params['targetindex'], 'r') as idx:
+    with pd.HDFStore(params['mapfile'], 'r') as idx:
         splits = idx[params['splits']].values
         select = idx[params['select']].values
         if params['roilimit']:
@@ -110,6 +117,8 @@ def compute_corr_cons(params):
     with pd.HDFStore(params['inputfilea'], 'r') as hdf1:
         dataset1 = hdf1[params['loadgroupa']].values
         dataset1 = np.compress(select, np.split(dataset1, splits))
+        reg_sizes = np.array([a.size for a in dataset1], dtype=np.int32)
+        reg_sizes = reg_sizes[reg_sizes >= skipsize]
         data1_avg = fun_avg([a for a in dataset1 if a.size >= skipsize])
     with pd.HDFStore(params['inputfileb'], 'r') as hdf2:
         dataset2 = hdf2[params['loadgroupb']].values
@@ -126,6 +135,15 @@ def compute_corr_cons(params):
         infos = {'stat': corr, 'pv': pv}
         results[ms] = infos
     results['num_regions'] = data1_avg.size
+    results['reg_size_median'] = int(np.median(reg_sizes))
+    results['reg_size_min'] = int(np.min(reg_sizes))
+    results['reg_size_max'] = int(np.max(reg_sizes))
+    results['sig1_mean_median'] = round(np.median(data1_avg), 2)
+    results['sig1_mean_min'] = round(np.min(data1_avg), 2)
+    results['sig1_mean_max'] = round(np.max(data1_avg), 2)
+    results['sig2_mean_median'] = round(np.median(data2_avg), 2)
+    results['sig2_mean_min'] = round(np.min(data2_avg), 2)
+    results['sig2_mean_max'] = round(np.max(data2_avg), 2)
     return chrom, results
 
 
@@ -188,7 +206,7 @@ def compute_corr_roi(params):
     :param params:
     :return:
     """
-    pass
+    raise NotImplementedError('Correlation computation restricted to regions of interest not yet implemented')
 
 
 def run_compute_correlation(args):
@@ -198,8 +216,9 @@ def run_compute_correlation(args):
     """
     logger = args.module_logger
     if args.task == 'cons':
-        assert os.path.isfile(args.targetindex), 'No target index specified for task "cons"'
-    run_funcs = {'cons': compute_corr_cons, 'full': compute_corr_full, 'active': compute_corr_active}
+        assert os.path.isfile(args.mapfile), 'No valid path to map file for task "cons": {}'.format(args.mapfile)
+    run_funcs = {'cons': compute_corr_cons, 'full': compute_corr_full,
+                 'active': compute_corr_active, 'roi': compute_corr_roi}
     exec_fun = run_funcs[args.task]
     logger.debug('Statistics to compute: {}'.format(args.measure))
     arglist = assemble_worker_params(args)
@@ -207,8 +226,10 @@ def run_compute_correlation(args):
               'file_B': os.path.basename(args.inputfileb),
               'roi_file': os.path.basename(args.roifile),
               'roi_limit': args.roilimit,
-              'targetindex': 'None' if not args.targetindex else os.path.basename(args.targetindex),
-              'group_A': args.inputgroupa, 'group_B': args.inputgroupb,
+              'map_file': 'None' if not args.mapfile else os.path.basename(args.mapfile),
+              'map_reference': 'None' if not args.mapfile else args.mapreference,
+              'group_A': 'default' if not args.inputgroupa else args.inputgroupa,
+              'group_B': 'default' if not args.inputgroupb else args.inputgroupb,
               'task': args.task, 'measure': args.measure,
               'correlations': []}
     logger.debug('Initializing worker pool')
