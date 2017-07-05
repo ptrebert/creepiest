@@ -163,6 +163,18 @@ def get_mapindex_groups(fpath, which):
     return infos
 
 
+def get_assembly_info(fpath, which):
+    """
+    :param fpath:
+    :param which:
+    :return:
+    """
+    with pd.HDFStore(fpath, 'r') as hdf:
+        md = hdf['metadata']
+        res = md.loc[md['key'] == which, 'value']
+    return res.iloc[0]
+
+
 def load_data_group(filepath, group, chrom='', allow_none=False):
     """
     :param filepath:
