@@ -84,21 +84,26 @@ def merge_datasets(params):
         else:
             suffix_left = '_' + lab_1
         suffix_right = '_' + lab
+        columns_left = set(merged.columns)
+        columns_right = set(right_df.columns)
         merged = merged.merge(right_df, how='outer', on=merge_cols, suffixes=(suffix_left, suffix_right), copy=False)
         new_columns = []
         for col in merged.columns:
-            try:
-                if col in merge_cols:
-                    new_columns.append(col)
-                elif col.rsplit('_', 1)[1] in data_labels:
-                    new_columns.append(col)
-                else:
-                    ncol = col + suffix_right
-                    new_columns.append(ncol)
-            except IndexError:
+            if col in merge_cols:
+                new_columns.append(col)
+            elif any([col.endswith(x) for x in data_labels]):
+                new_columns.append(col)
+            # the following two take care of column names unique
+            # to one dataframe - pandas suffix replacement only
+            # works on overlapping column names
+            elif col in columns_left:
+                ncol = col + suffix_left
+                new_columns.append(ncol)
+            elif col in columns_right:
                 ncol = col + suffix_right
                 new_columns.append(ncol)
-                continue
+            else:
+                raise AssertionError('Cannot assign column {} to left or right dataframe'.format(col))
         merged.columns = new_columns
         lab_1 = ''
     start_cols = [c for c in merged.columns if c.startswith('start')]
