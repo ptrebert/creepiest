@@ -14,11 +14,12 @@ import pandas as pd
 
 from crplib.metadata.md_featdata import gen_obj_and_md, MD_FEATDATA_COLDEFS
 from crplib.auxiliary.hdf_ops import load_masked_sigtrack, get_valid_hdf5_groups, \
-    get_mapindex_groups, get_valid_chrom_group, get_default_group
+    get_mapindex_groups, get_valid_chrom_group, get_default_group, get_assembly_info
 from crplib.auxiliary.file_ops import create_filepath, check_array_serializable, load_mmap_array
 from crplib.auxiliary.seq_parsers import get_twobit_seq, add_seq_regions
 from crplib.mlfeat.featdef import feat_mapsig, feat_tf_motifs,\
-    get_online_version, check_online_available, feat_roi, verify_sample_integrity
+    get_online_version, check_online_available, feat_roi, verify_sample_integrity,\
+    feat_ascreg, feat_ascreg_default
 from crplib.auxiliary.constants import CHROMOSOME_BOUNDARY
 
 
@@ -80,6 +81,72 @@ def add_signal_features(samples, params):
         signal = load_masked_sigtrack(sgf, '', this_group, chrom, mask=mask)
         for smp in samples:
             smp.update(mapfeat(signal[smp['start']:smp['end']], this_label))
+    return samples
+
+
+def load_associated_regions(fpath, chrom):
+    """
+    :param fpath:
+    :param chrom:
+    :return:
+    """
+    df = pd.read_csv(fpath, sep='\t', header=0)
+    assert 'chrom' in df.columns, 'Chromosome column missing in asc. regions file: {}'.format(fpath)
+    df = df.loc[df.chrom == chrom, :].copy()
+    if df.empty:
+        # no regions for this chromosome
+        return None
+    asc_regions = dict()
+    for row in df.itertuples():
+        all_starts = np.array(list(map(int, row.starts.split(','))), dtype=np.int32)
+        all_ends = np.array(list(map(int, row.ends.split(','))), dtype=np.int32)
+        if 'weights' in df.columns:
+            all_weights = np.array(list(map(float, row.weights.split(','))), dtype=np.float32)
+        else:
+            all_weights = np.ones(len(all_starts), dtype=np.float32)
+        asc_regions[row.name] = {'starts': all_starts, 'ends': all_ends, 'weights': all_weights}
+    return asc_regions
+
+
+def add_asc_features(samples, params):
+    """ Associated regions are special since not every sample
+    has to have associated regions; in that case, add default/empty
+    features to sample dict
+    :param samples:
+    :param params:
+    :return:
+    """
+    siglabels = params['siglabels']
+    sigfiles = params['sigfiles']
+    siggroups = params['siggroups']
+    chrom = params['chrom']
+    index_groups = get_mapindex_groups(params['mapfile'], params['mapreference'])
+    with pd.HDFStore(params['mapfile'], 'r') as idx:
+        mask = idx[index_groups[chrom]['mask']]
+    asclabels = params['asclabels']
+    ascfiles = params['ascfiles']
+    ascreg_feat = feat_ascreg
+    ascreg_default = feat_ascreg_default
+    for asc in ascfiles:
+        asc_regions = load_associated_regions(asc, chrom)
+        asc_label = asclabels[asc]
+        if asc_regions is None:
+            update_default = True
+        else:
+            update_default = False
+        for sgf in sigfiles:
+            sig_group = siggroups[sgf]
+            sig_label = siglabels[sgf]
+            if update_default:
+                for smp in samples:
+                    smp.update(ascreg_default(asc_label, sig_label))
+                continue
+            signal = load_masked_sigtrack(sgf, '', sig_group, chrom, mask=mask)
+            for smp in samples:
+                try:
+                    smp.update(ascreg_feat(smp, asc_regions[smp['name']], asc_label, signal, sig_label))
+                except KeyError:
+                    smp.update(ascreg_default(asc_label, sig_label))
     return samples
 
 
@@ -189,6 +256,8 @@ def prep_scan_regions(params):
         samples = add_signal_features(samples, params)
     if 'roi' in params['features']:
         samples = add_roi_features(samples, params)
+    if 'asc' in params['features']:
+        samples = add_asc_features(samples, params)
     samples = rebuild_dataframe(samples)
     # DEBUG free some bytes in the dataframe
     samples.drop(['seq'], axis='columns', inplace=True)
@@ -249,7 +318,7 @@ def rebuild_dataframe(samples):
     return df
 
 
-def build_featurefile_info(files):
+def build_featurefile_info(files, assembly=''):
     """
     :param files:
     :return:
@@ -260,6 +329,9 @@ def build_featurefile_info(files):
     for f in files:
         label, grp, fp = f.split(':')
         assert os.path.isfile(fp), 'Path to file {} invalid'.format(fp)
+        if assembly:
+            _, fn = os.path.split(fp)
+            assert assembly in fn, 'Expected assembly {} in filename {}'.format(assembly, fn)
         if not grp or grp in ['default', 'auto']:
             grp = get_default_group(fp)
         label = label.strip('_')
@@ -380,26 +452,40 @@ def assemble_scnreg_args(args, logger):
     :return:
     """
     commons = dict()
+    commons['mapfile'] = args.mapfile
+    commons['mapreference'] = args.mapreference
+    if os.path.isfile(commons['mapfile']):
+        assembly = get_assembly_info(commons['mapfile'], commons['mapreference'])
+    else:
+        assembly = ''
     commons['inputfile'] = args.inputfile
+    if assembly:
+        assert assembly in os.path.basename(args.inputfile), \
+            'Expected assembly {} in filename {}'.format(assembly, args.inputfile)
     commons['addseq'] = args.addseq
     commons['seqfile'] = args.seqfile
+    if assembly and os.path.isfile(args.seqfile):
+        assert assembly in os.path.basename(args.seqfile), \
+            'Expected assembly {} in filename {}'.format(assembly, args.seqfile)
     commons['features'] = args.features
     commons['kmers'] = args.kmers
     commons['tfmotifs'] = args.tfmotifs
     commons['window'] = args.window
     commons['stepsize'] = args.stepsize
-    sigfiles, siglabels, siggroups = build_featurefile_info(args.sigfile)
+    sigfiles, siglabels, siggroups = build_featurefile_info(args.sigfile, assembly)
     commons['siglabels'] = siglabels
     commons['sigfiles'] = sigfiles
     commons['siggroups'] = siggroups
-    commons['mapfile'] = args.mapfile
-    commons['mapreference'] = args.mapreference
-    roifiles, roilabels, roigroups = build_featurefile_info(args.roifile)
+    roifiles, roilabels, roigroups = build_featurefile_info(args.roifile, assembly)
     commons['roilabels'] = roilabels
     commons['roifiles'] = roifiles
     commons['roigroups'] = roigroups
     commons['roiquant'] = args.roiquant
     check = re.compile(args.selectchroms)
+    ascfiles, asclabels, ascgroups = build_featurefile_info(args.ascregions, assembly)
+    commons['ascfiles'] = ascfiles
+    commons['asclabels'] = asclabels
+    commons['ascgroups'] = ascgroups
     ingroups = get_valid_hdf5_groups(args.inputfile, args.inputgroup)
     arglist = []
     for grp in ingroups:
@@ -482,11 +568,15 @@ def run_compute_features(args):
     logger.debug('Chromosome select pattern: {}'.format(args.selectchroms))
     if args.task == 'regress':
         logger.debug('Computing features/sampling data for task {}'.format(args.task))
+        logger.warning('=== This run mode is not actively supported ===')
+        logger.warning('=== Unexpected behavior / failure is likely ===')
         # "magic number" following common limits, e.g., in ChromImpute
         chromlim = CHROMOSOME_BOUNDARY
         _ = prepare_regsig_samples(args, chromlim, logger)
     elif args.task == 'groups':
         logger.debug('Computing features for task {}'.format(args.task))
+        logger.warning('=== This run mode is not actively supported ===')
+        logger.warning('=== Unexpected behavior / failure is likely ===')
         assert args.posingroup and args.negingroup, 'Need to specify HDF groups for positive and negative class'
         _ = prepare_clsreg_samples(args, logger)
     elif args.task == 'classify':

@@ -6,13 +6,15 @@ isolated functions to compute these features
 
 """
 
-import numpy as np
-import scipy.stats as stats
+import sys as sys
 import re as re
 import copy as cp
 import itertools as itt
 import functools as funct
 import collections as col
+
+import numpy as np
+import scipy.stats as stats
 import pandas as pd
 
 FEAT_LENGTH = 'ftlen_abs_length'
@@ -42,6 +44,7 @@ FEAT_DIST_KURT = 'ftdst_abs_kurt_'
 
 FEAT_MAPSIG_PREFIX = 'ftmsig_'
 FEAT_ROI_PREFIX = 'ftroi_'
+FEAT_ASCREG_PREFIX = 'ftasc_'
 
 FEAT_DNASE_MEDPROB = 'ftdnm_abs_medprob'
 FEAT_DNASE_MAXPROB = 'ftdnm_abs_maxprob'
@@ -55,7 +58,7 @@ FEAT_PREFIX_MAP = {'len': [FEAT_LENGTH, FEAT_RELLENGTH], 'prm': [FEAT_COREPROM_P
                    'rep': [FEAT_REPCONT], 'kmf': [FEAT_KMERFREQ_PREFIX], 'tfm': [FEAT_TFMOTIF_PREFIX],
                    'msig': [FEAT_MAPSIG_PREFIX], 'roi': [FEAT_ROI_PREFIX],
                    'dnm ': [FEAT_DNASE_MEDPROB, FEAT_DNASE_MAXPROB, FEAT_DNASE_MEDAD],
-                   'drv': [FEAT_DERIVED]}
+                   'drv': [FEAT_DERIVED], 'asc': [FEAT_ASCREG_PREFIX]}
 
 FEAT_CLASS_MAP = dict()
 for ftclass, prefixes in FEAT_PREFIX_MAP.items():
@@ -97,7 +100,8 @@ def _get_feat_fun_map():
                     'tfm': feat_tf_motifs,
                     'msig': feat_mapsig,
                     'roi': feat_roi,
-                    'dnm': feat_dnase_motif}
+                    'dnm': feat_dnase_motif,
+                    'asc': feat_ascreg}
     return feat_fun_map
 
 
@@ -486,6 +490,110 @@ def feat_mapsig(sample, infix=''):
     ret[FEAT_MAPSIG_PREFIX + infix + 'abs_median'] = cons_median
     ret[FEAT_MAPSIG_PREFIX + infix + 'abs_max'] = cons_max
     ret[FEAT_MAPSIG_PREFIX + infix + 'abs_min'] = cons_min
+    return ret
+
+
+def feat_ascreg(sample, ascregions, asclabel, signal, siglabel):
+    """
+    :param sample:
+    :param ascregions:
+    :param asclabel:
+    :param signal:
+    :param siglabel:
+    :return:
+    """
+    cons = []
+    dist = []
+    sig = []
+    d_min = sys.maxsize
+    nxt_idx = -1
+    sample_mid = int(sample['start'] + (sample['end'] - sample['start']) // 2)
+    for idx, (s, e) in enumerate(zip(ascregions['starts'], ascregions['ends'])):
+        asc_mid = int(s + (e - s) // 2)
+        asc_sig = signal[s:e]
+        c = np.ma.count(asc_sig)
+        l = e - s
+        cons.append((c / l) * 100)
+        if c == 0:
+            sig.append((0, 0, 0, 0))
+        else:
+            sig.append((np.ma.min(asc_sig), np.ma.max(asc_sig),
+                        np.ma.median(asc_sig), np.ma.mean(asc_sig)))
+        d = abs(asc_mid - sample_mid)
+        dist.append(d)
+        if d < d_min:
+            d_min = d
+            nxt_idx = idx
+    assert nxt_idx > -1, 'Invalid index for closest associated region'
+    dist = np.array(dist, dtype=np.int32)
+    cons = np.array(cons, dtype=np.float32)
+    ret = dict()
+    # features irrespective of signal
+    label_prefix = FEAT_ASCREG_PREFIX + asclabel + '_'
+    ret[label_prefix + 'abs_num'] = dist.size
+    ret[label_prefix + 'pct_cons_mean'] = cons.mean()
+    ret[label_prefix + 'pct_cons_min'] = cons.min()
+    ret[label_prefix + 'pct_cons_max'] = cons.max()
+    ret[label_prefix + 'pct_cons_nx-mean'] = cons[nxt_idx]
+    ret[label_prefix + 'abs_dist_mean'] = dist.mean()
+    ret[label_prefix + 'abs_dist_min'] = dist.min()
+    ret[label_prefix + 'abs_dist_max'] = dist.max()
+    # signal features
+    label_prefix = FEAT_ASCREG_PREFIX + asclabel + '_' + siglabel + '_'
+    mins = np.array([x[0] for x in sig], dtype=np.float32)
+    maxs = np.array([x[1] for x in sig], dtype=np.float32)
+    means = np.array([x[2] for x in sig], dtype=np.float32)
+    medians = np.array([x[3] for x in sig], dtype=np.float32)
+    ret[label_prefix + 'abs_min'] = mins.mean()
+    ret[label_prefix + 'abs_max'] = maxs.mean()
+    ret[label_prefix + 'abs_median'] = medians.mean()
+    ret[label_prefix + 'abs_mean'] = means.mean()
+    # same again weighted
+    ret[label_prefix + 'abs_wt-min'] = np.average(mins, weights=ascregions['weights'])
+    ret[label_prefix + 'abs_wt-max'] = np.average(maxs, weights=ascregions['weights'])
+    ret[label_prefix + 'abs_wt-median'] = np.average(medians, weights=ascregions['weights'])
+    ret[label_prefix + 'abs_wt-mean'] = np.average(means, weights=ascregions['weights'])
+    # same again for closest only
+    ret[label_prefix + 'abs_nx-min'] = mins[nxt_idx]
+    ret[label_prefix + 'abs_nx-max'] = maxs[nxt_idx]
+    ret[label_prefix + 'abs_nx-median'] = medians[nxt_idx]
+    ret[label_prefix + 'abs_nx-mean'] = means[nxt_idx]
+    return ret
+
+
+def feat_ascreg_default(asclabel, siglabel):
+    """
+    :param asclabel:
+    :param siglabel:
+    :return:
+    """
+    ret = dict()
+    # features irrespective of signal
+    label_prefix = FEAT_ASCREG_PREFIX + asclabel + '_'
+    ret[label_prefix + 'abs_num'] = 0
+    ret[label_prefix + 'pct_cons_mean'] = 0
+    ret[label_prefix + 'pct_cons_max'] = 0
+    ret[label_prefix + 'pct_cons_min'] = 0
+    ret[label_prefix + 'pct_cons_nx-mean'] = 0
+    ret[label_prefix + 'abs_dist_mean'] = 0
+    ret[label_prefix + 'abs_dist_min'] = 0
+    ret[label_prefix + 'abs_dist_max'] = 0
+    # signal features
+    label_prefix = FEAT_ASCREG_PREFIX + asclabel + '_' + siglabel + '_'
+    ret[label_prefix + 'abs_min'] = 0
+    ret[label_prefix + 'abs_max'] = 0
+    ret[label_prefix + 'abs_median'] = 0
+    ret[label_prefix + 'abs_mean'] = 0
+    # same again weighted
+    ret[label_prefix + 'abs_wt-min'] = 0
+    ret[label_prefix + 'abs_wt-max'] = 0
+    ret[label_prefix + 'abs_wt-median'] = 0
+    ret[label_prefix + 'abs_wt-mean'] = 0
+    # same again for closest only
+    ret[label_prefix + 'abs_nx-min'] = 0
+    ret[label_prefix + 'abs_nx-max'] = 0
+    ret[label_prefix + 'abs_nx-median'] = 0
+    ret[label_prefix + 'abs_nx-mean'] = 0
     return ret
 
 

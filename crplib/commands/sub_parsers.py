@@ -308,6 +308,7 @@ def _add_compfeat_command(subparsers):
     comgroup.add_argument('--tf-motifs', '-tfm', type=str, default='', dest='tfmotifs')
 
     comgroup.add_argument('--signal-file', '-sigf', type=str, default=[], nargs='+', dest='sigfile')
+    comgroup.add_argument('--asc-regions', '-asc', type=str, default=[], nargs='+', dest='ascregions')
     comgroup.add_argument('--roi-file', '-roif', type=str, default=[], nargs='+', dest='roifile')
     comgroup.add_argument('--roi-quant', '-roiq', type=str, default=['all'], nargs='+',
                           choices=['all', 'binary', 'counts', 'coverage'], dest='roiquant')
