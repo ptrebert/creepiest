@@ -17,7 +17,7 @@ import pickle as pck
 
 from scipy.interpolate import LSQUnivariateSpline as kspline
 
-from sklearn.cross_validation import permutation_test_score as permtest
+from sklearn.model_selection import permutation_test_score as permtest
 
 from crplib.auxiliary.seq_parsers import get_twobit_seq
 from crplib.auxiliary.hdf_ops import load_masked_sigtrack, get_valid_hdf5_groups, get_mapindex_groups
