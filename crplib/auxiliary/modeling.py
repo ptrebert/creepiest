@@ -147,6 +147,9 @@ def load_ml_dataset(fpath, groups, modelfeat, args, logger):
     sample_names = extract_sample_names(dataset)
     if modelfeat is not None:
         logger.debug('Selecting features based on model information')
+        datafeat = [c for c in dataset.columns if c.startswith('ft')]
+        missing = set(modelfeat) - set(datafeat)
+        assert len(missing) == 0, 'Missing features in dataset: {}'.format(missing)
         predictors = dataset.loc[:, modelfeat]
         assert predictors.shape[1] > 1, 'No features selected using model information: {}'.format(modelfeat)
         feat_info = {'order': modelfeat}
@@ -159,6 +162,7 @@ def load_ml_dataset(fpath, groups, modelfeat, args, logger):
             feat_info['classes'] = args.usefeatures
         predictors = dataset.loc[:, feat_info['order']]
         assert predictors.shape[1] > 1, 'No features selected from dataset columns'
+    assert predictors.notnull().all(axis=1).all(), 'Detected invalid NULL values in predictor matrix'
     logger.debug('Assembling metadata')
     dataset_info['num_samples'] = predictors.shape[0]
     dataset_info['num_features'] = predictors.shape[1]
