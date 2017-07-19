@@ -103,7 +103,10 @@ def load_ml_dataset(fpath, groups, modelfeat, args, logger):
     trgname, wtname, usedtype = None, None, 'n/a'
     dataset_info = dict()
     with pd.HDFStore(fpath, 'r') as hdf:
-        metadata = hdf['metadata']
+        try:
+            metadata = hdf['metadata']
+        except KeyError:
+            metadata = None  # could be just a set of regions
         if isinstance(groups, (list, tuple)):
             dataset = pd.concat([hdf[grp] for grp in sorted(groups)], ignore_index=True)
             anygroup = groups[0]
@@ -182,7 +185,7 @@ def extract_feature_information(datacols, mdframe, onegroup):
     """
     feat_order = sorted([ft for ft in datacols if ft.startswith('ft')])
     assert len(feat_order) > 0, 'No features selected from column names: {}'.format(datacols)
-    if 'features' in mdframe.columns:
+    if mdframe is not None and 'features' in mdframe.columns:
         grp_index = mdframe.where(mdframe.group == onegroup).dropna().index[0]
         # regular training dataset
         ft_classes = mdframe.loc[grp_index, 'features']
