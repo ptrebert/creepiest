@@ -67,8 +67,6 @@ def simplify_cv_scores(cvfolds):
         elif key == 'params':
             params = []
             for idx, pdict in enumerate(entries):
-                for k, v in pdict.items():
-                    pdict[k] = int(v)  # note that this transforms True/False to 1/0
                 pdict['index'] = idx
                 params.append(pdict)
             normalized['params'] = params
