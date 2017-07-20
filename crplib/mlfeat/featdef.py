@@ -502,7 +502,6 @@ def feat_ascreg(sample, ascregions, asclabel, signal, siglabel):
     :param siglabel:
     :return:
     """
-    cons = []
     dist = []
     sig = []
     d_min = sys.maxsize
@@ -512,8 +511,6 @@ def feat_ascreg(sample, ascregions, asclabel, signal, siglabel):
         asc_mid = int(s + (e - s) // 2)
         asc_sig = signal[s:e]
         c = np.ma.count(asc_sig)
-        l = e - s
-        cons.append((c / l) * 100)
         if c == 0:
             sig.append((0, 0, 0, 0))
         else:
@@ -526,15 +523,10 @@ def feat_ascreg(sample, ascregions, asclabel, signal, siglabel):
             nxt_idx = idx
     assert nxt_idx > -1, 'Invalid index for closest associated region'
     dist = np.array(dist, dtype=np.int32)
-    cons = np.array(cons, dtype=np.float32)
     ret = dict()
     # features irrespective of signal
     label_prefix = FEAT_ASCREG_PREFIX + asclabel + '_'
     ret[label_prefix + 'abs_num'] = dist.size
-    ret[label_prefix + 'pct_cons_mean'] = cons.mean()
-    ret[label_prefix + 'pct_cons_min'] = cons.min()
-    ret[label_prefix + 'pct_cons_max'] = cons.max()
-    ret[label_prefix + 'pct_cons_nx-mean'] = cons[nxt_idx]
     ret[label_prefix + 'abs_dist_mean'] = dist.mean()
     ret[label_prefix + 'abs_dist_min'] = dist.min()
     ret[label_prefix + 'abs_dist_max'] = dist.max()
@@ -571,10 +563,6 @@ def feat_ascreg_default(asclabel, siglabel):
     # features irrespective of signal
     label_prefix = FEAT_ASCREG_PREFIX + asclabel + '_'
     ret[label_prefix + 'abs_num'] = 0
-    ret[label_prefix + 'pct_cons_mean'] = 0
-    ret[label_prefix + 'pct_cons_max'] = 0
-    ret[label_prefix + 'pct_cons_min'] = 0
-    ret[label_prefix + 'pct_cons_nx-mean'] = 0
     ret[label_prefix + 'abs_dist_mean'] = 0
     ret[label_prefix + 'abs_dist_min'] = 0
     ret[label_prefix + 'abs_dist_max'] = 0
