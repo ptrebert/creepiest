@@ -70,7 +70,7 @@ def run_permutation_test(data, output, model, cvperm, numperm, workers, scorer):
     :param scorer:
     :return:
     """
-    true_score, perm_scores, pval = permtest(model, data.as_matrix(), output.values, cv=cvperm,
+    true_score, perm_scores, pval = permtest(model, data.as_matrix(), output, cv=cvperm,
                                              n_permutations=numperm, n_jobs=workers,
                                              scoring=scorer, verbose=0)
     # based on: Ojala et al., J. ML Res. 2010
