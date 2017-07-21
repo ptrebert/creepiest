@@ -5,7 +5,6 @@ Command to train models on predefined training datasets
 """
 
 import os as os
-import io as io
 import json as json
 import numpy as np
 import pickle as pck
@@ -15,7 +14,8 @@ from sklearn.model_selection import GridSearchCV
 from sklearn.base import clone
 from sklearn.model_selection import StratifiedKFold
 
-from crplib.auxiliary.modeling import load_model, get_scorer, load_ml_dataset, extract_model_attributes
+from crplib.auxiliary.modeling import load_model, get_scorer, load_ml_dataset, \
+    extract_model_attributes, apply_preprocessor
 from crplib.auxiliary.hdf_ops import get_valid_hdf5_groups
 from crplib.auxiliary.file_ops import create_filepath
 
@@ -118,10 +118,17 @@ def run_train_model(args):
     traindata, targets, dtinfo, sminfo, ftinfo = load_ml_dataset(args.inputfile, load_groups, None, args, logger)
     assert traindata.shape[0] > 1, 'No samples (rows) in training data'
     assert traindata.shape[1] > 1, 'No features (columns) in training data'
+    if 'preprocess' in model_spec and model_spec['preprocess']:
+        logger.debug('Preprocessing dataset')
+        traindata, prepinfo = apply_preprocessor(traindata, model_spec['preprocessor'], 'train')
+    else:
+        prepinfo = None
     if targets is not None:
         assert targets.size == traindata.shape[0], 'Mismatch num targets {} and num samples {}'.format(targets.size, traindata.shape[0])
     run_metadata = {'dataset_info': dtinfo, 'sample_info': sminfo,
                     'feature_info': ftinfo, 'model_info': dict()}
+    if prepinfo is not None:
+        run_metadata['preprocess_info'] = prepinfo
     logger.debug('Training model')
     if args.notuning:
         params = model_spec['default']

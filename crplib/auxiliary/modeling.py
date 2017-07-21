@@ -27,6 +27,11 @@ def kendall_tau_scorer(x, y):
 
 def get_scorer(name, smpwt=None):
     """
+    Average strategy: macro
+    - Calculate metrics for each label, and find their unweighted mean. This does not take label imbalance into account.
+
+    => treat both classes as having the same weight
+
     :param name:
     :param smpwt:
     :return:
@@ -35,11 +40,11 @@ def get_scorer(name, smpwt=None):
         assert hasattr(smpwt, '__iter__'), 'Sample weights not supplied as iterable: {}'.format(smpwt)
         assert len(smpwt) > 0, 'Sample weights supplied as empty iterable - has to be None or not empty'
     if name == 'f1_score' or name == 'f1':
-        scorer = sklmet.make_scorer(sklmet.f1_score, average='weighted', sample_weight=smpwt, pos_label=None)
+        scorer = sklmet.make_scorer(sklmet.f1_score, average='macro', sample_weight=smpwt, pos_label=None)
     elif name == 'accuracy_score' or name == 'accuracy':
         scorer = sklmet.make_scorer(sklmet.accuracy_score, normalize=True, sample_weight=smpwt)
     elif name == 'roc_auc_score' or name == 'roc_auc':
-        scorer = sklmet.make_scorer(sklmet.roc_auc_score, average='weighted', sample_weight=smpwt)
+        scorer = sklmet.make_scorer(sklmet.roc_auc_score, average='macro', sample_weight=smpwt)
     elif name == 'mse' or name == 'mean_squared_error':
         scorer = sklmet.make_scorer(sklmet.mean_squared_error, sample_weight=smpwt, greater_is_better=False)
     elif name == 'r2_score' or name == 'r2':
@@ -244,6 +249,29 @@ def augment_with_target(data, trgname, expr):
     return data, trgname, usedtype
 
 
+def apply_preprocessor(dataset, prep_spec, setting):
+    """
+    """
+    module_path = prep_spec['module_path']
+    object_name = prep_spec['preprocessor_name']
+    obj = load_model(module_path, object_name)
+    if setting == 'train':
+        dataset = obj.fit_transform(dataset)
+        prep_info = {'module_path': module_path,
+                     'preprocessor_name': object_name,
+                     'attributes': dict()}
+        for attr in prep_spec['attributes']:
+            prep_info['attributes'][attr] = [float(x) for x in getattr(obj, attr)]
+    else:
+        for attr, values in prep_spec['attributes'].items():
+            assert len(values) == dataset.shape[1], \
+                'Size mismatch: num features {} vs num values for attribute {}'.format(dataset.shape[1], len(values), attr)
+            setattr(obj, attr, values)
+        dataset = obj.transform(dataset)
+        prep_info = None
+    return dataset, prep_info
+
+
 def augment_with_weights_file(data, wtfile):
     """
     :param data:
@@ -386,11 +414,11 @@ def extract_model_attributes(model, attributes, logger=None):
             attr_obj = getattr(model, attr)
             if hasattr(attr_obj, 'tolist'):  # numpy array
                 attr_obj = attr_obj.tolist()
-            elif np.issubdtype(attr_obj, bool):
+            elif np.issubdtype(bool, attr_obj):
                 attr_obj = bool(attr_obj)  # that should not be unnecessary
-            elif np.issubdtype(attr_obj, int):
+            elif np.issubdtype(int, attr_obj):
                 attr_obj = int(attr_obj)
-            elif np.issubdtype(attr_obj, float):
+            elif np.issubdtype(float, attr_obj):
                 attr_obj = float(attr_obj)
             else:
                 if logger is not None:

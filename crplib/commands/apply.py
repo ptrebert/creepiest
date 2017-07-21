@@ -23,7 +23,7 @@ from crplib.auxiliary.seq_parsers import get_twobit_seq
 from crplib.auxiliary.hdf_ops import load_masked_sigtrack, get_valid_hdf5_groups, get_mapindex_groups
 from crplib.auxiliary.file_ops import create_filepath
 from crplib.auxiliary.modeling import select_dataset_subset, load_model, \
-    load_model_metadata, get_scorer, load_ml_dataset, determine_scoring_method
+    load_model_metadata, get_scorer, load_ml_dataset, determine_scoring_method, apply_preprocessor
 from crplib.mlfeat.featdef import feat_mapsig, get_online_version
 from crplib.auxiliary.constants import CHROMOSOME_BOUNDARY
 from crplib.metadata.md_signal import MD_SIGNAL_COLDEFS
@@ -70,7 +70,7 @@ def run_permutation_test(data, output, model, cvperm, numperm, workers, scorer):
     :param scorer:
     :return:
     """
-    true_score, perm_scores, pval = permtest(model, data.as_matrix(), output, cv=cvperm,
+    true_score, perm_scores, pval = permtest(model, data, output, cv=cvperm,
                                              n_permutations=numperm, n_jobs=workers,
                                              scoring=scorer, verbose=0)
     # based on: Ojala et al., J. ML Res. 2010
@@ -395,9 +395,15 @@ def run_classification_testdata(args, model, model_md, dataset, y_true, logger):
     model_perf = scorer(model, dataset, y_true)
     class_order = list(map(int, model.classes_))
     logger.debug('Getting class probabilities')
-    y_prob = pd.DataFrame(model.predict_proba(dataset), columns=class_order)
-    pred_class_prob = (y_prob.lookup(y_prob.index, y_pred)).tolist()
-    true_class_prob = (y_prob.lookup(y_prob.index, y_true)).tolist()
+    try:
+        y_prob = pd.DataFrame(model.predict_proba(dataset), columns=class_order)
+        pred_class_prob = (y_prob.lookup(y_prob.index, y_pred)).tolist()
+        true_class_prob = (y_prob.lookup(y_prob.index, y_true)).tolist()
+    except AttributeError:
+        logger.warning('Model has no function to predict class probabilities - skipping...')
+        pred_class_prob = []
+        true_class_prob = []
+        y_prob = pd.DataFrame(columns=class_order, index=[], dtype=np.float32)
     testing_info = dict()
     testing_info['scoring'] = scoring_method
     testing_info['performance'] = float(model_perf)
@@ -457,6 +463,11 @@ def run_classification(args, model, modelmd, loadgroups, logger):
                                                               loadgroups,
                                                               modelmd['feature_info']['order'],
                                                               args, logger)
+    orig_shape = dataset.shape
+    if 'preprocess_info' in modelmd:
+        logger.debug('Preprocessing data')
+        dataset, _ = apply_preprocessor(dataset, modelmd['preprocess_info'], 'test')
+        assert dataset.shape == orig_shape, 'Shape mismatch: {} {}'.format(orig_shape, dataset.shape)
     if args.task == 'test':
         out_md = run_classification_testdata(args, model, modelmd, dataset, output, logger)
     elif args.task == 'est':
@@ -538,7 +549,7 @@ def run_apply_model(args):
     md_training = model_md['dataset_info']
     drv_trg = md_training['derive_target']
     trg_var = md_training['target_var']
-    if drv_trg:
+    if drv_trg and drv_trg is not None:
         logger.debug('Found "derive_target" value in model metadata - overwriting...')
         args.__setattr__('derivetarget', drv_trg)
         args.__setattr__('targetvar', '')
