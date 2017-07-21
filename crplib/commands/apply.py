@@ -535,6 +535,21 @@ def run_apply_model(args):
     logger.debug('Metadata successfully loaded')
     model = load_model(args.modelfile)
     logger.debug('Model successfully loaded')
+    md_training = model_md['dataset_info']
+    drv_trg = md_training['derive_target']
+    trg_var = md_training['target_var']
+    if drv_trg:
+        logger.debug('Found "derive_target" value in model metadata - overwriting...')
+        args.__setattr__('derivetarget', drv_trg)
+        args.__setattr__('targetvar', '')
+    elif trg_var:
+        logger.debug('Found "target_var" in model metadata - overwriting')
+        args.__setattr__('derivetarget', '')
+        args.__setattr__('targetvar', trg_var)
+    else:
+        raise AssertionError('Invalid model metadata - '
+                             'target variable name has to be specified as '
+                             '"target_var" in section "dataset_info"')
     model_type = model_md['model_info']['type']
     logger.debug('Loading groups from input data file')
     load_groups = get_valid_hdf5_groups(args.inputfile, args.inputgroup)

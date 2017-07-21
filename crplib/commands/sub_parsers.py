@@ -403,7 +403,10 @@ def _add_train_command(subparsers):
     comgroup.add_argument('--use-features', '-uft', type=str, nargs='+', default=[], dest='usefeatures')
     comgroup.add_argument('--target-var', '-var', type=str, dest='targetvar',
                           help='Name of the dependant variable (labels/output/target) column in the dataset.')
-    comgroup.add_argument('--derive-target', '-drv', type=str, dest='derivetarget')
+    comgroup.add_argument('--derive-target', '-drv', type=str, dest='derivetarget',
+                          help='Calculate the target variable using this rule/formula. '
+                               'Individual columns in the dataset can be accessed '
+                               'via "data.<COLUMN_NAME>". The derived variable will be named "target".')
     comgroup.add_argument('--cv-folds', '-cv', type=int, default=10, dest='cvfolds',
                           help='Number of folds in cross validation. Default: 10')
     comgroup.add_argument('--model-output', '-mo', type=str, dest='modelout',
@@ -494,8 +497,6 @@ def _add_apply_command(subparsers):
                           help='Path to JSON file with model metadata. If left empty, use the same'
                                ' path as for the model file and replace extension with ".json".'
                                ' Default: <empty>')
-    comgroup.add_argument('--target-var', '-var', type=str, default='', dest='targetvar')
-    comgroup.add_argument('--derive-target', '-drv', type=str, default='', dest='derivetarget')
     comgroup.add_argument('--reduce-classes', '-red', type=list, nargs='*', default=[], dest='reduce')
     comgroup.add_argument('--subset', '-sub', type=str, default='', dest='subset')
     comgroup.add_argument('--crp-metadata', '-cmd', type=str, default=None, dest='crpmetadata',
@@ -514,6 +515,13 @@ def _add_apply_command(subparsers):
     comgroup.add_argument('--no-smoothing', '-nosm', action='store_true', default=False, dest='nosmooth',
                           help='Do no smooth signal estimate at the end. Default: False')
 
+    comgroup = parser_apply.add_argument_group('Deprecated parameters')
+    comgroup.add_argument('--target-var', '-var', type=str, default='', dest='targetvar',
+                          help='DEPRECATED: set value will be ignored - information is loaded'
+                               ' from model metadata file. Exists for backward compatibility.')
+    comgroup.add_argument('--derive-target', '-drv', type=str, default='', dest='derivetarget',
+                          help='DEPRECATED: set value will be ignored - information is loaded'
+                               ' from model metadata file. Exists for backward compatibility.')
     parser_apply.set_defaults(execute=_apply_execute)
     return subparsers
 
