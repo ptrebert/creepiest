@@ -454,7 +454,7 @@ def assemble_scnreg_args(args, logger):
     commons = dict()
     commons['mapfile'] = args.mapfile
     commons['mapreference'] = args.mapreference
-    if os.path.isfile(commons['mapfile']):
+    if commons['mapfile'] and os.path.isfile(commons['mapfile']):
         assembly = get_assembly_info(commons['mapfile'], commons['mapreference'])
     else:
         assembly = ''
