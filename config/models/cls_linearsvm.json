@@ -1,33 +1,32 @@
 {
-"module_path": "sklearn.linear_model",
-"model_name": "LogisticRegression",
+"module_path": "sklearn.svm",
+"model_name": "LinearSVC",
 "model_type": "classifier",
 "store_attributes": [
-"coef_",
-"intercept_"
+"coef_"
 ],
 "default": {
 "penalty": "l1",
+"loss": "squared_hinge",
 "dual": false,
-"C": 1
+"C": 1,
+"fit_intercept": false,
+"class_weight": "balanced"
 },
 "cvtune": {
 "scoring": "f1_score",
 "C": [
-0.125,
-0.25,
 0.5,
-1,
-2,
-4
+1
 ],
 "max_iter": [
-50,
-100,
-200
+500
 ],
 "dual": [false],
-"penalty": ["l1"]
+"penalty": ["l1"],
+"class_weight": ["balanced"],
+"loss": ["squared_hinge"],
+"fit_intercept": [false]
 },
 "preprocess": true,
 "preprocessor": {
