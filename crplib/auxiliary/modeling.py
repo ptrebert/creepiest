@@ -5,6 +5,7 @@ import json as json
 import importlib as imp
 import pickle as pck
 import numpy as np
+import re as re
 import functools as fnt
 
 import pandas as pd
@@ -163,11 +164,10 @@ def load_ml_dataset(fpath, groups, modelfeat, args, logger):
         feat_info = {'order': modelfeat}
     else:
         logger.debug('Extracting feature information')
-        feat_info = extract_feature_information(dataset.columns, metadata, anygroup)
-        if hasattr(args, 'usefeatures') and args.usefeatures:
-            prefixes = get_prefix_list(args.usefeatures)
-            feat_info['order'] = list(filter(lambda x: any([x.startswith(p) for p in prefixes]), feat_info['order']))
-            feat_info['classes'] = args.usefeatures
+        feat_info, removed, rem_num = extract_feature_information(dataset.columns, metadata, anygroup, args)
+        if rem_num > 0:
+            logger.debug('Removed features using pattern: {}'.format(args.dropfeatures))
+            logger.debug('Removed {} features of classes: {}'.format(rem_num, removed))
         predictors = dataset.loc[:, feat_info['order']]
         assert predictors.shape[1] > 1, 'No features selected from dataset columns'
     assert predictors.notnull().all(axis=1).all(), 'Detected invalid NULL values in predictor matrix'
@@ -182,14 +182,27 @@ def load_ml_dataset(fpath, groups, modelfeat, args, logger):
     return predictors, targets, dataset_info, sample_info, feat_info
 
 
-def extract_feature_information(datacols, mdframe, onegroup):
+def extract_feature_information(datacols, mdframe, onegroup, args):
     """
     :param datacols:
     :param mdframe:
+    :param onegroup:
+    :param args:
     :return:
     """
     feat_order = sorted([ft for ft in datacols if ft.startswith('ft')])
+    removed_classes = []
+    num_removed = 0
     assert len(feat_order) > 0, 'No features selected from column names: {}'.format(datacols)
+    if hasattr(args, 'usefeatures') and args.usefeatures:
+        prefixes = get_prefix_list(args.usefeatures)
+        feat_order = list(filter(lambda x: any([x.startswith(p) for p in prefixes]), feat_order))
+    if hasattr(args, 'dropfeatures') and args.dropfeatures:
+        remove = re.compile(args.dropfeatures.strip('"'))
+        removed_features = list(filter(lambda x: remove.search(x) is not None, feat_order))
+        num_removed = len(removed_features)
+        removed_classes = get_classes_from_names(removed_features)
+        feat_order = list(filter(lambda x: remove.search(x) is None, feat_order))
     if mdframe is not None and 'features' in mdframe.columns:
         grp_index = mdframe.where(mdframe.group == onegroup).dropna().index[0]
         # regular training dataset
@@ -206,7 +219,7 @@ def extract_feature_information(datacols, mdframe, onegroup):
         res = 0
     feat_info = {'order': feat_order, 'classes': ft_classes,
                  'kmers': ft_kmers, 'resolution': res}
-    return feat_info
+    return feat_info, removed_classes, num_removed
 
 
 def augment_with_target(data, trgname, expr):

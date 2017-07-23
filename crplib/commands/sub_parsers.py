@@ -401,6 +401,7 @@ def _add_train_command(subparsers):
     comgroup.add_argument('--no-tuning', '-nt', action='store_true', default=False, dest='notuning',
                           help='Do not search for better model parameters via cross validation. Default: False')
     comgroup.add_argument('--use-features', '-uft', type=str, nargs='+', default=[], dest='usefeatures')
+    comgroup.add_argument('--drop-features', '-drop', type=str, default='', dest='dropfeatures')
     comgroup.add_argument('--target-var', '-var', type=str, dest='targetvar',
                           help='Name of the dependant variable (labels/output/target) column in the dataset.')
     comgroup.add_argument('--derive-target', '-drv', type=str, dest='derivetarget',
