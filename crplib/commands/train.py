@@ -119,7 +119,7 @@ def run_train_model(args):
     assert traindata.shape[0] > 1, 'No samples (rows) in training data'
     assert traindata.shape[1] > 1, 'No features (columns) in training data'
     if 'preprocess' in model_spec and model_spec['preprocess']:
-        logger.debug('Preprocessing dataset')
+        logger.debug('Preprocessing dataset with method: {}'.format(model_spec['preprocessor']['preprocessor_name']))
         traindata, prepinfo = apply_preprocessor(traindata, model_spec['preprocessor'], 'train')
     else:
         prepinfo = None
