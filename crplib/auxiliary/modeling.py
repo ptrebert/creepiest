@@ -4,10 +4,11 @@ import os as os
 import json as json
 import importlib as imp
 import pickle as pck
-import numpy as np
 import re as re
+import collections as col
 import functools as fnt
 
+import numpy as np
 import pandas as pd
 import sklearn.metrics as sklmet
 import scipy.stats as stats
@@ -153,7 +154,21 @@ def load_ml_dataset(fpath, groups, modelfeat, args, logger):
         weights = dataset.loc[:, wtname].values
     else:
         weights = None
-    sample_names = extract_sample_names(dataset)
+    sample_names, namecol = extract_sample_names(dataset)
+    if hasattr(args, 'balance') and args.balance:
+        if usedtype.startswith('bool') or usedtype.startswith('int'):
+            logger.debug('Down sampling dataset to achieve balanced classes')
+            trainsample_names = downsample_classes(dataset, trgname, namecol, args.subsample)
+            trainsample = [1 if s in trainsample_names else 0 for s in sample_names]
+            selector = np.array(trainsample, dtype=np.bool)
+            dataset = dataset.loc[selector, :].copy()
+            targets = targets[selector]
+            logger.debug('Dataset size after downsampling: {}'.format(dataset.shape))
+        else:
+            logger.warning('Datatype of target variable is given as {} - ignoring "balance" parameter'.format(usedtype))
+            trainsample = []
+    else:
+        trainsample = []
     if modelfeat is not None:
         logger.debug('Selecting features based on model information')
         datafeat = [c for c in dataset.columns if c.startswith('ft')]
@@ -167,8 +182,10 @@ def load_ml_dataset(fpath, groups, modelfeat, args, logger):
         feat_info, removed, rem_num = extract_feature_information(dataset.columns, metadata, anygroup, args)
         if rem_num > 0:
             logger.debug('Removed features using pattern: {}'.format(args.dropfeatures))
+            logger.debug('Kept features using pattern: {}'.format(args.keepfeatures))
             logger.debug('Removed {} features of classes: {}'.format(rem_num, removed))
         predictors = dataset.loc[:, feat_info['order']]
+        logger.debug('Predictors selected: {}'.format(predictors.shape))
         assert predictors.shape[1] > 1, 'No features selected from dataset columns'
     assert predictors.notnull().all(axis=1).all(), 'Detected invalid NULL values in predictor matrix'
     logger.debug('Assembling metadata')
@@ -177,7 +194,8 @@ def load_ml_dataset(fpath, groups, modelfeat, args, logger):
     dataset_info['target_var'] = trgname
     dataset_info['derive_target'] = args.derivetarget
     dataset_info['target_type'] = usedtype
-    sample_info = {'weights': weights, 'names': sample_names, 'targets': store_targets}
+    sample_info = {'weights': weights, 'names': sample_names,
+                   'targets': store_targets, 'trainsample': trainsample}
     logger.debug('Dataset loading done')
     return predictors, targets, dataset_info, sample_info, feat_info
 
@@ -197,12 +215,12 @@ def extract_feature_information(datacols, mdframe, onegroup, args):
     if hasattr(args, 'usefeatures') and args.usefeatures:
         prefixes = get_prefix_list(args.usefeatures)
         feat_order = list(filter(lambda x: any([x.startswith(p) for p in prefixes]), feat_order))
-    if hasattr(args, 'dropfeatures') and args.dropfeatures:
-        remove = re.compile(args.dropfeatures.strip('"'))
-        removed_features = list(filter(lambda x: remove.search(x) is not None, feat_order))
-        num_removed = len(removed_features)
-        removed_classes = get_classes_from_names(removed_features)
-        feat_order = list(filter(lambda x: remove.search(x) is None, feat_order))
+    if hasattr(args, 'dropfeatures') and (args.dropfeatures or args.keepfeatures):
+        feat_in, feat_out = build_feature_filter(args.dropfeatures, args.keepfeatures)
+        remove_features = list(filter(feat_out, feat_order))
+        num_removed = len(remove_features)
+        removed_classes = get_classes_from_names(remove_features)
+        feat_order = list(filter(feat_in, feat_order))
     if mdframe is not None and 'features' in mdframe.columns:
         grp_index = mdframe.where(mdframe.group == onegroup).dropna().index[0]
         # regular training dataset
@@ -220,6 +238,51 @@ def extract_feature_information(datacols, mdframe, onegroup, args):
     feat_info = {'order': feat_order, 'classes': ft_classes,
                  'kmers': ft_kmers, 'resolution': res}
     return feat_info, removed_classes, num_removed
+
+
+def build_feature_filter(drop, keep):
+    """
+    :param drop:
+    :param keep:
+    :return:
+    """
+    if keep:
+        pattern = re.compile(keep.strip('"'))
+
+        def filter_out(x):
+            return pattern.search(x) is None
+
+        def filter_in(x):
+            return pattern.search(x) is not None
+    else:
+        pattern = re.compile(drop.strip('"'))
+
+        def filter_out(x):
+            return pattern.search(x) is not None
+
+        def filter_in(x):
+            return pattern.search(x) is None
+
+    return filter_in, filter_out
+
+
+def downsample_classes(dataset, targetvar, namecol, limit):
+    """
+    :param dataset:
+    :param targetvar:
+    :return:
+    """
+    assert namecol is not None, 'Need (unique) sample names to balance classes via downsampling'
+    class_labels = dataset.loc[:, targetvar].unique()
+    class_counts = col.Counter(dataset.loc[:, targetvar].tolist())
+    min_label, min_count = class_counts.most_common()[-1]
+    down_sample = min(limit, max(min_count, min_count // 100 * 100))
+    selected = []
+    for label in class_labels:
+        selected.extend(dataset.loc[dataset[targetvar] == label, namecol].sample(n=down_sample).tolist())
+    assert len(selected) == (down_sample * class_labels.size), 'Downsampling failed: selected {} samples' \
+                                                               ' for {} classes'.format(len(selected), class_labels.size)
+    return selected
 
 
 def augment_with_target(data, trgname, expr):
@@ -305,9 +368,11 @@ def extract_sample_names(dataset):
     """
     name_col = [cn for cn in dataset.columns if cn in ['name', 'source']]
     sample_names = []
+    column_name = None
     if name_col:
-        sample_names = dataset.loc[:, name_col[0]].tolist()
-    return sample_names
+        column_name = name_col[0]
+        sample_names = dataset.loc[:, column_name].tolist()
+    return sample_names, column_name
 
 
 def load_sample_weights(fpath):
@@ -440,7 +505,7 @@ def extract_model_attributes(model, attributes, logger=None):
             attribs[attr] = attr_obj
         else:
             if logger is not None:
-                logger.debug('Skipping attribute {} - does not exist'.format(attr))
+                logger.warning('Skipping attribute {} - does not exist'.format(attr))
     if logger is not None:
         logger.debug('Extracted {} attributes of {} requested ones'.format(len(attribs), len(attributes)))
     return attribs

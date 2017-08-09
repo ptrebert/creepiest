@@ -401,13 +401,20 @@ def _add_train_command(subparsers):
     comgroup.add_argument('--no-tuning', '-nt', action='store_true', default=False, dest='notuning',
                           help='Do not search for better model parameters via cross validation. Default: False')
     comgroup.add_argument('--use-features', '-uft', type=str, nargs='+', default=[], dest='usefeatures')
-    comgroup.add_argument('--drop-features', '-drop', type=str, default='', dest='dropfeatures')
+    mutgrp = parser_train.add_mutually_exclusive_group()
+    mutgrp.add_argument('--drop-features', '-drop', type=str, default='', dest='dropfeatures')
+    mutgrp.add_argument('--keep-features', '-keep', type=str, default='', dest='keepfeatures')
     comgroup.add_argument('--target-var', '-var', type=str, dest='targetvar',
                           help='Name of the dependant variable (labels/output/target) column in the dataset.')
     comgroup.add_argument('--derive-target', '-drv', type=str, dest='derivetarget',
                           help='Calculate the target variable using this rule/formula. '
                                'Individual columns in the dataset can be accessed '
                                'via "data.<COLUMN_NAME>". The derived variable will be named "target".')
+    comgroup.add_argument('--balance', '-bal', action='store_true', default=False, dest='balance',
+                          help='Balance classes, i.e., sample from majority class to reach number of'
+                               ' samples in minority class (only downsampling supported).')
+    comgroup.add_argument('--sub-sample', '-smp', type=int, default=2000, dest='subsample',
+                          help='Limit number of samples per class. Default: 2000')
     comgroup.add_argument('--cv-folds', '-cv', type=int, default=10, dest='cvfolds',
                           help='Number of folds in cross validation. Default: 10')
     comgroup.add_argument('--model-output', '-mo', type=str, dest='modelout',
