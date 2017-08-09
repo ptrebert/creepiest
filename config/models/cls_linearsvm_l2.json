@@ -6,7 +6,7 @@
 "coef_"
 ],
 "default": {
-"penalty": "l1",
+"penalty": "l2",
 "loss": "squared_hinge",
 "dual": false,
 "C": 1,
@@ -26,10 +26,11 @@
 "max_iter": [
 500,
 1000,
-1500
+1500,
+2000
 ],
 "dual": [false],
-"penalty": ["l1"],
+"penalty": ["l1", "l2"],
 "class_weight": ["balanced"],
 "loss": ["squared_hinge"],
 "fit_intercept": [false]
