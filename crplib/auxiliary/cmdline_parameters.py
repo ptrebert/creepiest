@@ -80,10 +80,10 @@ output_group = {'args': ('--output-group', '-og'),
 
 select_chroms = {'args': ('--select-chroms', '-slc'),
                  'kwargs': {'dest': 'selectchroms', 'type': str,
-                            'default': '"(chr)?[0-9][0-9A-Z]?(\s|$)"',
+                            'default': '"(chr)?[0-9ABCDEF][0-9A-Z]?(\s|$)"',
                             'help': 'Specify regular expression to select chromosomes by name. '
                                     'The regular expression needs to be double-quoted. '
-                                    'Default: autosomes (i.e.: "(chr)?[0-9][0-9A-Z]?(\s|$)"'}}
+                                    'Default: autosomes (i.e.: "(chr)?[0-9ABCDEF][0-9A-Z]?(\s|$)"'}}
 
 default_task = {'args': ('--task', '-tk'),
                 'kwargs': {'dest': 'task', 'type': str,
