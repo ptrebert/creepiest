@@ -347,10 +347,10 @@ def _add_merge_command(subparsers):
     :param subparsers:
     :return:
     """
-    parser_apply = subparsers.add_parser('merge',
+    parser_merge = subparsers.add_parser('merge',
                                          help='Merge two datasets or add new data',
                                          description='... to be updated ...')
-    comgroup = parser_apply.add_argument_group('General parameters')
+    comgroup = parser_merge.add_argument_group('General parameters')
     comgroup.add_argument(*multi_input['args'], **multi_input['kwargs'])
     comgroup.add_argument(*single_hdfout['args'], **single_hdfout['kwargs'])
     comgroup.add_argument(*output_group['args'], **output_group['kwargs'])
@@ -365,11 +365,11 @@ def _add_merge_command(subparsers):
     comgroup.add_argument('--ignore-missing', '-igm', action='store_true', default=False, dest='ignoremissing',
                           help='When merging, ignore missing data (= drop those entries).')
 
-    comgroup = parser_apply.add_argument_group('Stack datasets vertically')
+    comgroup = parser_merge.add_argument_group('Stack datasets vertically')
     comgroup.add_argument('--just-stack', '-jst', action='store_true', default=False, dest='stack')
     comgroup.add_argument('--add-indicator', '-ind', action='store_true', default=False, dest='indicator')
 
-    parser_apply.set_defaults(execute=_merge_execute)
+    parser_merge.set_defaults(execute=_merge_execute)
     return subparsers
 
 
@@ -511,9 +511,21 @@ def _add_apply_command(subparsers):
                           help='The JSON file specified for "subset" is a CREEPIEST metadata'
                                ' file. Evaluate this expression to select the sample names'
                                ' from the file. Default: None')
-    comgroup.add_argument('--no-perm', '-nop', action='store_true', default=False, dest='noperm')
-    comgroup.add_argument('--num-perm', '-nump', type=int, default=100, dest='numperm')
-    comgroup.add_argument('--cv-perm', '-cvp', type=int, default=10, dest='cvperm')
+    comgroup.add_argument('--num-perm', '-nump', type=int, default=0, dest='numperm',
+                          help='This runs permutation tests if a value larger than'
+                               ' zero is specified. The significance of the default'
+                               ' CV score is described as Test 1 in'
+                               ' Ojala and Garriga. Journal of ML Research (2010) vol. 11.'
+                               ' Note that this can take a substantial amount of time.'
+                               ' Default: 0')
+    comgroup.add_argument('--cv-perm', '-cvp', type=int, default=10, dest='cvperm',
+                          help='Run this number of cross-validation folds in the permutation test.')
+    comgroup.add_argument('--num-rand', '-numr', type=int, default=0, dest='numrand',
+                          help='This executes a simplified randomization test by just randomizing'
+                               ' the output labels and applying the trained model w/o new cross-'
+                               ' validation (as it is done for the permuation above). This'
+                               ' is considerably faster as no new (temporary) model is trained.'
+                               ' Default: 0')
     comgroup.add_argument('--scoring', '-sc', type=str, default='', dest='scoring')
     comgroup.add_argument('--seq-file', '-seq', type=str, dest='seqfile',
                           help='Full path to genomic sequence file in 2bit format.')
