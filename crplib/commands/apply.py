@@ -8,7 +8,6 @@ for a specific cell type in a different species
 import os as os
 import pandas as pd
 import numpy as np
-import collections as col
 import numpy.random as rng
 import operator as op
 import multiprocessing as mp
@@ -16,8 +15,6 @@ import json as json
 import pickle as pck
 
 from scipy.interpolate import LSQUnivariateSpline as kspline
-
-from sklearn.model_selection import permutation_test_score as permtest
 
 from crplib.auxiliary.seq_parsers import get_twobit_seq
 from crplib.auxiliary.hdf_ops import load_masked_sigtrack, get_valid_hdf5_groups, get_mapindex_groups
@@ -59,59 +56,47 @@ def load_dataset(fpath, groups, features, subset='', ycol='', ytype=None):
     return predictors, sample_names, y_depvar
 
 
-def run_permutation_test(data, output, model, cvperm, numperm, workers, scorer):
+def run_permutation_test(data, output, model, numperm, scorer, extra_scorer=''):
     """
     :param data:
     :param output:
     :param model:
-    :param cvperm:
     :param numperm:
-    :param workers:
     :param scorer:
     :return:
     """
-    true_score, perm_scores, pval = permtest(model, data, output, cv=cvperm,
-                                             n_permutations=numperm, n_jobs=workers,
-                                             scoring=scorer, verbose=0)
-    # based on: Ojala et al., J. ML Res. 2010
-    # Permutation Tests for Studying Classifier Performance
-    prec = float(1 / (2 * np.sqrt(numperm)))
-    perm_params = {'perm_num': numperm, 'perm_cvfolds': cvperm, 'bound_test_prec': prec}
-    perm_stats = {'perm_mean': float(np.mean(perm_scores)), 'perm_max': float(np.max(perm_scores)),
-                  'perm_median': float(np.median(perm_scores)), 'perm_std': float(np.std(perm_scores)),
-                  'perm_pval': float(pval)}
-    perm_scores = perm_scores.tolist()  # for JSONify
-    return true_score, perm_scores, perm_stats, perm_params
-
-
-def run_randomization_test(data, output, model, numrand, scorer):
-    """
-    :param data:
-    :param output:
-    :param model:
-    :param numrand:
-    :param scorer:
-    :return:
-    """
-    class_count = col.Counter(output)
-    asc_classes = sorted(model.classes_)
-    propensities = np.array([class_count[cnt] / len(output) for cnt in asc_classes], dtype=np.float64)
-    rand_scores = []
-    for _ in range(numrand):
-        rand_scores.append(scorer(model, data, rng.choice(asc_classes, len(output),
-                                                          p=propensities)))
+    perm_scores = []
+    extra_scores = []
+    if extra_scorer:
+        extra_name = extra_scorer
+        extra_scorer = get_scorer(extra_scorer)
+    for _ in range(numperm):
+        perm_out = rng.permutation(output)
+        perm_scores.append(scorer(model, data, perm_out))
+        if extra_scorer:
+            extra_scores.append(extra_scorer(model, data, perm_out))
     # the float here for later JSONification
-    assert len(rand_scores) == numrand, \
-        'Randomization failed, generated only {} random scores, needed {}'.format(len(rand_scores), numrand)
-    rand_stats = {'rand_mean': float(np.mean(rand_scores)),
-                  'rand_median': float(np.median(rand_scores)),
-                  'rand_min': float(np.min(rand_scores)),
-                  'rand_std': float(np.std(rand_scores)),
-                  'rand_var': float(np.var(rand_scores)),
-                  'rand_max': float(np.max(rand_scores)),
-                  'rand_95pct': float(np.percentile(rand_scores, 95)),
-                  'rand_5pct': float(np.percentile(rand_scores, 5))}
-    return rand_stats
+    assert len(perm_scores) == numperm, \
+        'Permutation failed, generated only {} permutation scores, needed {}'.format(len(perm_scores), numperm)
+    perm_stats = {'perm_mean': float(np.mean(perm_scores)),
+                  'perm_median': float(np.median(perm_scores)),
+                  'perm_min': float(np.min(perm_scores)),
+                  'perm_std': float(np.std(perm_scores)),
+                  'perm_var': float(np.var(perm_scores)),
+                  'perm_max': float(np.max(perm_scores)),
+                  'perm_95pct': float(np.percentile(perm_scores, 95)),
+                  'perm_5pct': float(np.percentile(perm_scores, 5))}
+    if extra_scorer:
+        extra_stats = {'perm_mean': float(np.mean(extra_scores)),
+                       'perm_median': float(np.median(extra_scores)),
+                       'perm_min': float(np.min(extra_scores)),
+                       'perm_std': float(np.std(extra_scores)),
+                       'perm_var': float(np.var(extra_scores)),
+                       'perm_max': float(np.max(extra_scores)),
+                       'perm_95pct': float(np.percentile(extra_scores, 95)),
+                       'perm_5pct': float(np.percentile(extra_scores, 5))}
+        perm_stats['perm_extra_{}'.format(extra_name)] = extra_stats
+    return perm_stats
 
 
 ############################
@@ -418,18 +403,9 @@ def run_classification_testdata(args, model, model_md, dataset, y_true, logger):
     testing_info['scoring'] = scoring_method
     testing_info['performance'] = float(model_perf)
     if args.numperm > 0:
-        logger.debug('Running permutation test')
-        perf_score, permscores, permstats, permparams = run_permutation_test(dataset, y_true, model, args.cvperm,
-                                                                             args.numperm, args.workers, scorer)
-        if not np.isclose(model_perf, perf_score, rtol=1e-05, atol=1e-05):
-            # surprisingly, this does happen... investigate as soon as time permits
-            logger.warning('Performance scores not close: {} vs {}'.format(model_perf, perf_score))
-        testing_info['permutation_test'] = {'perm_scores': permscores, 'perm_params': permparams,
-                                            'perm_stats': permstats}
-    if args.numrand > 0:
-        logger.debug('Running randomization test')
-        randstats = run_randomization_test(dataset, y_true, model, args.numrand, scorer)
-        testing_info['randomization_test'] = {'rand_num': args.numrand, 'rand_stats': randstats}
+        logger.debug('Running permutation tests: {}'.format(args.numperm))
+        permstats = run_permutation_test(dataset, y_true, model, args.numperm, scorer, args.extrascorer)
+        testing_info['permutation_test'] = {'perm_num': args.numperm, 'perm_stats': permstats}
     logger.debug('Collecting metadata')
     testing_info['targets'] = {'true': list(map(int, y_true)),
                                'pred': list(map(int, y_pred)),

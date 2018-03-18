@@ -513,19 +513,14 @@ def _add_apply_command(subparsers):
                                ' from the file. Default: None')
     comgroup.add_argument('--num-perm', '-nump', type=int, default=0, dest='numperm',
                           help='This runs permutation tests if a value larger than'
-                               ' zero is specified. The significance of the default'
-                               ' CV score is described as Test 1 in'
-                               ' Ojala and Garriga. Journal of ML Research (2010) vol. 11.'
-                               ' Note that this can take a substantial amount of time.'
-                               ' Default: 0')
-    comgroup.add_argument('--cv-perm', '-cvp', type=int, default=10, dest='cvperm',
-                          help='Run this number of cross-validation folds in the permutation test.')
-    comgroup.add_argument('--num-rand', '-numr', type=int, default=0, dest='numrand',
-                          help='This executes a simplified randomization test by just randomizing'
-                               ' the output labels and applying the trained model w/o new cross-'
-                               ' validation (as it is done for the permuation above). This'
-                               ' is considerably faster as no new (temporary) model is trained.'
-                               ' Default: 0')
+                               ' zero is specified. The output labels (dependent variable)'
+                               ' are randomly permuted NUMPERM times and the model'
+                               ' is applied to this permuted set of labels. The achieved'
+                               ' performance is recorded for each permutation. Default: 0')
+    comgroup.add_argument('--perm-extra-scorer', '-exscore', type=str, default='', dest='extrascorer',
+                          help='Use an additional scoring metric to measure model performance'
+                               ' during the permutation testing. Default: <empty>')
+
     comgroup.add_argument('--scoring', '-sc', type=str, default='', dest='scoring')
     comgroup.add_argument('--seq-file', '-seq', type=str, dest='seqfile',
                           help='Full path to genomic sequence file in 2bit format.')
