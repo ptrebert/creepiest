@@ -4,7 +4,7 @@ The CRoss spEcies EPIgenome ESTimation tool
 
 ## Code maturity
 
-Stable beta :neutral_face:
+Stable beta, with outdated dependencies (see `config/environment/conda_env_creepiest.yml` for dev environment spec).
 
 ## Installation
 
